@@ -32,7 +32,7 @@ use crate::history::History;
 use crate::history::journal::Journal;
 use crate::hotkeys::{Action, Binding, HotkeyEvent, Trigger};
 use crate::mic::Microphones;
-use crate::notify::{Notice, NoticeAction};
+use crate::notify::{Notice, NoticeAction, NoticeCategory};
 use crate::platform::{
     CuePlayer, FocusInspector, HotkeyBackend, Launcher, MediaControl, Permission, PermissionStatus,
     Permissions, PlatformError, TextInserter,
@@ -572,17 +572,23 @@ impl Controller {
             }
             CancelReason::ShortTap if command => {
                 recording.discard();
-                self.ui.notice(Notice::info(format!(
-                    "Hold {} while you speak a command, or double-press it for hands-free.",
-                    self.label_of(Action::CommandMode)
-                )));
+                self.ui.notice(
+                    Notice::info(format!(
+                        "Hold {} while you speak a command, or double-press it for hands-free.",
+                        self.label_of(Action::CommandMode)
+                    ))
+                    .in_category(NoticeCategory::Suggestion),
+                );
             }
             CancelReason::ShortTap => {
                 recording.discard();
-                self.ui.notice(Notice::info(format!(
-                    "Hold {} to dictate, or double-tap it for hands-free.",
-                    self.label_of(Action::PushToTalk)
-                )));
+                self.ui.notice(
+                    Notice::info(format!(
+                        "Hold {} to dictate, or double-tap it for hands-free.",
+                        self.label_of(Action::PushToTalk)
+                    ))
+                    .in_category(NoticeCategory::Suggestion),
+                );
             }
         }
     }

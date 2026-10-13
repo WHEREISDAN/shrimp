@@ -35,6 +35,7 @@ pub struct Settings {
     pub media: MediaSettings,
     pub languages: LanguageSettings,
     pub flow_bar: FlowBarSettings,
+    pub notifications: NotificationSettings,
 }
 
 impl Default for Settings {
@@ -56,6 +57,26 @@ impl Default for Settings {
             media: MediaSettings::default(),
             languages: LanguageSettings::default(),
             flow_bar: FlowBarSettings::default(),
+            notifications: NotificationSettings::default(),
+        }
+    }
+}
+
+/// Settings › Notifications (NOT-01): the categories that can be muted.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", default)]
+pub struct NotificationSettings {
+    pub suggestions: bool,
+    pub announcements: bool,
+    pub milestones: bool,
+}
+
+impl Default for NotificationSettings {
+    fn default() -> Self {
+        Self {
+            suggestions: true,
+            announcements: true,
+            milestones: true,
         }
     }
 }
@@ -117,6 +138,20 @@ pub struct NoticeSettings {
     /// "Speaking a different language?": the local date it was last shown, at most daily (LANG-04).
     pub language_card_day: String,
     pub language_card_off: bool,
+    /// Formatting tips shown so far (FMT-13).
+    pub formatting_tips: FormattingTips,
+}
+
+/// How many times each formatting tip was shown: one explanation, then up
+/// to 3 reminders, at most one a day.
+#[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", default)]
+pub struct FormattingTips {
+    pub list: u32,
+    pub email: u32,
+    pub backtrack: u32,
+    /// The local date a tip was last shown, YYYY-MM-DD.
+    pub day: String,
 }
 
 /// Data and privacy.

@@ -51,6 +51,7 @@ function backend(
         sounds: { ...settings.sounds, ...patch.sounds },
         media: { ...settings.media, ...patch.media },
         flowBar: { ...settings.flowBar, ...patch.flowBar },
+        notifications: { ...settings.notifications, ...patch.notifications },
       };
       return settings;
     },
@@ -299,6 +300,22 @@ describe("SettingsPage data and privacy", () => {
       ]),
     );
     await waitFor(() => expect(toggle).not.toBeChecked());
+  });
+});
+
+describe("SettingsPage notifications", () => {
+  it("mutes a category", async () => {
+    const { argsOf } = backend();
+    render(<SettingsPage />);
+    const milestones = await screen.findByRole("switch", { name: "Milestones" });
+    expect(milestones).toBeChecked();
+    fireEvent.click(milestones);
+    await waitFor(() =>
+      expect(argsOf("update_settings")).toEqual([
+        { patch: { notifications: { milestones: false } } },
+      ]),
+    );
+    await waitFor(() => expect(milestones).not.toBeChecked());
   });
 });
 

@@ -8,7 +8,7 @@ use chrono::{Datelike, Days, Months, NaiveDate};
 use rusqlite::Connection;
 use serde::Serialize;
 
-use crate::notify::{Notice, NoticeAction};
+use crate::notify::{Notice, NoticeAction, NoticeCategory};
 use crate::storage::{StorageError, stats};
 
 /// The heatmap covers this many days back from today.
@@ -183,19 +183,19 @@ pub fn milestone(before: i64, after: i64) -> Option<Milestone> {
 
 /// The "Milestones" notification for `milestone`.
 pub fn notice(milestone: Milestone) -> Notice {
-    match milestone {
-        Milestone::Words(count) => Notice::info(format!(
-            "You've dictated {} words with Shrimp.",
-            thousands(count)
-        ))
-        .with_action(NoticeAction::OpenInsights),
-        Milestone::VoiceProfile { first: true } => {
-            Notice::info("Discover your Voice Profile").with_action(NoticeAction::SeeVoiceProfile)
-        }
-        Milestone::VoiceProfile { first: false } => {
-            Notice::info("Update your Voice Profile").with_action(NoticeAction::UpdateVoiceProfile)
-        }
-    }
+    let notice =
+        match milestone {
+            Milestone::Words(count) => Notice::info(format!(
+                "You've dictated {} words with Shrimp.",
+                thousands(count)
+            ))
+            .with_action(NoticeAction::OpenInsights),
+            Milestone::VoiceProfile { first: true } => Notice::info("Discover your Voice Profile")
+                .with_action(NoticeAction::SeeVoiceProfile),
+            Milestone::VoiceProfile { first: false } => Notice::info("Update your Voice Profile")
+                .with_action(NoticeAction::UpdateVoiceProfile),
+        };
+    notice.in_category(NoticeCategory::Milestone)
 }
 
 /// 25000 as "25,000".

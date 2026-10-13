@@ -2,6 +2,7 @@
 //! how a variant shapes the output.
 
 pub mod catalog;
+pub mod french;
 pub mod spelling;
 
 use crate::settings::LanguageSettings;
@@ -79,6 +80,14 @@ pub fn whisper_hints(settings: &LanguageSettings) -> Vec<(String, String)> {
             whisper_hint(id).map(|hint| (catalog::whisper_code(id).to_owned(), hint.to_owned()))
         })
         .collect()
+}
+
+/// Whether French typography applies (FMT-14): the dictation was in French.
+pub fn is_french(settings: &LanguageSettings, detected: Option<&str>) -> bool {
+    match detected {
+        Some(code) => code == "fr",
+        None => variant(settings, None).is_some_and(|id| catalog::whisper_code(id) == "fr"),
+    }
 }
 
 /// Deterministic spelling for the variant, after any AI edit.

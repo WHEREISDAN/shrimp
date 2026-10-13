@@ -9,11 +9,12 @@ use super::learn::LearnTarget;
 use super::state::{Delivered, Outcome, Processed};
 use crate::audio::{AudioClip, level};
 use crate::context::{AppKind, DictationContext, PendingContext};
+use crate::edit::tips::{self, Formatting};
 use crate::edit::{CleanupLevel, Editor};
 use crate::history::{Dictation, History};
 use crate::insights;
 use crate::lang;
-use crate::notify::Notice;
+use crate::notify::{Notice, NoticeCategory};
 use crate::settings::SettingsStore;
 use crate::storage::{HistoryStatus, now_ms};
 
@@ -118,6 +119,11 @@ impl Pipeline {
                 };
             }
         }
+        if matches!(outcome, Outcome::Inserted(_))
+            && let Some(tip) = self.formatting_tip(edited.formatting)
+        {
+            notices.push(tip);
+        }
         // A plain dictation in a text field the user may now correct (DIC-07).
         let learn = match (&outcome, context.readable_field()) {
             (Outcome::Inserted(delivered), Some(field))
@@ -137,6 +143,24 @@ impl Pipeline {
             record: Some(record),
             ..outcome.into()
         }
+    }
+
+    /// The formatting tip this dictation earns (FMT-13), counted when shown.
+    fn formatting_tip(&self, formatting: Formatting) -> Option<Notice> {
+        let settings = self.settings.get();
+        if !NoticeCategory::Announcement.allowed(&settings.notifications) {
+            return None;
+        }
+        let today = chrono::Local::now().format("%Y-%m-%d").to_string();
+        let (tip, explanation, shown) =
+            tips::next(formatting, &settings.notices.formatting_tips, &today)?;
+        if let Err(error) = self
+            .settings
+            .update(&serde_json::json!({"notices": {"formattingTips": shown}}))
+        {
+            log::warn!("could not count the tip: {error}");
+        }
+        Some(tips::notice(tip, explanation))
     }
 
     /// What History will store for `clip`, before it is transcribed.

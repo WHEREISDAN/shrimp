@@ -19,6 +19,7 @@ pub mod prompts;
 pub mod snippets;
 pub mod spoken;
 pub mod style;
+pub mod tips;
 pub mod transforms;
 
 use serde::{Deserialize, Serialize};

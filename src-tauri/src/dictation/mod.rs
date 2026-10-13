@@ -7,12 +7,14 @@ mod controller;
 pub mod gestures;
 pub mod learn;
 pub mod media;
+mod muted;
 mod outcomes;
 mod pipeline;
 mod state;
 mod transform;
 
 pub use controller::{ControllerHandle, Services, spawn};
+pub use muted::MutedNotices;
 pub use pipeline::transcribe;
 pub use state::{
     Answer, ControllerInput, Delivered, DictationState, DictationUi, Mode, RecordingStatus, Timing,

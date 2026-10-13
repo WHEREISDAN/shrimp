@@ -120,6 +120,7 @@ export const SETTINGS: Settings = {
     bluetoothAdviceOff: false,
     languageCardDay: "",
     languageCardOff: false,
+    formattingTips: { list: 0, email: 0, backtrack: 0, day: "" },
   },
   transforms: {
     enabled: false,
@@ -138,6 +139,7 @@ export const SETTINGS: Settings = {
   media: { mute: false, pause: false },
   languages: { autoDetect: false, selected: ["en-US"], active: null },
   flowBar: { alwaysShow: true, hiddenUntil: 0, edge: "bottom", position: 0.5 },
+  notifications: { suggestions: true, announcements: true, milestones: true },
 };
 
 export const MODELS: ModelStatus[] = [

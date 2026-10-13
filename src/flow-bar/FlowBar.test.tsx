@@ -105,6 +105,7 @@ describe("FlowBar", () => {
       level: "warning",
       message: "No text field is focused. Your transcript is on the clipboard.",
       actions: ["copyLastTranscript"],
+      category: "status",
     };
     await act(async () => emit(EVENTS.notice, notice));
     expect(screen.getByRole("status")).toHaveTextContent("No text field is focused.");
@@ -116,7 +117,35 @@ describe("FlowBar", () => {
         args: { action: "copyLastTranscript" },
       }),
     );
-    expect(screen.queryByText(/No text field/)).not.toBeInTheDocument();
+    // The button confirms with a ✓, then the notice goes (NOT-02).
+    expect(screen.getByRole("button", { name: "Done" })).toHaveTextContent("✓");
+    await waitFor(() => expect(screen.queryByText(/No text field/)).not.toBeInTheDocument());
+  });
+
+  it("queues notices, and an error interrupts", async () => {
+    backend();
+    render(<FlowBar />);
+    await screen.findByRole("button", { name: "Start dictation" });
+    const notice = (id: number, level: Notice["level"], message: string): Notice => ({
+      id,
+      level,
+      message,
+      actions: [],
+      category: "status",
+    });
+    await act(async () => emit(EVENTS.notice, notice(1, "info", "First")));
+    await act(async () => emit(EVENTS.notice, notice(2, "info", "Second")));
+    expect(screen.getByText("First")).toBeInTheDocument();
+    expect(screen.queryByText("Second")).not.toBeInTheDocument();
+
+    await act(async () => emit(EVENTS.notice, notice(3, "error", "Broken")));
+    expect(screen.getByRole("alert")).toHaveTextContent("Broken");
+    expect(screen.queryByText("First")).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Dismiss notification" }));
+    expect(screen.getByText("First")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Dismiss notification" }));
+    expect(screen.getByText("Second")).toBeInTheDocument();
   });
 
   it("marks a Command Mode session", async () => {
@@ -207,7 +236,13 @@ describe("FlowBar", () => {
     backend();
     render(<FlowBar />);
     await screen.findByRole("button", { name: "Start dictation" });
-    const notice: Notice = { id: 9, level: "warning", message: "No audio", actions: [] };
+    const notice: Notice = {
+      id: 9,
+      level: "warning",
+      message: "No audio",
+      actions: [],
+      category: "status",
+    };
     await act(async () => emit(EVENTS.notice, notice));
     expect(screen.getByText("No audio")).toBeInTheDocument();
     await act(async () => emit(EVENTS.dismiss, 9));

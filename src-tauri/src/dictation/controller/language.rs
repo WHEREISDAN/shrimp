@@ -11,7 +11,7 @@ use super::Controller;
 use crate::audio::{AudioClip, level};
 use crate::dictation::state::ControllerInput;
 use crate::lang;
-use crate::notify::{Notice, NoticeAction};
+use crate::notify::{Notice, NoticeAction, NoticeCategory};
 
 /// Only a clear guess counts.
 const CONFIDENT: f32 = 0.75;
@@ -84,7 +84,8 @@ impl Controller {
             ))
             .with_action(NoticeAction::OpenLanguageSettings)
             .with_action(NoticeAction::AddDetectedLanguage)
-            .with_action(NoticeAction::DismissLanguageCard),
+            .with_action(NoticeAction::DismissLanguageCard)
+            .in_category(NoticeCategory::Suggestion),
         );
         self.detected_language = Some(code);
     }

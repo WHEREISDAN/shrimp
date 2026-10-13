@@ -55,6 +55,8 @@ export interface Notice {
   message: string;
   /** Buttons, in order. */
   actions: NoticeAction[];
+  /** Which Settings › Notifications switch mutes it; status notices always show. */
+  category: "status" | "suggestion" | "announcement" | "milestone";
 }
 
 /** Mirrors `dictation::Answer`: a Command Mode answer shown in the Flow Bar. */
@@ -276,6 +278,7 @@ export interface Settings {
     bluetoothAdviceOff: boolean;
     languageCardDay: string;
     languageCardOff: boolean;
+    formattingTips: { list: number; email: number; backtrack: number; day: string };
   };
   transforms: TransformSettings;
   vibeCoding: { fileTagging: boolean };
@@ -296,6 +299,8 @@ export interface Settings {
     /** From 0 (left or top) to 1 along the edge. */
     position: number;
   };
+  /** Settings › Notifications: the categories that can be muted. */
+  notifications: { suggestions: boolean; announcements: boolean; milestones: boolean };
 }
 
 /** A JSON merge patch for `update_settings`: any subset of the settings. */
@@ -310,6 +315,7 @@ export interface SettingsPatch {
   sounds?: Partial<Settings["sounds"]>;
   media?: Partial<Settings["media"]>;
   flowBar?: Partial<Settings["flowBar"]>;
+  notifications?: Partial<Settings["notifications"]>;
   /** `null` restores a default (a whole section, or Polish's rules). */
   transforms?: {
     enabled?: boolean;

@@ -21,7 +21,7 @@ use preview::Preview;
 
 use crate::audio::{AudioError, AudioSource, DeviceKind, DeviceProvider, InputDevice};
 use crate::dictation::DictationUi;
-use crate::notify::{Notice, NoticeAction};
+use crate::notify::{Notice, NoticeAction, NoticeCategory};
 use crate::settings::{MicrophoneSettings, SettingsStore};
 
 /// How often connected devices are checked (hot-plug).
@@ -201,7 +201,8 @@ impl Microphones {
                 device.name
             ))
             .with_action(NoticeAction::SwitchMicrophone)
-            .with_action(NoticeAction::DismissBluetoothAdvice),
+            .with_action(NoticeAction::DismissBluetoothAdvice)
+            .in_category(NoticeCategory::Suggestion),
         );
     }
 

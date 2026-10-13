@@ -12,7 +12,8 @@ use super::guard::{self, Rejection};
 use super::library::{Library, Snapshot};
 use super::markdown::{self, Rendered, SNIPPET_END, SNIPPET_START};
 use super::prompts::{self, PromptOptions};
-use super::style::{self, Style, Target};
+use super::style::{self, AppCategory, Style, Target};
+use super::tips::{self, Formatting};
 use super::transforms::AutoApply;
 use super::{CleanupLevel, context_format, dictionary, file_tags, names, snippets, spoken};
 use crate::context::DictationContext;
@@ -77,6 +78,8 @@ pub struct Edited {
     pub press_enter: bool,
     /// Dictionary corrections and snippets applied, for Insights (STA-01).
     pub dictionary_fixes: usize,
+    /// What smart formatting did, for its tips (FMT-13).
+    pub formatting: Formatting,
 }
 
 impl Default for Edited {
@@ -88,6 +91,7 @@ impl Default for Edited {
             llm_ms: None,
             press_enter: false,
             dictionary_fixes: 0,
+            formatting: Formatting::default(),
         }
     }
 }
@@ -215,6 +219,13 @@ impl Editor {
         let variant = lang::variant(&settings.languages, context.language.as_deref());
         edited.text.plain = lang::shape(&edited.text.plain, variant);
         edited.text.html = edited.text.html.map(|html| lang::shape(&html, variant));
+        // French typography, except in developer apps (FMT-14).
+        if lang::is_french(&settings.languages, context.language.as_deref())
+            && !context.is_developer()
+        {
+            edited.text.plain = lang::french::apply(&edited.text.plain);
+            edited.text.html = edited.text.html.map(|html| lang::french::apply(&html));
+        }
         edited
     }
 
@@ -358,13 +369,30 @@ impl Editor {
             let library = Arc::clone(&self.library);
             tokio::task::spawn_blocking(move || library.record_uses(&used));
         }
+        let formatted = formatted && kept_placeholders;
+        let formatting = if formatted && level != CleanupLevel::None {
+            Formatting {
+                list: held.is_empty()
+                    && text
+                        .html
+                        .as_deref()
+                        .is_some_and(|html| html.contains("<ol") || html.contains("<ul")),
+                email: target.category == AppCategory::Email
+                    && !target.ai_app
+                    && text.plain.contains("\n\n"),
+                backtrack: tips::backtracked(raw, &text.plain),
+            }
+        } else {
+            Formatting::default()
+        };
         Edited {
             text,
-            formatted: formatted && kept_placeholders,
+            formatted,
             notice,
             llm_ms,
             press_enter: false,
             dictionary_fixes: corrections + held.len(),
+            formatting,
         }
     }
 

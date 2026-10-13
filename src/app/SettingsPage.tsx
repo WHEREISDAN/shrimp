@@ -13,6 +13,7 @@ import { ExperimentalSection } from "./ExperimentalSection";
 import { FlowBarSection } from "./FlowBarSection";
 import { LanguagesSection } from "./LanguagesSection";
 import { MicrophoneSection } from "./MicrophoneSection";
+import { NotificationsSection } from "./NotificationsSection";
 import { Page } from "./Page";
 import { PrivacySection } from "./PrivacySection";
 import { ShortcutsSection } from "./ShortcutsSection";
@@ -117,6 +118,7 @@ export function SettingsPage({
           <LanguagesSection reveal={revealLanguages} />
           <SoundSection settings={settings} update={update} />
           <FlowBarSection settings={settings} update={update} />
+          <NotificationsSection settings={settings} update={update} />
           <PrivacySection settings={settings} update={update} />
           <VibeCodingSection settings={settings} update={update} />
           <ExperimentalSection

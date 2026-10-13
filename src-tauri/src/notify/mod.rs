@@ -14,9 +14,38 @@ pub struct Notice {
     pub message: String,
     /// Buttons, in order.
     pub actions: Vec<NoticeAction>,
+    /// Which Settings › Notifications switch mutes it, if any (NOT-01).
+    pub category: NoticeCategory,
     /// Comes with the notice sound (warnings and errors with no cue of their own).
     #[serde(skip)]
     pub sound: bool,
+}
+
+/// Settings › Notifications (NOT-01). Status notices (errors, permissions,
+/// the microphone, what a dictation did) can't be muted.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub enum NoticeCategory {
+    #[default]
+    Status,
+    /// Setup and usage tips.
+    Suggestion,
+    /// New features and formatting tips.
+    Announcement,
+    /// Word counts and the voice profile.
+    Milestone,
+}
+
+impl NoticeCategory {
+    /// Whether the user's switches let this category through.
+    pub fn allowed(self, settings: &crate::settings::NotificationSettings) -> bool {
+        match self {
+            Self::Status => true,
+            Self::Suggestion => settings.suggestions,
+            Self::Announcement => settings.announcements,
+            Self::Milestone => settings.milestones,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
@@ -119,8 +148,14 @@ impl Notice {
             level,
             message: message.into(),
             actions: Vec::new(),
+            category: NoticeCategory::Status,
             sound: level != NoticeLevel::Info,
         }
+    }
+
+    pub fn in_category(mut self, category: NoticeCategory) -> Self {
+        self.category = category;
+        self
     }
 
     pub fn info(message: impl Into<String>) -> Self {
@@ -163,7 +198,21 @@ mod tests {
         assert_eq!(json["level"], "warning");
         assert_eq!(json["message"], "No text field");
         assert_eq!(json["actions"], serde_json::json!(["copyLastTranscript"]));
+        assert_eq!(json["category"], "status");
         assert!(json["id"].as_u64().unwrap() > 0);
+    }
+
+    #[test]
+    fn only_tips_announcements_and_milestones_can_be_muted() {
+        let muted = crate::settings::NotificationSettings {
+            suggestions: false,
+            announcements: false,
+            milestones: false,
+        };
+        assert!(NoticeCategory::Status.allowed(&muted));
+        assert!(!NoticeCategory::Suggestion.allowed(&muted));
+        assert!(!NoticeCategory::Milestone.allowed(&muted));
+        assert!(NoticeCategory::Announcement.allowed(&Default::default()));
     }
 
     #[test]

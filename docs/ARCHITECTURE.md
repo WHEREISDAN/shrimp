@@ -77,6 +77,7 @@ audio/                  audio input                                             
 lang/                   languages (LANG-01..05)                                        (built)
   catalog.rs            Whisper's languages plus English, Chinese, German variants     (built)
   spelling.rs           US/UK/Canadian spelling, ß→ss, Simplified/Traditional (hanconv) (built)
+  french.rs             narrow no-break spaces before ; : ! ? (FMT-14)                 (built)
   mod.rs                what the engine is told, the variant, prompt rules            (built)
 mic/                    microphones (MIC-02..08)                                       (built)
   mod.rs                Microphones: choose, rank, hot-plug prompt, Bluetooth advice   (built)
@@ -117,6 +118,7 @@ edit/                   AI edit pipeline                                        
   code.rs               identifiers, case commands, dev terms, shell commands (DEV-02/03) (built)
   file_tags.rs          @-mentions of visible files in Cursor/Windsurf chat (DEV-01)   (built)
   failure.rs            why an AI edit wasn't used, and its notice                     (built)
+  tips.rs               formatting tips: list, email, backtrack (FMT-13)               (built)
   command.rs            Command Mode prompt, tagged reply parsing (CMD-01..03)         (built)
   transforms.rs         Polish, Prompt Engineer, custom transforms, auto-apply         (built)
 history/                transcript history (HIS-01..08)                                (built)
@@ -148,6 +150,7 @@ dictation/              orchestration                                           
   bindings.rs           the shortcuts bound at each moment; add, replace, remove,
                         reset as settings patches (KEYS-02, KEYS-08)                  (built)
   outcomes.rs           notices and paste-last memory per outcome                      (built)
+  muted.rs              MutedNotices: drops notices whose category is switched off     (built)
   state.rs              DictationState, DictationUi, Timing, inputs, outcomes          (built)
 hotkeys/                bindings, platform independent                                 (built)
   binding.rs            Action, Binding (with pass-through), macOS defaults (with and
@@ -177,7 +180,7 @@ settings/               typed Settings, JSON file, merge-patch updates, change e
 secrets/                API keys in the OS keychain (keyring), cached in memory        (built)
 sounds/                 start/stop/lock/cancel/warning/notice cues, synthesised;
                         SettingsCues and SoundingNotices follow Settings › Sound      (built)
-notify/                 notices shown next to the Flow Bar                             (built)
+notify/                 notices shown next to the Flow Bar, with their category        (built)
 ```
 
 Rules: keep files under about 300–500 lines with one responsibility each; domain modules never
@@ -1088,7 +1091,8 @@ the controller, which rebinds shortcuts, and the model manager, which loads a ne
 Whisper model. `microphone` (selection and ranking), `sounds` (dictation and notification
 sounds) and `media` (mute or pause while dictating, at most one) hold Settings ›
 Microphone and Sound. `languages` (above) and `flowBar` (`alwaysShow`, `hiddenUntil`,
-`edge`, `position`) hold Languages and the Flow Bar. Later phases add privacy, system,
+`edge`, `position`) hold Languages and the Flow Bar; `notifications` (`suggestions`,
+`announcements`, `milestones`) holds Settings › Notifications. Later phases add privacy, system,
 notifications and onboarding.
 
 ### Secrets (built)
@@ -1102,6 +1106,29 @@ memory after the first read, so dictations don't query the keychain. Keys are ne
 logged, written to settings or sent to the webview; the UI only learns whether one is set
 (`get_api_keys`). Keys are written by the app itself (`set_api_key`), so the keychain item
 belongs to the signed app and reading it never prompts.
+
+### Notifications (NOT-01, NOT-02, FMT-13)
+
+Every notice has a category. Status notices (errors, permissions, the microphone, what a
+dictation did) always show; Suggestions (usage tips such as the short-tap tip, Bluetooth
+advice, the different-language card), Announcements (formatting tips) and Milestones
+(word counts, the voice profile) follow Settings › Notifications (`settings.notifications`).
+`MutedNotices` wraps the notice chain (`MutedNotices` → `SoundingNotices` → `TauriUi`), so a
+muted notice neither sounds nor shows. The Flow Bar shows one notice at a time: an error
+replaces what shows (which waits to come back), others wait their turn
+(`flow-bar/noticeQueue.ts`); a pressed action shows ✓ for 0.7 s before the notice goes.
+The panel never takes focus.
+
+Formatting tips (`edit/tips.rs`): the edit reports whether the AI made a list (`<ol>`
+or `<ul>` in the HTML), an email layout (an Email app and a blank line) or a backtrack
+(a cue such as "actually" or "scratch that" in the transcript but not in the result).
+The first of each gets an explanation, then up to 3 reminders, at most one tip a day
+(`notices.formattingTips`). Muted tips aren't counted.
+
+French typography (`lang/french.rs`): when the dictation was in French and the app
+isn't a code editor or terminal, a narrow no-break space (U+202F) goes before `; : ! ?`,
+replacing a typed space; times (10:30), URLs, emails, paths and emoticons are left
+alone.
 
 ## Errors, logging and notices
 

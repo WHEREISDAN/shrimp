@@ -16,7 +16,7 @@ pub use shrimp_lib::audio::{
 pub use shrimp_lib::dictation::gestures::BarControl;
 pub use shrimp_lib::dictation::{
     self, Answer, ControllerHandle, ControllerInput, DictationState, DictationUi, Mode,
-    RecordingStatus, Services, Timing, TransformAction, TransformView,
+    MutedNotices, RecordingStatus, Services, Timing, TransformAction, TransformView,
 };
 pub use shrimp_lib::edit::{CleanupLevel, EditTimeout, Editor, FixedLibrary, Snapshot};
 pub use shrimp_lib::history::{History, HistoryList, RetryKind};
@@ -28,7 +28,7 @@ pub use shrimp_lib::llm::{
     LlmError, LlmProvider, LlmProviderId, LlmRequest, LlmResponse, LlmSource,
 };
 pub use shrimp_lib::mic::Microphones;
-pub use shrimp_lib::notify::Notice;
+pub use shrimp_lib::notify::{Notice, NoticeCategory};
 pub use shrimp_lib::platform::{
     AppIdentity, ContextRequest, CuePlayer, FieldContext, FocusInspector, HotkeyBackend,
     InsertOptions, InsertOutcome, InsertText, Launcher, MediaControl, Permission, PermissionStatus,
@@ -501,9 +501,12 @@ impl Harness {
             Arc::new(FakeSounds(Arc::clone(&fakes))),
             Arc::clone(&settings),
         ));
-        let ui: Arc<dyn DictationUi> = Arc::new(SoundingNotices::new(
-            Arc::new(FakeUi(Arc::clone(&fakes))),
-            Arc::clone(&cues),
+        let ui: Arc<dyn DictationUi> = Arc::new(MutedNotices::new(
+            Arc::new(SoundingNotices::new(
+                Arc::new(FakeUi(Arc::clone(&fakes))),
+                Arc::clone(&cues),
+            )),
+            Arc::clone(&settings),
         ));
         let microphones = setup.microphones.map(|devices| {
             Microphones::new(

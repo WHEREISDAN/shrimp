@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useReducer, useRef, useState } from "react";
 import {
   EVENTS,
   flowBarReady,
@@ -16,6 +16,7 @@ import { ChangesCard } from "./ChangesCard";
 import { FlowBarMenu } from "./FlowBarMenu";
 import { LanguageSwitch } from "./LanguageSwitch";
 import { NoticeCard } from "./NoticeCard";
+import { EMPTY_QUEUE, noticeQueue } from "./noticeQueue";
 import { Pill } from "./Pill";
 import { useContentSize } from "./useContentSize";
 
@@ -35,7 +36,8 @@ const silence = (): number[] => Array.from({ length: WAVE_BARS }, () => 0);
 export function FlowBar() {
   const [state, setState] = useState<DictationState>({ phase: "idle" });
   const [levels, setLevels] = useState<number[]>(silence);
-  const [notice, setNotice] = useState<Notice | null>(null);
+  const [notices, dispatch] = useReducer(noticeQueue, EMPTY_QUEUE);
+  const notice = notices.current;
   const [answer, setAnswer] = useState<Answer | null>(null);
   const [changes, setChanges] = useState<TransformView | null>(null);
   const [hovered, setHovered] = useState(false);
@@ -93,10 +95,12 @@ export function FlowBar() {
   useTauriEvent<number>(EVENTS.level, (level) => {
     setLevels((previous) => [...previous.slice(1), level]);
   });
-  useTauriEvent<Notice>(EVENTS.notice, setNotice, () => void flowBarReady());
-  useTauriEvent<number>(EVENTS.dismiss, (id) =>
-    setNotice((current) => (current?.id === id ? null : current)),
+  useTauriEvent<Notice>(
+    EVENTS.notice,
+    (next) => dispatch({ type: "add", notice: next }),
+    () => void flowBarReady(),
   );
+  useTauriEvent<number>(EVENTS.dismiss, (id) => dispatch({ type: "remove", id }));
   useTauriEvent<Answer>(EVENTS.answer, setAnswer);
   useTauriEvent<TransformView>(EVENTS.changes, setChanges);
   // The panel never becomes key, so WebKit sends no hover events; Rust tracks the cursor.
@@ -124,7 +128,7 @@ export function FlowBar() {
       return;
     }
     const timer = setTimeout(
-      () => setNotice((current) => (current?.id === notice.id ? null : current)),
+      () => dispatch({ type: "remove", id: notice.id }),
       NOTICE_DURATION_MS[notice.level],
     );
     return () => clearTimeout(timer);
@@ -146,7 +150,13 @@ export function FlowBar() {
       {menu && <FlowBarMenu onClose={() => setMenu(false)} />}
       {changes && <ChangesCard view={changes} onClose={() => setChanges(null)} />}
       {answer && <AnswerCard answer={answer} onDismiss={() => setAnswer(null)} />}
-      {notice && <NoticeCard notice={notice} onDismiss={() => setNotice(null)} />}
+      {notice && (
+        <NoticeCard
+          key={notice.id}
+          notice={notice}
+          onDismiss={() => dispatch({ type: "remove", id: notice.id })}
+        />
+      )}
       {hovered && <LanguageSwitch />}
       {(state.phase !== "idle" || resting) && (
         <Pill state={state} levels={levels} error={notice?.level === "error"} />

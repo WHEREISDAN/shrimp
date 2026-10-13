@@ -1,32 +1,9 @@
+import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { runNoticeAction, type Notice, type NoticeAction } from "../lib/ipc";
 
-const ACTION_LABELS: Record<NoticeAction, string> = {
-  copyLastTranscript: "Copy",
-  openAccessibilitySettings: "Open Settings",
-  openMicrophoneSettings: "Open Settings",
-  openKeyboardSettings: "Open Settings",
-  retryModelDownload: "Retry",
-  openAiSettings: "Open Settings",
-  openExperimentalSettings: "Go to settings",
-  viewTransformChanges: "See changes",
-  openDictionary: "View",
-  undoCancel: "Undo",
-  chooseMicrophone: "Choose microphone",
-  switchMicrophone: "Switch microphone",
-  switchToNewMicrophone: "Switch",
-  keepMicrophone: "Don't switch",
-  dismissBluetoothAdvice: "Don't show again",
-  openSoundSettings: "Open Sound Settings",
-  troubleshootMicrophone: "Troubleshoot",
-  openLanguageSettings: "Open language settings",
-  addDetectedLanguage: "Add language",
-  dismissLanguageCard: "Don't show again",
-  showFlowBar: "Undo",
-  openHistory: "Open History",
-  openInsights: "View insights",
-  seeVoiceProfile: "See profile",
-  updateVoiceProfile: "Update profile",
-};
+/** How long a pressed action shows its ✓ before the notice goes (NOT-02). */
+const CONFIRM_MS = 700;
 
 interface NoticeCardProps {
   notice: Notice;
@@ -34,6 +11,17 @@ interface NoticeCardProps {
 }
 
 export function NoticeCard({ notice, onDismiss }: NoticeCardProps) {
+  const { t } = useTranslation();
+  const [confirmed, setConfirmed] = useState<NoticeAction | null>(null);
+
+  useEffect(() => {
+    if (!confirmed) {
+      return;
+    }
+    const timer = setTimeout(onDismiss, CONFIRM_MS);
+    return () => clearTimeout(timer);
+  }, [confirmed, onDismiss]);
+
   return (
     <div
       className={`notice notice-${notice.level}`}
@@ -44,16 +32,23 @@ export function NoticeCard({ notice, onDismiss }: NoticeCardProps) {
         <button
           key={action}
           type="button"
-          className="notice-action"
+          className={confirmed === action ? "notice-action confirmed" : "notice-action"}
+          disabled={confirmed !== null}
+          aria-label={confirmed === action ? t("notice.done") : undefined}
           onClick={() => {
             void runNoticeAction(action).catch(() => undefined);
-            onDismiss();
+            setConfirmed(action);
           }}
         >
-          {ACTION_LABELS[action]}
+          {confirmed === action ? "✓" : t(`notice.actions.${action}`)}
         </button>
       ))}
-      <button type="button" className="notice-close" aria-label="Dismiss" onClick={onDismiss}>
+      <button
+        type="button"
+        className="notice-close"
+        aria-label={t("notice.dismiss")}
+        onClick={onDismiss}
+      >
         ×
       </button>
     </div>

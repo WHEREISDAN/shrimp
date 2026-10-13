@@ -17,7 +17,7 @@ use crate::commands::history::Clipboard;
 use crate::commands::insights::AppLlm;
 use crate::commands::permissions::AppPermissions;
 use crate::commands::shortcuts::DefaultBindings;
-use crate::dictation::{self, ControllerInput, DictationUi, Services, Timing};
+use crate::dictation::{self, ControllerInput, DictationUi, MutedNotices, Services, Timing};
 use crate::edit::{EditTimeout, Editor, Library};
 use crate::history::History;
 use crate::lang;
@@ -35,6 +35,8 @@ pub fn setup(app: &mut App) -> Result<(), Box<dyn std::error::Error>> {
     let handle = app.handle().clone();
     let platform = platform::native(main_thread(&handle));
 
+    let data_dir = app.path().app_data_dir()?;
+    let settings = Arc::new(SettingsStore::load(data_dir.join("settings.json")));
     let ui = Arc::new(TauriUi::new(handle.clone()));
     if let Some(conflict) = platform.globe_key.conflict() {
         ui.notice(
@@ -45,8 +47,6 @@ pub fn setup(app: &mut App) -> Result<(), Box<dyn std::error::Error>> {
             .with_action(NoticeAction::OpenKeyboardSettings),
         );
     }
-    let data_dir = app.path().app_data_dir()?;
-    let settings = Arc::new(SettingsStore::load(data_dir.join("settings.json")));
     let emitter = handle.clone();
     settings.on_change(Box::new(move |settings| {
         let _ = emitter.emit(SETTINGS_EVENT, settings);
@@ -89,9 +89,13 @@ pub fn setup(app: &mut App) -> Result<(), Box<dyn std::error::Error>> {
     // Sounds follow Settings › Sound, and warnings come with the notice sound (SND-02).
     let cues: Arc<dyn CuePlayer> =
         Arc::new(SettingsCues::new(platform.sounds, Arc::clone(&settings)));
-    let dictation_ui: Arc<dyn DictationUi> = Arc::new(SoundingNotices::new(
-        Arc::clone(&ui) as Arc<dyn DictationUi>,
-        Arc::clone(&cues),
+    // Muted categories are dropped before they can sound (NOT-01).
+    let dictation_ui: Arc<dyn DictationUi> = Arc::new(MutedNotices::new(
+        Arc::new(SoundingNotices::new(
+            Arc::clone(&ui) as Arc<dyn DictationUi>,
+            Arc::clone(&cues),
+        )),
+        Arc::clone(&settings),
     ));
     #[cfg(debug_assertions)]
     let devices: Arc<dyn DeviceProvider> = {
