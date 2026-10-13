@@ -2,7 +2,7 @@ import { fireEvent, render, screen, waitFor, within } from "@testing-library/rea
 import { describe, expect, it } from "vitest";
 import type { DictionaryEntry } from "../lib/ipc";
 import { DictionaryPage } from "./DictionaryPage";
-import { entry, mockDictionary } from "./testBackend";
+import { entry, mockDictionary, SETTINGS } from "./testBackend";
 
 const WORDS: DictionaryEntry[] = [
   entry({ id: 1, term: "Shrimp", pinned: true, uses: 3 }),
@@ -226,5 +226,20 @@ describe("DictionaryPage", () => {
     fireEvent.click(within(dialog).getByRole("button", { name: "Cancel" }));
     expect(opener).toHaveFocus();
     expect(document.querySelector(".page")).not.toHaveAttribute("inert");
+  });
+});
+
+describe("DictionaryPage auto-add", () => {
+  it("shows learned words with a badge and turns auto-add off", async () => {
+    const { argsOf } = mockDictionary([entry({ id: 1, term: "Nguyen", source: "learned" })], {
+      get_settings: () => SETTINGS,
+      update_settings: () => ({ ...SETTINGS, dictionary: { autoLearn: false } }),
+    });
+    render(<DictionaryPage />);
+    expect(await screen.findByText("Learned")).toBeInTheDocument();
+    fireEvent.click(await screen.findByRole("switch", { name: "Auto-add to dictionary" }));
+    await waitFor(() =>
+      expect(argsOf("update_settings")).toEqual([{ patch: { dictionary: { autoLearn: false } } }]),
+    );
   });
 });

@@ -3,6 +3,7 @@ use std::time::Duration;
 use serde::Serialize;
 
 use super::gestures::{BarControl, RecordingMode};
+use super::learn::{LearnTarget, LearnTiming};
 use super::transform::{TransformRun, TransformView};
 use crate::audio::AudioClip;
 use crate::hotkeys::{Action, ShortcutEvent};
@@ -75,6 +76,8 @@ pub struct Timing {
     pub hotkey_retry: Duration,
     /// Lets focus return to the previous app after a tray menu closes.
     pub menu_paste_delay: Duration,
+    /// How the auto-learn watcher looks at the field (DIC-07).
+    pub learn: LearnTiming,
 }
 
 impl Default for Timing {
@@ -87,6 +90,7 @@ impl Default for Timing {
             level_interval: Duration::from_millis(33),
             hotkey_retry: Duration::from_secs(2),
             menu_paste_delay: Duration::from_millis(250),
+            learn: LearnTiming::default(),
         }
     }
 }
@@ -127,6 +131,8 @@ pub enum TransformAction {
 pub struct Processed {
     pub outcome: Outcome,
     pub notices: Vec<Notice>,
+    /// Where a dictation was pasted, to learn from corrections (DIC-07).
+    pub learn: Option<LearnTarget>,
 }
 
 impl From<Outcome> for Processed {
@@ -134,6 +140,7 @@ impl From<Outcome> for Processed {
         Self {
             outcome,
             notices: Vec::new(),
+            learn: None,
         }
     }
 }

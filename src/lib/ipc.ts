@@ -27,7 +27,8 @@ export type NoticeAction =
   | "retryModelDownload"
   | "openAiSettings"
   | "openExperimentalSettings"
-  | "viewTransformChanges";
+  | "viewTransformChanges"
+  | "openDictionary";
 
 /** Mirrors `notify::Notice`. */
 export interface Notice {
@@ -163,6 +164,7 @@ export interface Settings {
   notices: { commandModeOffCount: number; commandModeOffDay: string };
   transforms: TransformSettings;
   vibeCoding: { fileTagging: boolean };
+  dictionary: { autoLearn: boolean };
 }
 
 /** A JSON merge patch for `update_settings`: any subset of the settings. */
@@ -173,6 +175,7 @@ export interface SettingsPatch {
   privacy?: Partial<Settings["privacy"]>;
   experimental?: Partial<Settings["experimental"]>;
   vibeCoding?: Partial<Settings["vibeCoding"]>;
+  dictionary?: Partial<Settings["dictionary"]>;
   /** `null` restores a default (a whole section, or Polish's rules). */
   transforms?: {
     enabled?: boolean;

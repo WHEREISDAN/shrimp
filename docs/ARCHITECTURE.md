@@ -114,6 +114,7 @@ dictation/              orchestration                                           
   pipeline.rs           trim, transcribe, insert, press Enter                          (built)
   command.rs            a Command Mode session: target, search, replace, answer        (built)
   transform.rs          a transform run: source text, replace in place, retry, undo    (built)
+  learn.rs              dictionary auto-learn: watch the field, find respellings       (built)
   bindings.rs           the shortcuts bound at each moment                             (built)
   outcomes.rs           notices and paste-last memory per outcome                      (built)
   state.rs              DictationState, DictationUi, Timing, inputs, outcomes          (built)
@@ -693,6 +694,22 @@ The "press enter" voice command (Settings › Experimental, CORE-16) strips a fi
 enter" from the transcript before the edit and presses Enter 120 ms after a successful
 paste; "press enter" alone just presses Enter.
 
+### Dictionary auto-learn
+
+With **Auto-add to dictionary** on (the Dictionary page, DIC-07), a dictation pasted into
+a text field the context could read is watched by `dictation/learn.rs`: 0.4 s after the
+paste the field's text is read (it must contain the dictation), then once a second for a
+minute, until the next recording starts. When the text has changed and then stayed the
+same for a second, the changed span is found by its common prefix and suffix, widened
+to whole words, and accepted only inside the dictation: one to three words replaced by
+one, or as many words for as many. The new word is learned unless it has digits or
+symbols (paths, URLs, domains, emails, code, hashes, emoji, markdown), is an everyday
+English word, a very common first name or an everyday acronym, is already in the
+dictionary, or was deleted from it before (`dictionary_rejected`; adding it by hand
+forgives it). A casing fix of an unusual word ("tauri" → "Tauri") counts. Learned
+entries are marked `learned` (a "Learned" badge) and announced in one notice with View.
+Field text is read and compared on the device only.
+
 ## Context awareness
 
 When a recording starts, `context::capture` reads the frontmost app's focused field on
@@ -782,7 +799,7 @@ CREATE TABLE dictionary (                               -- P2
 -- A word is unique among words, a misspelling among corrections (any case).
 CREATE UNIQUE INDEX dictionary_key
   ON dictionary(misspelling IS NOT NULL, IFNULL(misspelling, term) COLLATE NOCASE);
-CREATE TABLE dictionary_rejected (term TEXT PRIMARY KEY COLLATE NOCASE);  -- auto-learn never re-adds (DIC-07, P3)
+CREATE TABLE dictionary_rejected (term TEXT PRIMARY KEY COLLATE NOCASE);  -- deleted words; auto-learn never re-adds them (DIC-07)
 
 CREATE TABLE snippets (                                 -- P2
   id         INTEGER PRIMARY KEY,
@@ -824,7 +841,7 @@ model per provider, Ollama model and address), `styles` (one per category, Forma
 default), `privacy` (`contextAwareness`, on by default), `experimental` (`commandMode`,
 `commandModeIntroSeen`, `pressEnterCommand`), `shortcuts` (`pressEnter`, set through
 `set_shortcut`), `notices` (how often one-off notices were shown), `transforms` and
-`vibeCoding` (`fileTagging`, on by default).
+`vibeCoding` (`fileTagging`, on by default) and `dictionary` (`autoLearn`, on by default).
 Shortcut fields default to unbound field by field, so a merge patch's `null` clears one. Every change is
 announced to listeners: the webview's `settings://changed` and the controller, which
 rebinds shortcuts. Later phases add shortcuts, microphone, languages, sounds, media, flowBar,

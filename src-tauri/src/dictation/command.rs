@@ -157,7 +157,11 @@ impl CommandRunner {
                 "The selection changed, so the result is on the clipboard.",
             ));
         }
-        Processed { outcome, notices }
+        Processed {
+            outcome,
+            notices,
+            learn: None,
+        }
     }
 
     /// The selection (read, or copied as a fallback), the field's text, or nothing.

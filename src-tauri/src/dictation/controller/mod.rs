@@ -4,6 +4,7 @@
 mod shortcuts;
 mod transforms;
 
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
@@ -12,6 +13,7 @@ use tokio::time::MissedTickBehavior;
 
 use super::command::CommandRunner;
 use super::gestures::{BarControl, CancelReason, Command, Gestures, Input, RecordingMode};
+use super::learn::{self, LearnTiming};
 use super::outcomes;
 use super::pipeline::Pipeline;
 use super::state::{
@@ -145,6 +147,9 @@ struct Controller {
     last_transform: Option<TransformRun>,
     /// A retry is running; its result updates the changes view.
     retrying: bool,
+    /// Moves on with every recording, which stops the auto-learn watcher.
+    generation: Arc<AtomicU64>,
+    learn_timing: LearnTiming,
 }
 
 impl Controller {
@@ -191,6 +196,8 @@ impl Controller {
             last_inserted_at: None,
             last_transform: None,
             retrying: false,
+            generation: Arc::new(AtomicU64::new(0)),
+            learn_timing: services.timing.learn,
         }
     }
 
@@ -313,6 +320,7 @@ impl Controller {
         // Capture starts before anything else, so the first word is kept (ENG-04).
         match available.and_then(|()| Recorder::start(spec.open())) {
             Ok(recorder) => {
+                self.generation.fetch_add(1, Ordering::SeqCst);
                 self.sessions += 1;
                 let session = self.sessions;
                 let app = self.focus.frontmost_app();
@@ -531,6 +539,18 @@ impl Controller {
             Outcome::Transformed(run) => self.transformed(run),
             Outcome::TransformUndone => self.last_transform = None,
             _ => {}
+        }
+        if let Some(target) = processed.learn
+            && self.settings.get().dictionary.auto_learn
+        {
+            tauri::async_runtime::spawn(learn::watch(
+                target,
+                Arc::clone(&self.focus),
+                Arc::clone(&self.pipeline.editor),
+                Arc::clone(&self.ui),
+                Arc::clone(&self.generation),
+                self.learn_timing,
+            ));
         }
         if let Some(last) = outcomes::report(processed.outcome, self.ui.as_ref()) {
             self.last = Some(last);

@@ -31,6 +31,11 @@ export function DictionaryRow({
         <p className="list-meta">
           {entry.pinned && <span className="badge">Pinned</span>}
           {entry.source === "imported" && <span className="badge">Imported from file</span>}
+          {entry.source === "learned" && (
+            <span className="badge" title="Added because you corrected it after a dictation">
+              Learned
+            </span>
+          )}
           {entry.uses > 0 && (
             <span className="muted">{`Used ${entry.uses} ${entry.uses === 1 ? "time" : "times"}`}</span>
           )}

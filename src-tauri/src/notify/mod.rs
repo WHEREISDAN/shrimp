@@ -38,6 +38,8 @@ pub enum NoticeAction {
     OpenExperimentalSettings,
     /// Shows what the last transform changed (TRF-04).
     ViewTransformChanges,
+    /// Opens the dictionary (words were learned, DIC-07).
+    OpenDictionary,
 }
 
 impl NoticeAction {
@@ -51,6 +53,7 @@ impl NoticeAction {
             Self::RetryModelDownload => "Retry",
             Self::OpenExperimentalSettings => "Go to settings",
             Self::ViewTransformChanges => "See changes",
+            Self::OpenDictionary => "View",
         }
     }
 }

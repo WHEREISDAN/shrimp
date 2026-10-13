@@ -20,6 +20,8 @@ export function App() {
       setRevealShortcuts((count) => count + 1);
     } else if (section === "settings") {
       setPage("settings");
+    } else if (section === "dictionary") {
+      setPage("dictionary");
     } else if (section === "experimental") {
       setPage("settings");
       setRevealExperimental((count) => count + 1);

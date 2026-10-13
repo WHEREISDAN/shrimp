@@ -294,7 +294,7 @@ async fn ai_edits_pass_the_eval_set() {
         let editor = Editor::new(
             Arc::new(SettingsStore::in_memory(settings(provider, &model, case))),
             Arc::new(Providers::new(client.clone(), Arc::clone(&secrets))),
-            Arc::new(FixedLibrary(snapshot(case))),
+            Arc::new(FixedLibrary::new(snapshot(case))),
             timeout,
         );
         let app = AppIdentity {

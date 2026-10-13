@@ -26,6 +26,7 @@ pub struct Settings {
     pub notices: NoticeSettings,
     pub transforms: TransformSettings,
     pub vibe_coding: VibeCodingSettings,
+    pub dictionary: DictionarySettings,
 }
 
 impl Default for Settings {
@@ -41,6 +42,7 @@ impl Default for Settings {
             notices: NoticeSettings::default(),
             transforms: TransformSettings::default(),
             vibe_coding: VibeCodingSettings::default(),
+            dictionary: DictionarySettings::default(),
         }
     }
 }
@@ -55,6 +57,20 @@ pub struct ExperimentalSettings {
     pub command_mode_intro_seen: bool,
     /// Ending a dictation with "press enter" presses Enter (CORE-16).
     pub press_enter_command: bool,
+}
+
+/// The Dictionary page's settings.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", default)]
+pub struct DictionarySettings {
+    /// Words the user respells after a paste are added (DIC-07).
+    pub auto_learn: bool,
+}
+
+impl Default for DictionarySettings {
+    fn default() -> Self {
+        Self { auto_learn: true }
+    }
 }
 
 /// Settings › Vibe coding.

@@ -110,6 +110,7 @@ export const SETTINGS: Settings = {
     autoApply: null,
   },
   vibeCoding: { fileTagging: true },
+  dictionary: { autoLearn: true },
 };
 
 export const AI_OPTIONS: AiOptions = {

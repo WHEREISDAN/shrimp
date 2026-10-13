@@ -46,6 +46,8 @@ pub struct Fakes {
     /// What reads after the first return, when set (the field changed).
     pub field_later: Mutex<Option<FieldContext>>,
     pub field_reads: AtomicUsize,
+    /// What each read returns in turn (the last one repeats), when set.
+    pub field_sequence: Mutex<Vec<FieldContext>>,
     /// What the fake engine transcribes; TEXT when None.
     pub transcript: Mutex<Option<String>>,
     pub pressed: Mutex<Vec<(SyntheticKey, Modifiers)>>,
@@ -172,6 +174,11 @@ impl FocusInspector for FakeFocus {
         let delay = *self.0.field_delay.lock().unwrap();
         std::thread::sleep(delay);
         let reads = self.0.field_reads.fetch_add(1, Ordering::SeqCst);
+        let sequence = self.0.field_sequence.lock().unwrap();
+        if let Some(last) = sequence.last() {
+            return Some(sequence.get(reads).unwrap_or(last).clone());
+        }
+        drop(sequence);
         match &*self.0.field_later.lock().unwrap() {
             Some(later) if reads > 0 => Some(later.clone()),
             _ => self.0.field.lock().unwrap().clone(),
@@ -372,6 +379,7 @@ pub struct Harness {
     pub controller: ControllerHandle,
     pub fakes: Arc<Fakes>,
     pub settings: Arc<SettingsStore>,
+    pub library: Arc<FixedLibrary>,
     pub _dir: tempfile::TempDir,
 }
 
@@ -397,10 +405,11 @@ impl Harness {
             delay: setup.llm_delay,
         });
         let settings = Arc::new(SettingsStore::in_memory(settings));
+        let library = Arc::new(FixedLibrary::new(setup.library));
         let editor = Arc::new(Editor::new(
             Arc::clone(&settings),
             Arc::new(FakeLlmSource(llm)),
-            Arc::new(FixedLibrary(setup.library)),
+            Arc::clone(&library) as Arc<dyn shrimp_lib::edit::Library>,
             EditTimeout {
                 base: Duration::from_millis(300),
                 per_word: Duration::ZERO,
@@ -436,6 +445,7 @@ impl Harness {
             controller,
             fakes,
             settings,
+            library,
             _dir: dir,
         }
     }
@@ -461,6 +471,11 @@ impl Harness {
 pub fn fast_timing() -> Timing {
     Timing {
         menu_paste_delay: Duration::ZERO,
+        learn: shrimp_lib::dictation::learn::LearnTiming {
+            settle: Duration::from_millis(50),
+            poll: Duration::from_millis(100),
+            watch_for: Duration::from_secs(3),
+        },
         ..Timing::default()
     }
 }

@@ -5,6 +5,7 @@ use std::time::{Duration, Instant};
 
 use handy_keys::Modifiers;
 
+use super::learn::LearnTarget;
 use super::state::{Delivered, Outcome, Processed};
 use crate::audio::{AudioClip, level};
 use crate::context::{AppKind, DictationContext, PendingContext};
@@ -63,7 +64,11 @@ impl Pipeline {
             } else {
                 Outcome::NothingToInsert
             };
-            return Processed { outcome, notices };
+            return Processed {
+                outcome,
+                notices,
+                learn: None,
+            };
         }
         let delivered = Delivered {
             text: InsertText {
@@ -83,7 +88,23 @@ impl Pipeline {
                 };
             }
         }
-        Processed { outcome, notices }
+        // A plain dictation in a text field the user may now correct (DIC-07).
+        let learn = match (&outcome, context.readable_field()) {
+            (Outcome::Inserted(delivered), Some(field))
+                if field.kind == FieldKind::Text && delivered.text.html.is_none() =>
+            {
+                Some(LearnTarget {
+                    field_id: field.field_id,
+                    inserted: delivered.text.plain.trim().to_owned(),
+                })
+            }
+            _ => None,
+        };
+        Processed {
+            outcome,
+            notices,
+            learn,
+        }
     }
 
     /// Transcribes with the chosen engine, falling back to local Whisper when

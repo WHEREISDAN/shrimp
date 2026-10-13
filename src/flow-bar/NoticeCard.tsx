@@ -9,6 +9,7 @@ const ACTION_LABELS: Record<NoticeAction, string> = {
   openAiSettings: "Open Settings",
   openExperimentalSettings: "Go to settings",
   viewTransformChanges: "See changes",
+  openDictionary: "View",
 };
 
 interface NoticeCardProps {

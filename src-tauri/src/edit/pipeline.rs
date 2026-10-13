@@ -126,6 +126,14 @@ impl Editor {
         }
     }
 
+    /// Adds words learned from corrections, on the blocking pool (DIC-07).
+    pub async fn learn(&self, words: Vec<String>) -> Vec<String> {
+        let library = Arc::clone(&self.library);
+        tokio::task::spawn_blocking(move || library.learn(&words))
+            .await
+            .unwrap_or_default()
+    }
+
     pub(super) fn settings(&self) -> Settings {
         self.settings.get()
     }

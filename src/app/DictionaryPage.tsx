@@ -8,6 +8,7 @@ import {
   setDictionaryPinned,
   type DictionaryEntry,
 } from "../lib/ipc";
+import { AutoLearnToggle } from "./AutoLearnToggle";
 import { ConfirmDialog } from "./ConfirmDialog";
 import { DictionaryDialog } from "./DictionaryDialog";
 import { DictionaryRow } from "./DictionaryRow";
@@ -182,6 +183,7 @@ export function DictionaryPage() {
 
   return (
     <Page title="Dictionary" actions={actions} modal={modal}>
+      <AutoLearnToggle />
       <input
         type="search"
         className="search"

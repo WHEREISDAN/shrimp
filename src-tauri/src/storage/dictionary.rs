@@ -168,7 +168,47 @@ pub fn add(
         "INSERT INTO dictionary (term, misspelling, source, created_at) VALUES (?1, ?2, ?3, ?4)",
         params![input.term, input.misspelling, source.as_str(), now_ms()],
     )?;
-    get(db, db.last_insert_rowid())
+    let id = db.last_insert_rowid();
+    if source == EntrySource::Manual {
+        // Added by hand: auto-learn may know it again.
+        db.execute(
+            "DELETE FROM dictionary_rejected WHERE term = ?1 COLLATE NOCASE",
+            [&input.term],
+        )?;
+    }
+    get(db, id)
+}
+
+/// Adds words learned from the user's corrections (DIC-07). Words already
+/// in the dictionary, and words the user deleted, are skipped.
+pub fn learn(db: &mut Connection, words: &[String]) -> Result<Vec<DictionaryEntry>, StorageError> {
+    let transaction = db.transaction()?;
+    let mut learned = Vec::new();
+    for word in words {
+        let input = DictionaryInput {
+            term: word.clone(),
+            misspelling: None,
+        };
+        let Ok(input) = input.normalized() else {
+            continue;
+        };
+        let rejected: bool = transaction.query_row(
+            "SELECT EXISTS (SELECT 1 FROM dictionary_rejected WHERE term = ?1 COLLATE NOCASE)",
+            [&input.term],
+            |row| row.get(0),
+        )?;
+        let known: bool = transaction.query_row(
+            "SELECT EXISTS (SELECT 1 FROM dictionary WHERE term = ?1 COLLATE NOCASE)",
+            [&input.term],
+            |row| row.get(0),
+        )?;
+        if rejected || known || find_key(&transaction, &input)?.is_some() {
+            continue;
+        }
+        learned.push(add(&transaction, &input, EntrySource::Learned)?);
+    }
+    transaction.commit()?;
+    Ok(learned)
 }
 
 /// Edits a word or correction; `pinned` is left alone when `None`.
@@ -206,10 +246,17 @@ pub fn set_pinned(db: &Connection, id: i64, pinned: bool) -> Result<DictionaryEn
     get(db, id)
 }
 
+/// Deletes entries; auto-learn never adds their words again (DIC-07).
 pub fn delete(db: &mut Connection, ids: &[i64]) -> Result<usize, StorageError> {
     let transaction = db.transaction()?;
     let mut deleted = 0;
     for id in ids {
+        if let Ok(entry) = get(&transaction, *id) {
+            transaction.execute(
+                "INSERT OR IGNORE INTO dictionary_rejected (term) VALUES (?1)",
+                [&entry.term],
+            )?;
+        }
         deleted += transaction.execute("DELETE FROM dictionary WHERE id = ?1", [id])?;
     }
     transaction.commit()?;
@@ -420,5 +467,31 @@ mod tests {
                 "No dictionary items found in file"
             );
         });
+    }
+
+    #[test]
+    fn learned_words_skip_known_and_deleted_ones() {
+        let database = Database::open_in_memory().unwrap();
+        database
+            .with(|db| {
+                add(db, &word("Kubernetes"), EntrySource::Manual)?;
+                let learned = learn(db, &["Nguyen".into(), "kubernetes".into(), "!!".into()])?;
+                assert_eq!(learned.len(), 1);
+                assert_eq!(learned[0].term, "Nguyen");
+                assert_eq!(learned[0].source, EntrySource::Learned);
+                delete(db, &[learned[0].id])?;
+                assert!(
+                    learn(db, &["Nguyen".into()])?.is_empty(),
+                    "deleted words stay out"
+                );
+                add(db, &word("Nguyen"), EntrySource::Manual)?;
+                let rejected: i64 =
+                    db.query_row("SELECT COUNT(*) FROM dictionary_rejected", [], |row| {
+                        row.get(0)
+                    })?;
+                assert_eq!(rejected, 0, "adding it by hand forgives it");
+                Ok(())
+            })
+            .unwrap();
     }
 }

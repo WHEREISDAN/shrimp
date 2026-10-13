@@ -5,6 +5,7 @@ mod bindings;
 mod command;
 mod controller;
 pub mod gestures;
+pub mod learn;
 mod outcomes;
 mod pipeline;
 mod state;

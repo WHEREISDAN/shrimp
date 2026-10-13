@@ -14,6 +14,8 @@ pub trait Library: Send + Sync {
     fn snapshot(&self) -> Snapshot;
     /// Counts one use for each dictionary entry a dictation contained.
     fn record_uses(&self, ids: &[i64]);
+    /// Adds words learned from corrections; returns the ones added (DIC-07).
+    fn learn(&self, words: &[String]) -> Vec<String>;
 }
 
 impl Library for Database {
@@ -39,11 +41,32 @@ impl Library for Database {
             log::warn!("could not count dictionary uses: {error}");
         }
     }
+
+    fn learn(&self, words: &[String]) -> Vec<String> {
+        match self.with(|db| dictionary::learn(db, words)) {
+            Ok(learned) => learned.into_iter().map(|entry| entry.term).collect(),
+            Err(error) => {
+                log::warn!("could not add learned words: {error}");
+                Vec::new()
+            }
+        }
+    }
 }
 
-/// A fixed library, for tests and evaluation runs.
+/// A fixed library, for tests and evaluation runs; learned words are kept
+/// in memory.
 #[derive(Default)]
-pub struct FixedLibrary(pub Snapshot);
+pub struct FixedLibrary(pub Snapshot, pub std::sync::Mutex<Vec<String>>);
+
+impl FixedLibrary {
+    pub fn new(snapshot: Snapshot) -> Self {
+        Self(snapshot, std::sync::Mutex::default())
+    }
+
+    pub fn learned(&self) -> Vec<String> {
+        self.1.lock().unwrap_or_else(|err| err.into_inner()).clone()
+    }
+}
 
 impl Library for FixedLibrary {
     fn snapshot(&self) -> Snapshot {
@@ -51,4 +74,15 @@ impl Library for FixedLibrary {
     }
 
     fn record_uses(&self, _: &[i64]) {}
+
+    fn learn(&self, words: &[String]) -> Vec<String> {
+        let mut learned = self.1.lock().unwrap_or_else(|err| err.into_inner());
+        let new: Vec<String> = words
+            .iter()
+            .filter(|word| !learned.contains(word))
+            .cloned()
+            .collect();
+        learned.extend(new.iter().cloned());
+        new
+    }
 }
