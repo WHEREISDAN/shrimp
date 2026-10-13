@@ -77,7 +77,7 @@ stt/                    speech-to-text                                          
   whisper_local.rs      LocalWhisper (whisper-rs, Metal) with Silero VAD               (built)
   slot.rs               EngineSlot: the engine dictations use, empty until loaded      (built)
   models.rs             model catalog, download, SHA-256 check                         (built)
-  manager.rs            ModelManager: download progress, load into the slot          (built)
+  manager.rs            ModelManager: choose, download, load, delete (ENG-08)          (built)
   openai_compat.rs      CloudStt: OpenAI and Groq transcription (multipart)            (built)
   router.rs             SttRouter: the engine the settings choose, per dictation       (built)
 llm/                    LLM providers                                                  (built)
@@ -188,9 +188,9 @@ Built so far:
 
 | Kind     | Names                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
 | -------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Commands | `app_info`, `get_dictation_state`, `flow_bar_control`, `flow_bar_ready`, `flow_bar_layout`, `run_notice_action`, `get_models`, `download_default_model`, `get_permissions`, `open_permission_settings`                                                                                                                                                                                                                                                                                   |
+| Commands | `app_info`, `get_dictation_state`, `flow_bar_control`, `flow_bar_ready`, `flow_bar_layout`, `run_notice_action`, `get_models`, `get_permissions`, `open_permission_settings`                                                                                                                                                                                                                                                                                                             |
 | Phase 3  | `transform_action` (the changes view's Copy, Retry and Undo)                                                                                                                                                                                                                                                                                                                                                                                                                             |
-| Phase 4  | `get_shortcuts` (every action's bindings, the overlap warning, Secure Keyboard Entry), `record_shortcut` (records through the hooks; progress as `shortcuts://recording`), `cancel_shortcut_recording`, `remove_shortcut`, `reset_shortcuts`                                                                                                                                                                                                                                             |
+| Phase 4  | `get_shortcuts` (every action's bindings, the overlap warning, Secure Keyboard Entry), `record_shortcut` (records through the hooks; progress as `shortcuts://recording`), `cancel_shortcut_recording`, `remove_shortcut`, `reset_shortcuts`; `retry_model`, `download_model`, `delete_model`                                                                                                                                                                                            |
 | Phase 2  | `get_settings`, `update_settings`, `get_ai_options`, `get_api_keys`, `set_api_key`, `delete_api_key`, `list_ollama_models`, `test_ai_provider`; dictionary and snippet CRUD and imports (`list_dictionary`, `add_dictionary_entry`, `update_dictionary_entry`, `set_dictionary_pinned`, `delete_dictionary_entries`, `preview_dictionary_import`, `import_dictionary`, `list_snippets`, `add_snippet`, `update_snippet`, `delete_snippets`, `preview_snippet_import`, `import_snippets`) |
 | Dev only | `dev_get_audio_source`, `dev_set_audio_source`, `dev_set_app_category`, `dev_edit_text`, `dev_read_context` (debug builds; see DEVELOPMENT.md)                                                                                                                                                                                                                                                                                                                                           |
 | Events   | `dictation://state`, `dictation://level` (Flow Bar only), `notify://notice`, `command://answer` and `transform://changes` (Flow Bar only), `models://status`, `app://navigate`, `settings://changed`, `shortcuts://recording`                                                                                                                                                                                                                                                            |
@@ -527,8 +527,14 @@ Model management (`stt/models.rs`, P1):
   3.69 s fixture (`tests/whisper_local.rs`): 0.52 s with the language set, 2.07 s with
   auto-detect (full encoder window); `small-q5_1` takes 0.11 s and 0.30 s. The turbo model
   stays the default. The catalog (`stt/models.rs`) lists tiny, base, small, medium and
-  large-v3-turbo, each with its pinned size and SHA-256; switching is ENG-08 (P4).
-- On first launch `ModelManager` downloads the VAD model and the default model in the
+  large-v3-turbo, each with its pinned size and SHA-256.
+- Settings › Speech engine lists them with size and state (ENG-08). Choosing one sets
+  `stt.localModel`; `ModelManager::prepare` downloads it if needed and loads it while the
+  current model keeps serving dictations, then swaps it into the `EngineSlot`, so the
+  next dictation uses it. Models can be downloaded ahead and deleted, except the one in
+  use or chosen. One download or load runs at a time (a tokio mutex), so choices apply
+  in order.
+- On first launch `ModelManager` downloads the VAD model and the chosen model in the
   background, reports progress through `models://status` (the main window shows it), then
   loads the engine into `EngineSlot`. Until then a dictation's audio is kept and the notice
   says why; paste last transcript retries it.
@@ -902,14 +908,15 @@ category, model names 1–120 characters, the Ollama address `http(s)://`), save
 `settings://changed`. Dictations read the settings when they run, so changes apply from
 the next one.
 
-Built sections: `stt` (engine, OpenAI and Groq models), `ai`
+Built sections: `stt` (engine, the local Whisper model, OpenAI and Groq models), `ai`
 (provider, cleanup level, model per provider, Ollama model and address), `styles` (one per
 category, Formal by default), `privacy` (`contextAwareness`, on by default),
 `experimental` (`commandMode`, `commandModeIntroSeen`, `pressEnterCommand`), `shortcuts`
 (`bindings` per action, see Shortcuts), `notices` (how often one-off notices were shown),
 `transforms`, `vibeCoding` (`fileTagging`, on by default) and `dictionary` (`autoLearn`, on
 by default). Every change is announced to listeners: the webview's `settings://changed`,
-the controller, which rebinds shortcuts. Later phases add privacy, system, notifications and onboarding.
+the controller, which rebinds shortcuts, and the model manager, which loads a newly chosen
+Whisper model. Later phases add privacy, system, notifications and onboarding.
 
 ### Secrets (built)
 

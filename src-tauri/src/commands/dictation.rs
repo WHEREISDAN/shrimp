@@ -11,6 +11,7 @@ use crate::dictation::{ControllerHandle, ControllerInput, DictationState, Transf
 use crate::hotkeys::Action;
 use crate::notify::NoticeAction;
 use crate::platform::{self, Permission};
+use crate::settings::SettingsStore;
 use crate::stt::ModelManager;
 
 #[tauri::command]
@@ -42,6 +43,7 @@ pub fn run_notice_action(
     controller: State<'_, ControllerHandle>,
     permissions: State<'_, AppPermissions>,
     models: State<'_, Arc<ModelManager>>,
+    settings: State<'_, Arc<SettingsStore>>,
 ) -> Result<(), CommandError> {
     let open = |permission| {
         permissions
@@ -60,7 +62,8 @@ pub fn run_notice_action(
             platform::open_keyboard_settings().map_err(|err| CommandError::new("platform", err))
         }
         NoticeAction::RetryModelDownload => {
-            tauri::async_runtime::spawn(Arc::clone(&models).prepare_default());
+            let chosen = settings.get().stt.local_model;
+            tauri::async_runtime::spawn(Arc::clone(&models).prepare(chosen));
             Ok(())
         }
         NoticeAction::OpenAiSettings => {

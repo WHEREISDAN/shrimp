@@ -1,9 +1,9 @@
-//! Gets the default local model ready: downloads it (and the VAD model) on
-//! first use with progress, then loads it into the engine slot.
+//! Gets the chosen local model ready: downloads it (and the VAD model) with
+//! progress, then loads it into the engine slot. Models can be switched,
+//! downloaded ahead and deleted (ENG-08).
 
 use std::collections::HashMap;
 use std::path::PathBuf;
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 
 use serde::Serialize;
@@ -37,19 +37,26 @@ pub struct ModelStatus {
     pub id: &'static str,
     pub label: &'static str,
     pub size_bytes: u64,
+    /// Shrimp's recommendation.
     pub is_default: bool,
+    /// Loaded, so dictations use it.
+    pub in_use: bool,
     #[serde(flatten)]
     pub state: ModelState,
 }
 
 type OnChange = Box<dyn Fn(Vec<ModelStatus>) + Send + Sync>;
 
+/// Downloads, loads and deletes the local Whisper models (ENG-02, ENG-08).
 pub struct ModelManager {
     store: ModelStore,
     client: reqwest::Client,
     slot: Arc<EngineSlot>,
     states: Mutex<HashMap<&'static str, ModelState>>,
-    preparing: AtomicBool,
+    /// The model in the engine slot.
+    loaded: Mutex<Option<&'static str>>,
+    /// One download or load at a time; a later choice runs after.
+    busy: tokio::sync::Mutex<()>,
     on_change: OnChange,
 }
 
@@ -72,13 +79,15 @@ impl ModelManager {
             client: reqwest::Client::new(),
             slot,
             states: Mutex::new(states),
-            preparing: AtomicBool::new(false),
+            loaded: Mutex::new(None),
+            busy: tokio::sync::Mutex::new(()),
             on_change,
         })
     }
 
     pub fn statuses(&self) -> Vec<ModelStatus> {
-        let states = self.lock_states();
+        let states = lock(&self.states);
+        let loaded = *lock(&self.loaded);
         WHISPER_MODELS
             .iter()
             .map(|model| ModelStatus {
@@ -86,32 +95,66 @@ impl ModelManager {
                 label: model.label,
                 size_bytes: model.size,
                 is_default: model.id == DEFAULT_WHISPER_MODEL,
+                in_use: loaded == Some(model.id),
                 state: states.get(model.id).cloned().unwrap_or(ModelState::Missing),
             })
             .collect()
     }
 
-    /// Downloads whatever is missing, then loads the default model. Safe to
-    /// call again (retry); a run already in progress is not duplicated.
-    pub async fn prepare_default(self: Arc<Self>) {
-        if self.preparing.swap(true, Ordering::SeqCst) {
+    /// Downloads whatever `id` needs, then loads it in place of the current
+    /// model, which keeps serving dictations until then. Unknown ids fall
+    /// back to the default model.
+    pub async fn prepare(self: Arc<Self>, id: String) {
+        let _busy = self.busy.lock().await;
+        let model = find_whisper_model(&id).unwrap_or_else(|| {
+            find_whisper_model(DEFAULT_WHISPER_MODEL).expect("default model is in the catalog")
+        });
+        if *lock(&self.loaded) == Some(model.id) {
             return;
         }
-        let model =
-            find_whisper_model(DEFAULT_WHISPER_MODEL).expect("default model is in the catalog");
         match self.ensure_files(model).await {
             Ok(()) => self.load(model).await,
             Err(message) => {
-                self.slot.set_status(format!(
-                    "The speech model could not be downloaded: {message}"
-                ));
+                if lock(&self.loaded).is_none() {
+                    self.slot.set_status(format!(
+                        "The speech model could not be downloaded: {message}"
+                    ));
+                }
                 self.set_state(model.id, ModelState::Failed { message });
             }
         }
-        self.preparing.store(false, Ordering::SeqCst);
+    }
+
+    /// Downloads `id` without loading it.
+    pub async fn download(self: Arc<Self>, id: String) -> Result<(), String> {
+        let model = find_whisper_model(&id).ok_or("That model is not in the catalog.")?;
+        let _busy = self.busy.lock().await;
+        self.ensure_files(model).await.inspect_err(|message| {
+            self.set_state(
+                model.id,
+                ModelState::Failed {
+                    message: message.clone(),
+                },
+            );
+        })
+    }
+
+    /// Deletes a downloaded model that is neither in use nor chosen.
+    pub fn delete(&self, id: &str, chosen: &str) -> Result<(), String> {
+        let model = find_whisper_model(id).ok_or("That model is not in the catalog.")?;
+        if *lock(&self.loaded) == Some(model.id) || model.id == chosen {
+            return Err("Switch to another model before deleting this one.".into());
+        }
+        self.store
+            .delete(model)
+            .map_err(|error| format!("Couldn't delete the model: {error}"))?;
+        log::info!("deleted {}", model.file_name);
+        self.set_state(model.id, ModelState::Missing);
+        Ok(())
     }
 
     async fn ensure_files(&self, model: &'static ModelFile) -> Result<(), String> {
+        let first = lock(&self.loaded).is_none();
         if !self.store.is_downloaded(&VAD_MODEL) {
             self.slot.set_status("Downloading speech detection…");
             self.store
@@ -129,9 +172,11 @@ impl ModelManager {
                 let percent = received * 100 / total.max(1);
                 if last_percent != Some(percent) {
                     last_percent = Some(percent);
-                    self.slot.set_status(format!(
-                        "The speech model is downloading ({percent}%). Try again when it's ready."
-                    ));
+                    if first {
+                        self.slot.set_status(format!(
+                            "The speech model is downloading ({percent}%). Try again when it's ready."
+                        ));
+                    }
                     self.set_state(model.id, ModelState::Downloading { received, total });
                 }
             })
@@ -142,8 +187,10 @@ impl ModelManager {
     }
 
     async fn load(&self, model: &'static ModelFile) {
-        self.slot
-            .set_status("The speech model is loading. Try again in a moment.");
+        if lock(&self.loaded).is_none() {
+            self.slot
+                .set_status("The speech model is loading. Try again in a moment.");
+        }
         let path = self.store.path(model);
         let vad = self.store.path(&VAD_MODEL);
         let loaded =
@@ -151,6 +198,10 @@ impl ModelManager {
         match loaded {
             Ok(Ok(engine)) => {
                 self.slot.set_engine(Arc::new(engine));
+                let previous = lock(&self.loaded).replace(model.id);
+                if let Some(previous) = previous {
+                    lock(&self.states).insert(previous, ModelState::Downloaded);
+                }
                 self.set_state(model.id, ModelState::Active);
                 log::info!("{} is loaded", model.file_name);
             }
@@ -161,19 +212,21 @@ impl ModelManager {
 
     fn fail_load(&self, model: &'static ModelFile, message: String) {
         log::error!("could not load {}: {message}", model.file_name);
-        self.slot
-            .set_status(format!("The speech model could not be loaded: {message}"));
+        if lock(&self.loaded).is_none() {
+            self.slot
+                .set_status(format!("The speech model could not be loaded: {message}"));
+        }
         self.set_state(model.id, ModelState::Failed { message });
     }
 
     fn set_state(&self, id: &'static str, state: ModelState) {
-        self.lock_states().insert(id, state);
+        lock(&self.states).insert(id, state);
         (self.on_change)(self.statuses());
     }
+}
 
-    fn lock_states(&self) -> std::sync::MutexGuard<'_, HashMap<&'static str, ModelState>> {
-        self.states.lock().unwrap_or_else(|err| err.into_inner())
-    }
+fn lock<T>(mutex: &Mutex<T>) -> std::sync::MutexGuard<'_, T> {
+    mutex.lock().unwrap_or_else(|err| err.into_inner())
 }
 
 #[cfg(test)]
@@ -187,6 +240,7 @@ mod tests {
             label: "Whisper Tiny",
             size_bytes: 10,
             is_default: false,
+            in_use: false,
             state: ModelState::Downloading {
                 received: 5,
                 total: 10,
@@ -199,6 +253,7 @@ mod tests {
                 "label": "Whisper Tiny",
                 "sizeBytes": 10,
                 "isDefault": false,
+                "inUse": false,
                 "state": "downloading",
                 "received": 5,
                 "total": 10
@@ -221,5 +276,26 @@ mod tests {
                 .iter()
                 .all(|status| status.state == ModelState::Missing)
         );
+    }
+}
+
+#[cfg(test)]
+mod delete_tests {
+    use super::*;
+
+    #[test]
+    fn only_models_neither_chosen_nor_loaded_can_be_deleted() {
+        let dir = tempfile::tempdir().unwrap();
+        let tiny = find_whisper_model("tiny-q5_1").unwrap();
+        std::fs::write(dir.path().join(tiny.file_name), b"model").unwrap();
+        let slot = Arc::new(EngineSlot::new("starting"));
+        let manager = ModelManager::new(dir.path().into(), slot, Box::new(|_| {}));
+        assert!(manager.delete("tiny-q5_1", "tiny-q5_1").is_err());
+        *lock(&manager.loaded) = Some("tiny-q5_1");
+        assert!(manager.delete("tiny-q5_1", DEFAULT_WHISPER_MODEL).is_err());
+        *lock(&manager.loaded) = None;
+        manager.delete("tiny-q5_1", DEFAULT_WHISPER_MODEL).unwrap();
+        assert!(!dir.path().join(tiny.file_name).exists());
+        assert!(manager.delete("nope", DEFAULT_WHISPER_MODEL).is_err());
     }
 }

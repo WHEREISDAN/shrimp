@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { downloadDefaultModel, EVENTS, getModels, type ModelStatus } from "../lib/ipc";
+import { EVENTS, getModels, retryModel, type ModelStatus } from "../lib/ipc";
 import { useTauriEvent } from "../lib/useTauriEvent";
 
 const megabytes = (bytes: number) => Math.round(bytes / 1_000_000);
@@ -18,7 +18,11 @@ export function ModelCard() {
   }, []);
   useTauriEvent<ModelStatus[]>(EVENTS.models, setModels);
 
-  const model = models.find((candidate) => candidate.isDefault);
+  // The model in use, or the one getting ready.
+  const model =
+    models.find((candidate) => candidate.inUse) ??
+    models.find((candidate) => candidate.state === "downloading" || candidate.state === "failed") ??
+    models.find((candidate) => candidate.isDefault);
   return (
     <section className="card" aria-labelledby="model-heading">
       <h2 id="model-heading">Speech model</h2>
@@ -60,7 +64,7 @@ function ModelProgress({ model }: { model: ModelStatus }) {
       return (
         <div className="progress-row">
           <span className="error">{model.message}</span>
-          <button type="button" onClick={() => void downloadDefaultModel().catch(() => undefined)}>
+          <button type="button" onClick={() => void retryModel().catch(() => undefined)}>
             Retry
           </button>
         </div>

@@ -12,6 +12,7 @@ mod whisper_local;
 
 pub use engine::{SttEngine, SttEngineId, SttError, SttOptions, Transcript};
 pub use manager::{ModelManager, ModelState, ModelStatus};
+pub use models::{DEFAULT_WHISPER_MODEL, find_whisper_model};
 pub use openai_compat::CloudStt;
 pub use router::SttRouter;
 pub use slot::EngineSlot;

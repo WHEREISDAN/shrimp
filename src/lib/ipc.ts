@@ -149,7 +149,10 @@ export type ModelStatus = {
   id: string;
   label: string;
   sizeBytes: number;
+  /** Shrimp's recommendation. */
   isDefault: boolean;
+  /** Loaded, so dictations use it. */
+  inUse: boolean;
 } & ModelState;
 
 /** Mirrors `platform::PermissionStatus`. */
@@ -185,7 +188,7 @@ export type AppCategory = "personal" | "work" | "email" | "other";
 /** Mirrors `settings::Settings`. */
 export interface Settings {
   version: number;
-  stt: { engine: SttEngineId; openaiModel: string; groqModel: string };
+  stt: { engine: SttEngineId; localModel: string; openaiModel: string; groqModel: string };
   ai: {
     provider: LlmProviderId;
     cleanup: CleanupLevel;
@@ -375,7 +378,13 @@ export const resetShortcuts = (): Promise<void> => invoke("reset_shortcuts");
 
 export const getModels = (): Promise<ModelStatus[]> => invoke<ModelStatus[]>("get_models");
 
-export const downloadDefaultModel = (): Promise<void> => invoke("download_default_model");
+/** Retries getting the chosen model ready after a failure. */
+export const retryModel = (): Promise<void> => invoke("retry_model");
+
+/** Downloads a model without switching to it. */
+export const downloadModel = (id: string): Promise<void> => invoke("download_model", { id });
+
+export const deleteModel = (id: string): Promise<void> => invoke("delete_model", { id });
 
 export const getPermissions = (): Promise<PermissionsInfo> =>
   invoke<PermissionsInfo>("get_permissions");

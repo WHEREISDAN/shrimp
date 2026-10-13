@@ -120,6 +120,10 @@ impl ModelStore {
         std::fs::metadata(self.path(model)).is_ok_and(|meta| meta.len() == model.size)
     }
 
+    pub fn delete(&self, model: &ModelFile) -> std::io::Result<()> {
+        std::fs::remove_file(self.path(model))
+    }
+
     /// Streams the file to a temporary path while hashing it, then renames it
     /// into place. `on_progress(received, total)` is called as bytes arrive.
     pub async fn download(

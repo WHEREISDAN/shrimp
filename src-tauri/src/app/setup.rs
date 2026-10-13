@@ -113,7 +113,13 @@ pub fn setup(app: &mut App) -> Result<(), Box<dyn std::error::Error>> {
 
     tray::create(&handle)?;
     flow_bar::create(&handle)?;
-    tauri::async_runtime::spawn(models.prepare_default());
+    tauri::async_runtime::spawn(Arc::clone(&models).prepare(settings.get().stt.local_model));
+    let chosen_model = Arc::clone(&models);
+    settings.on_change(Box::new(move |settings| {
+        // Loads the new choice; the current model serves dictations until then.
+        let id = settings.stt.local_model.clone();
+        tauri::async_runtime::spawn(Arc::clone(&chosen_model).prepare(id));
+    }));
     Ok(())
 }
 

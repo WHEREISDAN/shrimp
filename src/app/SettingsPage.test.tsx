@@ -2,7 +2,7 @@ import { fireEvent, render, screen, waitFor, within } from "@testing-library/rea
 import { describe, expect, it } from "vitest";
 import type { ApiKeys, Settings, SettingsPatch } from "../lib/ipc";
 import { SettingsPage } from "./SettingsPage";
-import { AI_OPTIONS, mockBackend, SETTINGS, SHORTCUTS, type Args } from "./testBackend";
+import { AI_OPTIONS, MODELS, mockBackend, SETTINGS, SHORTCUTS, type Args } from "./testBackend";
 
 function backend(
   extra: Record<string, (args: Args) => unknown> = {},
@@ -15,6 +15,9 @@ function backend(
     get_ai_options: () => AI_OPTIONS,
     get_api_keys: () => keys,
     get_shortcuts: () => SHORTCUTS,
+    get_models: () => MODELS,
+    download_model: () => null,
+    delete_model: () => null,
     update_settings: (args) => {
       const patch = args.patch as SettingsPatch;
       settings = {
@@ -301,6 +304,29 @@ describe("SettingsPage experimental", () => {
         { patch: { experimental: { pressEnterCommand: true } } },
       ]),
     );
+  });
+});
+
+describe("SettingsPage Whisper models", () => {
+  it("lists the models with size and state, and switches, downloads and deletes", async () => {
+    const { argsOf } = backend();
+    render(<SettingsPage />);
+    const list = await screen.findByRole("list", { name: "Whisper models" });
+    expect(await within(list).findByText(/574 MB · Recommended · In use/)).toBeInTheDocument();
+    expect(within(list).getByText(/32 MB · Not downloaded/)).toBeInTheDocument();
+    expect(within(list).getByText(/190 MB · Downloaded/)).toBeInTheDocument();
+    expect(
+      within(list).queryByRole("button", { name: "Delete Whisper Large v3 Turbo" }),
+      "the model in use can't be deleted",
+    ).toBeNull();
+    fireEvent.click(within(list).getByRole("button", { name: "Download" }));
+    fireEvent.click(within(list).getByRole("button", { name: "Delete Whisper Small" }));
+    fireEvent.click(within(list).getByRole("radio", { name: /Whisper Tiny/ }));
+    await waitFor(() => {
+      expect(argsOf("download_model")).toEqual([{ id: "tiny-q5_1" }]);
+      expect(argsOf("delete_model")).toEqual([{ id: "small-q5_1" }]);
+      expect(argsOf("update_settings")).toEqual([{ patch: { stt: { localModel: "tiny-q5_1" } } }]);
+    });
   });
 });
 

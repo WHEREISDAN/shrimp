@@ -1,6 +1,13 @@
 import { mockIPC } from "@tauri-apps/api/mocks";
 import { fireEvent } from "@testing-library/react";
-import type { AiOptions, DictionaryEntry, Settings, ShortcutList, Snippet } from "../lib/ipc";
+import type {
+  AiOptions,
+  DictionaryEntry,
+  ModelStatus,
+  Settings,
+  ShortcutList,
+  Snippet,
+} from "../lib/ipc";
 
 export type Args = Record<string, unknown>;
 export type Handler = (args: Args) => unknown;
@@ -84,6 +91,7 @@ export const SETTINGS: Settings = {
   version: 1,
   stt: {
     engine: "local-whisper",
+    localModel: "large-v3-turbo-q5_0",
     openaiModel: "whisper-1",
     groqModel: "whisper-large-v3-turbo",
   },
@@ -114,6 +122,33 @@ export const SETTINGS: Settings = {
   vibeCoding: { fileTagging: true },
   dictionary: { autoLearn: true },
 };
+
+export const MODELS: ModelStatus[] = [
+  {
+    id: "tiny-q5_1",
+    label: "Whisper Tiny",
+    sizeBytes: 32_152_673,
+    isDefault: false,
+    inUse: false,
+    state: "missing",
+  },
+  {
+    id: "small-q5_1",
+    label: "Whisper Small",
+    sizeBytes: 190_085_487,
+    isDefault: false,
+    inUse: false,
+    state: "downloaded",
+  },
+  {
+    id: "large-v3-turbo-q5_0",
+    label: "Whisper Large v3 Turbo",
+    sizeBytes: 574_041_195,
+    isDefault: true,
+    inUse: true,
+    state: "active",
+  },
+];
 
 export const SHORTCUTS: ShortcutList = {
   rows: [

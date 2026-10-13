@@ -2,6 +2,7 @@ import type { AiOptions, ApiKeys, Settings, SettingsPatch, SttEngineId } from ".
 import { KeyRow } from "./KeyRow";
 import { ModelSelect } from "./ModelSelect";
 import { RadioCards, type RadioCardOption } from "./RadioCards";
+import { WhisperModels } from "./WhisperModels";
 
 function modelField(id: SttEngineId): "openaiModel" | "groqModel" | null {
   switch (id) {
@@ -48,6 +49,12 @@ export function SpeechEngineSection({
         options={choices}
         onChange={(id) => void update({ stt: { engine: id } })}
       />
+      {settings.stt.engine === "local-whisper" && (
+        <WhisperModels
+          chosen={settings.stt.localModel}
+          onChoose={(id) => void update({ stt: { localModel: id } })}
+        />
+      )}
       {engine && field && (
         <ModelSelect
           label="Speech model"

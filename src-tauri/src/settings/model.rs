@@ -7,7 +7,7 @@ use super::shortcuts::ShortcutSettings;
 use super::transforms::TransformSettings;
 use crate::edit::{AppCategory, CleanupLevel, Style};
 use crate::llm::{LlmProviderId, catalog};
-use crate::stt::SttEngineId;
+use crate::stt::{DEFAULT_WHISPER_MODEL, SttEngineId, find_whisper_model};
 
 pub const SETTINGS_VERSION: u32 = 1;
 const MAX_MODEL_LENGTH: usize = 120;
@@ -118,6 +118,8 @@ impl Default for PrivacySettings {
 #[serde(rename_all = "camelCase", default)]
 pub struct SttSettings {
     pub engine: SttEngineId,
+    /// The Whisper model on this Mac (ENG-08).
+    pub local_model: String,
     pub openai_model: String,
     pub groq_model: String,
 }
@@ -126,6 +128,7 @@ impl Default for SttSettings {
     fn default() -> Self {
         Self {
             engine: SttEngineId::LocalWhisper,
+            local_model: DEFAULT_WHISPER_MODEL.into(),
             openai_model: catalog::DEFAULT_OPENAI_STT_MODEL.into(),
             groq_model: catalog::DEFAULT_GROQ_STT_MODEL.into(),
         }
@@ -235,6 +238,9 @@ impl Settings {
         }
         if self.ai.ollama_model.len() > MAX_MODEL_LENGTH {
             return Err("Model names must be 1 to 120 characters.".into());
+        }
+        if find_whisper_model(&self.stt.local_model).is_none() {
+            return Err(format!("{} is not a Whisper model.", self.stt.local_model));
         }
         self.shortcuts.validate(&self.transforms)?;
         self.transforms.validate()?;
