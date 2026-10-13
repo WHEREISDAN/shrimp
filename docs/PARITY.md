@@ -51,24 +51,24 @@ this file.
 
 ## Core dictation
 
-| Status | ID      | Feature               | Acceptance criterion                                                                                                                          | Phase |
-| ------ | ------- | --------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- | ----- |
-| [ ]    | CORE-01 | Push to talk          | Holding the push-to-talk shortcut records; releasing it transcribes and inserts the text at the cursor of the focused app.                    | 1     |
-| [ ]    | CORE-02 | Fn default            | Fn alone is the default push-to-talk shortcut, and its system action (emoji picker or dictation) is suppressed while bound.                   | 1     |
-| [ ]    | CORE-03 | Short-tap guard       | A press released in under 0.5 s inserts nothing: Shrimp waits briefly for a second press, then cancels and shows the "hold the shortcut" tip. | 1     |
-| [ ]    | CORE-04 | Hands-free shortcut   | Fn+Space starts recording without holding; pressing it again stops and inserts.                                                               | 1     |
-| [ ]    | CORE-05 | Hands-free double-tap | Double-pressing push to talk within 0.5 s locks recording hands-free; a third quick press cancels.                                            | 1     |
-| [ ]    | CORE-06 | Cancel                | Esc cancels an active dictation without inserting anything, and the Esc press does not reach the focused app.                                 | 1     |
-| [ ]    | CORE-07 | Busy guard            | Shortcuts pressed while a dictation is still processing are rejected (not queued) with a "Transcript currently processing" notice.            | 1     |
-| [ ]    | CORE-08 | Session limit         | A warning sound and notice come at 19 minutes; at 20 minutes recording stops, then transcribes and inserts.                                   | 1     |
-| [ ]    | CORE-09 | Click to dictate      | Clicking the Flow Bar starts hands-free recording, ■ stops and inserts, ✕ cancels, and a click within 0.5 s of starting cancels.              | 1     |
-| [ ]    | CORE-10 | No-Fn fallback        | On a Mac keyboard without an Apple Fn key, the defaults become Ctrl+Opt, Ctrl+Opt+Space and Cmd+Ctrl+Opt (Command Mode).                      | 4     |
-| [ ]    | CORE-11 | Cancel undo           | The cancel notice offers Undo, which transcribes the cancelled audio and inserts it into the current field.                                   | 4     |
-| [ ]    | CORE-12 | Interrupting shortcut | Pressing another app's shortcut within the first second of a held dictation cancels it with a notification.                                   | 4     |
-| [ ]    | CORE-13 | Mouse buttons         | Middle, Mouse 4/5 and Mouse 6–10 can be bound to push to talk, hands-free or Enter, and bound buttons don't pass through to apps.             | 4     |
-| [ ]    | CORE-14 | Stuck-key recovery    | A key or mouse button left in a stuck "down" state recovers automatically after 10 s.                                                         | 4     |
-| [ ]    | CORE-15 | Press Enter shortcut  | An unbound-by-default "Press Enter" shortcut sends Enter, and extra modifiers pass through (Shift+Enter).                                     | 3     |
-| [ ]    | CORE-16 | "press enter" command | With the experimental setting on, ending a dictation with "press enter" removes the phrase and presses Enter after a successful paste.        | 3     |
+| Status | ID      | Feature               | Acceptance criterion                                                                                                                                                                    | Phase |
+| ------ | ------- | --------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----- |
+| [ ]    | CORE-01 | Push to talk          | Holding the push-to-talk shortcut records; releasing it transcribes and inserts the text at the cursor of the focused app.                                                              | 1     |
+| [ ]    | CORE-02 | Fn default            | Fn alone is the default push-to-talk shortcut, and pressing it never opens the emoji picker or system dictation (suppressed, or onboarding guides the Globe key setting to Do Nothing). | 1     |
+| [ ]    | CORE-03 | Short-tap guard       | A press released in under 0.5 s inserts nothing: Shrimp waits briefly for a second press, then cancels and shows the "hold the shortcut" tip.                                           | 1     |
+| [ ]    | CORE-04 | Hands-free shortcut   | Fn+Space starts recording without holding; pressing it again stops and inserts.                                                                                                         | 1     |
+| [ ]    | CORE-05 | Hands-free double-tap | Double-pressing push to talk within 0.5 s locks recording hands-free; a third quick press cancels.                                                                                      | 1     |
+| [ ]    | CORE-06 | Cancel                | Esc cancels an active dictation without inserting anything, and the Esc press does not reach the focused app.                                                                           | 1     |
+| [ ]    | CORE-07 | Busy guard            | Shortcuts pressed while a dictation is still processing are rejected (not queued) with a "Transcript currently processing" notice.                                                      | 1     |
+| [ ]    | CORE-08 | Session limit         | A warning sound and notice come at 19 minutes; at 20 minutes recording stops, then transcribes and inserts.                                                                             | 1     |
+| [ ]    | CORE-09 | Click to dictate      | Clicking the Flow Bar starts hands-free recording, ■ stops and inserts, ✕ cancels, and a click within 0.5 s of starting cancels.                                                        | 1     |
+| [ ]    | CORE-10 | No-Fn fallback        | On a Mac keyboard without an Apple Fn key, the defaults become Ctrl+Opt, Ctrl+Opt+Space and Cmd+Ctrl+Opt (Command Mode).                                                                | 4     |
+| [ ]    | CORE-11 | Cancel undo           | The cancel notice offers Undo, which transcribes the cancelled audio and inserts it into the current field.                                                                             | 4     |
+| [ ]    | CORE-12 | Interrupting shortcut | Pressing another app's shortcut within the first second of a held dictation cancels it with a notification.                                                                             | 4     |
+| [ ]    | CORE-13 | Mouse buttons         | Middle, Mouse 4/5 and Mouse 6–10 can be bound to push to talk, hands-free or Enter, and bound buttons don't pass through to apps.                                                       | 4     |
+| [ ]    | CORE-14 | Stuck-key recovery    | A key or mouse button left in a stuck "down" state recovers automatically after 10 s.                                                                                                   | 4     |
+| [ ]    | CORE-15 | Press Enter shortcut  | An unbound-by-default "Press Enter" shortcut sends Enter, and extra modifiers pass through (Shift+Enter).                                                                               | 3     |
+| [ ]    | CORE-16 | "press enter" command | With the experimental setting on, ending a dictation with "press enter" removes the phrase and presses Enter after a successful paste.                                                  | 3     |
 
 ## Shortcut customisation
 

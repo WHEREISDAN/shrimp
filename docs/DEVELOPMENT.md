@@ -120,8 +120,11 @@ The owner gives each permission to "Shrimp Dev" once. The grants then survive re
 as long as the identity and the bundle identifier stay the same.
 
 - **Microphone:** macOS asks on the first recording. Click Allow.
-- **Accessibility** and **Input Monitoring:** System Settings > Privacy & Security, then
-  turn on "Shrimp Dev". An agent cannot do this, because macOS protects these panes.
+- **Accessibility:** System Settings > Privacy & Security > Accessibility, then turn on
+  "Shrimp Dev". The global hotkey (an active event tap), pasting and reading text all depend
+  on it. An agent cannot do this, because macOS protects these panes.
+- **Input Monitoring** is not needed: Accessibility already covers listening to and posting
+  events. It would only matter if a listen-only event tap were added later.
 
 ## Driving the app with tauri-mcp
 
@@ -162,6 +165,16 @@ Things to know:
 - `restart_app` refuses to work under `tauri dev`. Relaunch with `dev-app.sh open` instead.
 - Register every new IPC command in `commands::NAMES` too. `manage_ipc` with
   `action: "commands"` lists them for agents.
+- Every webview that agents should drive must call `setupPluginListeners()` (see
+  `src/main.tsx`), including the Flow Bar window from phase 1, and must be listed in the
+  capability that grants `mcp:default`.
+- `take_screenshot` works on the signed bundle without a Screen Recording grant. The
+  plugin's macOS capture skips windows smaller than 100×100 points, so check in phase 1
+  whether it captures the Flow Bar; `query_page` and `read_text` work regardless.
+- The plugin leaves `/tmp/tauri-mcp.sock` and its `.token` file behind when the app quits.
+  The next launch replaces them, so they are harmless.
+- The crates.io crate called `tauri-plugin-mcp` is an unrelated project. Shrimp depends on
+  P3GLEG's plugin through git; the npm packages of the same name are P3GLEG's.
 
 ## Audio from a WAV file instead of the microphone
 
