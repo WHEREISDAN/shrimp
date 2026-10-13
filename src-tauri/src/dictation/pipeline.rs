@@ -60,7 +60,7 @@ impl Pipeline {
         mut context: PendingContext,
         paste_delay: Duration,
     ) -> Processed {
-        let settings = self.settings.get();
+        let settings = self.settings.get().effective();
         let language_check = (!settings.languages.auto_detect).then(|| clip.clone());
         let mut record = self.record(&clip, context.app().cloned());
         let started = Instant::now();

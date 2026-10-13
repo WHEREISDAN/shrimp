@@ -160,7 +160,20 @@ pub fn setup(app: &mut App) -> Result<(), Box<dyn std::error::Error>> {
     app.manage(ui);
     app.manage(AppPermissions(platform.permissions));
 
-    tray::create(&handle)?;
+    tray::create(&handle, &settings.get())?;
+    let tray_handle = handle.clone();
+    let privacy = Mutex::new(settings.get().privacy.privacy_mode);
+    settings.on_change(Box::new(move |settings| {
+        let mut previous = privacy.lock().unwrap_or_else(|err| err.into_inner());
+        if *previous != settings.privacy.privacy_mode {
+            *previous = settings.privacy.privacy_mode;
+            let tray_handle = tray_handle.clone();
+            let settings = settings.clone();
+            let _ = tray_handle
+                .clone()
+                .run_on_main_thread(move || tray::refresh(&tray_handle, &settings));
+        }
+    }));
     flow_bar::create(&handle, Arc::clone(&settings))?;
     let placement = handle.clone();
     settings.on_change(Box::new(move |_| flow_bar::settings_changed(&placement)));

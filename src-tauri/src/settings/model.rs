@@ -163,6 +163,8 @@ pub struct PrivacySettings {
     pub context_awareness: bool,
     /// How long transcripts are kept (HIS-07).
     pub history: HistoryStorage,
+    /// Only local Whisper and Ollama run (PRIV-03).
+    pub privacy_mode: bool,
 }
 
 impl Default for PrivacySettings {
@@ -170,6 +172,7 @@ impl Default for PrivacySettings {
         Self {
             context_awareness: true,
             history: HistoryStorage::Local,
+            privacy_mode: false,
         }
     }
 }
@@ -279,6 +282,16 @@ impl StyleSettings {
 }
 
 impl Settings {
+    /// The settings dictation runs with: Privacy mode turns every cloud
+    /// engine and provider into local Whisper and Ollama (PRIV-03).
+    pub fn effective(mut self) -> Self {
+        if self.privacy.privacy_mode {
+            self.stt.engine = SttEngineId::LocalWhisper;
+            self.ai.provider = LlmProviderId::Ollama;
+        }
+        self
+    }
+
     /// Moves values older versions stored elsewhere into place.
     pub fn normalize(&mut self) {
         self.shortcuts.normalize(&mut self.transforms);
@@ -391,6 +404,20 @@ mod tests {
         settings.validate().unwrap();
         settings.styles.personal = Style::Excited;
         assert!(settings.validate().is_err());
+    }
+
+    #[test]
+    fn privacy_mode_keeps_everything_local() {
+        let mut settings = Settings::default();
+        settings.stt.engine = SttEngineId::Groq;
+        assert_eq!(
+            settings.clone().effective().ai.provider,
+            LlmProviderId::Anthropic
+        );
+        settings.privacy.privacy_mode = true;
+        let effective = settings.effective();
+        assert_eq!(effective.stt.engine, SttEngineId::LocalWhisper);
+        assert_eq!(effective.ai.provider, LlmProviderId::Ollama);
     }
 
     #[test]

@@ -1,6 +1,7 @@
 import type { AiOptions, ApiKeys, Settings, SettingsPatch, SttEngineId } from "../lib/ipc";
 import { KeyRow } from "./KeyRow";
 import { ModelSelect } from "./ModelSelect";
+import { PrivacyModeNote } from "./PrivacyModeNote";
 import { RadioCards, type RadioCardOption } from "./RadioCards";
 import { WhisperModels } from "./WhisperModels";
 
@@ -43,6 +44,7 @@ export function SpeechEngineSection({
   return (
     <section className="card stack" aria-labelledby="speech-heading">
       <h2 id="speech-heading">Speech engine</h2>
+      <PrivacyModeNote settings={settings} />
       <RadioCards
         label="Speech engine"
         value={settings.stt.engine}

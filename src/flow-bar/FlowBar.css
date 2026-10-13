@@ -380,3 +380,20 @@ body {
 .bar-submenu button[aria-checked="true"]::before {
   content: "✓ ";
 }
+
+/* Privacy mode (PRIV-03): a green dot at the pill's start. */
+.pill {
+  position: relative;
+}
+
+.privacy-dot {
+  position: absolute;
+  top: 50%;
+  left: -3px;
+  width: 7px;
+  height: 7px;
+  border: 1.5px solid rgb(18 18 20 / 0.92);
+  border-radius: 50%;
+  background: #34c759;
+  transform: translateY(-50%);
+}

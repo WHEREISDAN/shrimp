@@ -43,6 +43,7 @@ export function FlowBar() {
   const [hovered, setHovered] = useState(false);
   const [menu, setMenu] = useState(false);
   const [placement, setPlacement] = useState<Settings["flowBar"] | null>(null);
+  const [privacy, setPrivacy] = useState(false);
   const [now, setNow] = useState(() => Date.now() / 1000);
   const rootRef = useRef<HTMLDivElement>(null);
   useContentSize(rootRef);
@@ -60,7 +61,12 @@ export function FlowBar() {
   useEffect(() => {
     let cancelled = false;
     getSettings()
-      .then((settings) => !cancelled && setPlacement(settings.flowBar))
+      .then((settings) => {
+        if (!cancelled) {
+          setPlacement(settings.flowBar);
+          setPrivacy(settings.privacy.privacyMode);
+        }
+      })
       .catch(() => undefined);
     return () => {
       cancelled = true;
@@ -68,6 +74,7 @@ export function FlowBar() {
   }, []);
   useTauriEvent<Settings>(EVENTS.settings, (settings) => {
     setPlacement(settings.flowBar);
+    setPrivacy(settings.privacy.privacyMode);
     setNow(Date.now() / 1000);
   });
 
@@ -159,7 +166,7 @@ export function FlowBar() {
       )}
       {hovered && <LanguageSwitch />}
       {(state.phase !== "idle" || resting) && (
-        <Pill state={state} levels={levels} error={notice?.level === "error"} />
+        <Pill state={state} levels={levels} error={notice?.level === "error"} privacy={privacy} />
       )}
     </div>
   );

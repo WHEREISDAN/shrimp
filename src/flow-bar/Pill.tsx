@@ -1,10 +1,13 @@
 import { useRef, type PointerEvent, type ReactNode } from "react";
+import { useTranslation } from "react-i18next";
 import { flowBarControl, flowBarDrag, type BarControl, type DictationState } from "../lib/ipc";
 
 interface PillProps {
   state: DictationState;
   levels: number[];
   error: boolean;
+  /** Privacy mode is on: a dot shows it (PRIV-03). */
+  privacy: boolean;
 }
 
 const send = (control: BarControl) => () => void flowBarControl(control).catch(() => undefined);
@@ -55,16 +58,19 @@ function useDrag() {
   };
 }
 
-export function Pill({ state, levels, error }: PillProps) {
+export function Pill({ state, levels, error, privacy }: PillProps) {
+  const { t } = useTranslation();
   const drag = useDrag();
+  const label = (text: string) => (privacy ? t("bar.privacy", { label: text }) : text);
+  const dot = privacy && <span className="privacy-dot" aria-hidden="true" />;
   switch (state.phase) {
     case "idle":
       return (
         <button
           type="button"
           className={error ? "pill pill-idle pill-error" : "pill pill-idle"}
-          aria-label="Start dictation"
-          title="Click to dictate, or drag to move"
+          aria-label={label(t("bar.start"))}
+          title={t("bar.startHint")}
           onPointerDown={drag.onPointerDown}
           onPointerMove={drag.onPointerMove}
           onPointerUp={drag.onPointerUp}
@@ -73,25 +79,28 @@ export function Pill({ state, levels, error }: PillProps) {
               send("start")();
             }
           }}
-        />
+        >
+          {dot}
+        </button>
       );
     case "recording":
       return (
         <div
           className={state.command ? "pill pill-recording pill-command" : "pill pill-recording"}
           role="group"
-          aria-label={state.command ? "Command Mode" : "Recording"}
+          aria-label={label(state.command ? t("bar.command") : t("bar.recording"))}
         >
-          <ControlButton label="Cancel" onClick={send("cancel")}>
+          {dot}
+          <ControlButton label={t("bar.cancel")} onClick={send("cancel")}>
             <path d="M4 4l8 8M12 4l-8 8" />
           </ControlButton>
           <Waveform levels={levels} />
           {state.mode === "locked" ? (
-            <ControlButton label="Stop" className="control-stop" onClick={send("stop")}>
+            <ControlButton label={t("bar.stop")} className="control-stop" onClick={send("stop")}>
               <rect x="4" y="4" width="8" height="8" rx="1.5" />
             </ControlButton>
           ) : (
-            <ControlButton label="Done" onClick={send("confirm")}>
+            <ControlButton label={t("bar.done")} onClick={send("confirm")}>
               <path d="M3.5 8.5l3 3 6-7" />
             </ControlButton>
           )}
@@ -99,7 +108,12 @@ export function Pill({ state, levels, error }: PillProps) {
       );
     case "processing":
       return (
-        <div className="pill pill-processing" role="status" aria-label="Transcribing">
+        <div
+          className="pill pill-processing"
+          role="status"
+          aria-label={label(t("bar.transcribing"))}
+        >
+          {dot}
           <span className="dot" />
           <span className="dot" />
           <span className="dot" />

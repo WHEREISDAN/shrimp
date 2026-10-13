@@ -74,7 +74,7 @@ pub async fn generate_voice_profile(
     llm: State<'_, AppLlm>,
     settings: State<'_, Arc<SettingsStore>>,
 ) -> Result<VoiceProfileStatus, VoiceProfileError> {
-    let ai = settings.get().ai;
+    let ai = settings.get().effective().ai;
     let generated = profile::generate(
         Arc::clone(&database),
         Arc::clone(&llm.0),

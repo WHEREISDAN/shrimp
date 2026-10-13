@@ -266,7 +266,12 @@ export interface Settings {
     ollamaUrl: string;
   };
   styles: Record<AppCategory, Style>;
-  privacy: { contextAwareness: boolean; history: HistoryStorage };
+  privacy: {
+    contextAwareness: boolean;
+    history: HistoryStorage;
+    /** Only Whisper on this Mac and Ollama run. */
+    privacyMode: boolean;
+  };
   experimental: { commandMode: boolean; commandModeIntroSeen: boolean; pressEnterCommand: boolean };
   /** Bindings per action ("pushToTalk", "transform:<id>"), e.g. ["Fn", "Mouse4"]; missing means the defaults. */
   shortcuts: { bindings: Record<string, string[]> };

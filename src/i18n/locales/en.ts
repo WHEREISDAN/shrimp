@@ -40,6 +40,17 @@ export const en = {
       updateVoiceProfile: "Update profile",
     },
   },
+  bar: {
+    start: "Start dictation",
+    startHint: "Click to dictate, or drag to move",
+    recording: "Recording",
+    command: "Command Mode",
+    cancel: "Cancel",
+    stop: "Stop",
+    done: "Done",
+    transcribing: "Transcribing",
+    privacy: "{{label}}, Privacy mode on",
+  },
   nav: {
     label: "Main",
     home: "Home",
@@ -198,6 +209,11 @@ export const en = {
       "Errors, permissions, microphone problems and what happened to a dictation always show.",
   },
   privacy: {
+    privacyMode: "Privacy mode",
+    privacyModeBody:
+      "Only Whisper on this Mac and Ollama run: no audio or text goes to a cloud engine or provider. The Flow Bar and the menu bar icon show a dot while it's on.",
+    privacyModeOn:
+      "Privacy mode is on, so only Whisper on this Mac and Ollama run. Your choice here applies again when you turn it off.",
     storageTitle: "Local data storage",
     storageLocal: "Store data locally",
     storageLocalBody: "Stores dictation transcripts locally. Recordings are kept for 14 days.",

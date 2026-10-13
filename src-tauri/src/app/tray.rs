@@ -1,5 +1,7 @@
+use std::sync::Arc;
+
 use tauri::image::Image;
-use tauri::menu::{Menu, MenuItem, PredefinedMenuItem};
+use tauri::menu::{CheckMenuItem, Menu, MenuItem, PredefinedMenuItem};
 use tauri::tray::TrayIconBuilder;
 use tauri::{AppHandle, Emitter, Manager, Runtime, include_image};
 
@@ -7,6 +9,7 @@ use super::events::NAVIGATE_EVENT;
 use super::window;
 use crate::dictation::{ControllerHandle, ControllerInput};
 use crate::hotkeys::Action;
+use crate::settings::{Settings, SettingsStore};
 
 const TRAY_ID: &str = "main";
 const TRAY_ICON: Image<'_> = include_image!("icons/tray.png");
@@ -14,34 +17,16 @@ const OPEN_ID: &str = "open";
 const SHORTCUTS_ID: &str = "shortcuts";
 const PASTE_LAST_ID: &str = "paste-last";
 const COPY_LAST_ID: &str = "copy-last";
+const PRIVACY_ID: &str = "privacy-mode";
 const QUIT_ID: &str = "quit";
 
-pub fn create<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<()> {
-    let item =
-        |id, text, accelerator: Option<&str>| MenuItem::with_id(app, id, text, true, accelerator);
-    let open = item(OPEN_ID, "Open Shrimp", None)?;
-    let shortcuts = item(SHORTCUTS_ID, "Shortcuts…", None)?;
-    let paste_last = item(PASTE_LAST_ID, "Paste last transcript", Some("Ctrl+Cmd+V"))?;
-    let copy_last = item(COPY_LAST_ID, "Copy last transcript", Some("Ctrl+Cmd+C"))?;
-    let quit = item(QUIT_ID, "Quit Shrimp", Some("CmdOrCtrl+Q"))?;
-    let menu = Menu::with_items(
-        app,
-        &[
-            &open,
-            &shortcuts,
-            &PredefinedMenuItem::separator(app)?,
-            &paste_last,
-            &copy_last,
-            &PredefinedMenuItem::separator(app)?,
-            &quit,
-        ],
-    )?;
-
+pub fn create<R: Runtime>(app: &AppHandle<R>, settings: &Settings) -> tauri::Result<()> {
+    let privacy = settings.privacy.privacy_mode;
     TrayIconBuilder::with_id(TRAY_ID)
-        .icon(TRAY_ICON)
+        .icon(icon(privacy))
         .icon_as_template(true)
-        .tooltip("Shrimp")
-        .menu(&menu)
+        .tooltip(tooltip(privacy))
+        .menu(&menu(app, settings)?)
         .show_menu_on_left_click(true)
         .on_menu_event(|app, event| match event.id().as_ref() {
             OPEN_ID => window::show_main(app),
@@ -51,11 +36,102 @@ pub fn create<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<()> {
             }
             PASTE_LAST_ID => send(app, Action::PasteLast),
             COPY_LAST_ID => send(app, Action::CopyLast),
+            PRIVACY_ID => toggle_privacy_mode(app),
             QUIT_ID => app.exit(0),
             _ => {}
         })
         .build(app)?;
     Ok(())
+}
+
+/// Shows Privacy mode in the menu, the icon and the tooltip (PRIV-03).
+pub fn refresh<R: Runtime>(app: &AppHandle<R>, settings: &Settings) {
+    let Some(tray) = app.tray_by_id(TRAY_ID) else {
+        return;
+    };
+    let privacy = settings.privacy.privacy_mode;
+    let updated = menu(app, settings)
+        .and_then(|menu| tray.set_menu(Some(menu)))
+        .and_then(|()| tray.set_icon_with_as_template(Some(icon(privacy)), true))
+        .and_then(|()| tray.set_tooltip(Some(tooltip(privacy))));
+    if let Err(error) = updated {
+        log::warn!("could not update the tray: {error}");
+    }
+}
+
+fn menu<R: Runtime>(app: &AppHandle<R>, settings: &Settings) -> tauri::Result<Menu<R>> {
+    let item =
+        |id, text, accelerator: Option<&str>| MenuItem::with_id(app, id, text, true, accelerator);
+    let open = item(OPEN_ID, "Open Shrimp", None)?;
+    let shortcuts = item(SHORTCUTS_ID, "Shortcuts…", None)?;
+    let paste_last = item(PASTE_LAST_ID, "Paste last transcript", Some("Ctrl+Cmd+V"))?;
+    let copy_last = item(COPY_LAST_ID, "Copy last transcript", Some("Ctrl+Cmd+C"))?;
+    let privacy = CheckMenuItem::with_id(
+        app,
+        PRIVACY_ID,
+        "Privacy mode",
+        true,
+        settings.privacy.privacy_mode,
+        None::<&str>,
+    )?;
+    let quit = item(QUIT_ID, "Quit Shrimp", Some("CmdOrCtrl+Q"))?;
+    Menu::with_items(
+        app,
+        &[
+            &open,
+            &shortcuts,
+            &PredefinedMenuItem::separator(app)?,
+            &paste_last,
+            &copy_last,
+            &PredefinedMenuItem::separator(app)?,
+            &privacy,
+            &PredefinedMenuItem::separator(app)?,
+            &quit,
+        ],
+    )
+}
+
+fn tooltip(privacy: bool) -> &'static str {
+    if privacy {
+        "Shrimp (Privacy mode)"
+    } else {
+        "Shrimp"
+    }
+}
+
+/// The template icon, with a dot in the corner while Privacy mode is on.
+fn icon(privacy: bool) -> Image<'static> {
+    let (width, height) = (TRAY_ICON.width(), TRAY_ICON.height());
+    let mut rgba = TRAY_ICON.rgba().to_vec();
+    if privacy {
+        let size = width.min(height) as f32;
+        let (cx, cy) = (size * 0.8, size * 0.8);
+        for y in 0..height {
+            for x in 0..width {
+                let distance = (x as f32 + 0.5 - cx).hypot(y as f32 + 0.5 - cy);
+                let alpha = if distance <= size * 0.16 {
+                    255
+                } else if distance <= size * 0.22 {
+                    0
+                } else {
+                    continue;
+                };
+                let at = ((y * width + x) * 4) as usize;
+                rgba[at..at + 4].copy_from_slice(&[0, 0, 0, alpha]);
+            }
+        }
+    }
+    Image::new_owned(rgba, width, height)
+}
+
+fn toggle_privacy_mode<R: Runtime>(app: &AppHandle<R>) {
+    let Some(settings) = app.try_state::<Arc<SettingsStore>>() else {
+        return;
+    };
+    let on = !settings.get().privacy.privacy_mode;
+    if let Err(error) = settings.update(&serde_json::json!({"privacy": {"privacyMode": on}})) {
+        log::warn!("could not switch Privacy mode: {error}");
+    }
 }
 
 fn send<R: Runtime>(app: &AppHandle<R>, action: Action) {

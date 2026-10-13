@@ -3,6 +3,7 @@ import { AiTestRow } from "./AiTestRow";
 import { KeyRow } from "./KeyRow";
 import { ModelSelect } from "./ModelSelect";
 import { OllamaFields } from "./OllamaFields";
+import { PrivacyModeNote } from "./PrivacyModeNote";
 
 type ProviderModelField = "anthropicModel" | "openaiModel" | "groqModel";
 
@@ -45,6 +46,7 @@ export function AiProviderSection({
   return (
     <section className="card stack" aria-labelledby="ai-heading">
       <h2 id="ai-heading">AI provider</h2>
+      <PrivacyModeNote settings={settings} />
       <label className="select-field field">
         <span>Provider</span>
         <select

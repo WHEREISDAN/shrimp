@@ -148,6 +148,20 @@ describe("FlowBar", () => {
     expect(screen.getByText("Second")).toBeInTheDocument();
   });
 
+  it("shows when Privacy mode is on", async () => {
+    backend();
+    render(<FlowBar />);
+    await screen.findByRole("button", { name: "Start dictation" });
+    await act(async () =>
+      emit(EVENTS.settings, { ...SETTINGS, privacy: { ...SETTINGS.privacy, privacyMode: true } }),
+    );
+    expect(
+      screen.getByRole("button", { name: "Start dictation, Privacy mode on" }),
+    ).toBeInTheDocument();
+    await setState({ phase: "recording", mode: "hold", command: false });
+    expect(screen.getByRole("group", { name: "Recording, Privacy mode on" })).toBeInTheDocument();
+  });
+
   it("marks a Command Mode session", async () => {
     backend();
     render(<FlowBar />);

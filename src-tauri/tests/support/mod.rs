@@ -90,6 +90,8 @@ pub struct Fakes {
     /// What the fake engine transcribes in, and what a language check finds.
     pub spoken: Mutex<Option<String>>,
     pub detected: Mutex<Option<(String, f32)>>,
+    /// The provider each AI edit asked for.
+    pub providers: Mutex<Vec<LlmProviderId>>,
 }
 
 impl Fakes {
@@ -374,8 +376,14 @@ pub struct FakeLlmSource(pub Arc<FakeLlm>);
 impl LlmSource for FakeLlmSource {
     async fn provider(
         &self,
-        _: &shrimp_lib::settings::AiSettings,
+        settings: &shrimp_lib::settings::AiSettings,
     ) -> Result<Arc<dyn LlmProvider>, LlmError> {
+        self.0
+            .fakes
+            .providers
+            .lock()
+            .unwrap()
+            .push(settings.provider);
         Ok(Arc::clone(&self.0) as Arc<dyn LlmProvider>)
     }
 }

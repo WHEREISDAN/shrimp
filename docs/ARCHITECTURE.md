@@ -29,7 +29,7 @@ phase that adds it (phases are defined in [PARITY.md](PARITY.md)).
 | ------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Main window   | `main` webview: Home, Insights, Dictionary, Snippets, Style, Transforms, Settings, onboarding. Closing hides it **(built)**.                                                                                                |
 | Flow Bar      | `flow-bar` webview in a transparent, always-on-top window that never takes focus, on the bottom, left or right edge of the display under the cursor. On macOS it is a non-activating `NSPanel` (tauri-nspanel) **(built)**. |
-| Tray          | Menu-bar / notification-area icon and menu: Open Shrimp, Shortcuts…, Paste last transcript, Copy last transcript, Quit **(built)**.                                                                                         |
+| Tray          | Menu-bar / notification-area icon and menu: Open Shrimp, Shortcuts…, Paste last transcript, Copy last transcript, Privacy mode, Quit **(built)**.                                                                           |
 | Hotkey thread | Owns the OS keyboard hook (a CGEventTap run loop on macOS, `WH_KEYBOARD_LL` on Windows) **(built)**.                                                                                                                        |
 | Audio thread  | The cpal input stream callback, which only converts samples to f32 and sends them **(built)**.                                                                                                                              |
 | Async runtime | Tauri's tokio runtime: the dictation controller task, IPC commands, HTTP calls.                                                                                                                                             |
@@ -1149,7 +1149,16 @@ alone.
   commands, which exist only in debug builds. Domain operations go through typed commands.
 - The CSP restricts the webview to the app's own assets and Tauri IPC.
 - Secure text fields are never read (CTX-03). With Context awareness off, no field text
-  leaves the device (CTX-04). Privacy mode blocks every cloud engine and provider (PRIV-03).
+  leaves the device (CTX-04).
+- **Privacy mode (PRIV-03).** `settings.privacy.privacyMode`. Everything that runs a model
+  reads the settings through `Settings::effective()`, which turns the speech engine into
+  local Whisper and the AI provider into Ollama while it is on: the dictation pipeline,
+  the `SttRouter`, the editor (cleanup, Command Mode, transforms, warm-up) and the voice
+  profile. The chosen cloud engine and provider stay saved and return when it is turned
+  off. The Flow Bar's pill shows a green dot and says "Privacy mode on" to screen
+  readers; the tray menu has a checked "Privacy mode" item (which toggles it), the tray
+  icon gets a dot and the tooltip reads "Shrimp (Privacy mode)". Model downloads still use
+  the network.
 - Dev builds are signed with a local self-signed identity; release builds with Developer
   ID and notarization (P5). See [DEVELOPMENT.md](DEVELOPMENT.md#stable-code-signing-identity).
 

@@ -152,8 +152,9 @@ impl Editor {
             .unwrap_or_default()
     }
 
+    /// The settings with Privacy mode applied (PRIV-03).
     pub(super) fn settings(&self) -> Settings {
-        self.settings.get()
+        self.settings.get().effective()
     }
 
     pub(super) fn llm(&self) -> &Arc<dyn LlmSource> {
@@ -195,7 +196,7 @@ impl Editor {
 
     /// Readies the provider while the user is still speaking.
     pub async fn warm_up(&self) {
-        let settings = self.settings.get();
+        let settings = self.settings();
         if settings.ai.cleanup == CleanupLevel::None {
             return;
         }
@@ -205,7 +206,7 @@ impl Editor {
     }
 
     pub async fn edit(&self, raw: &str, context: &DictationContext) -> Edited {
-        let settings = self.settings.get();
+        let settings = self.settings();
         let suffix = settings
             .experimental
             .press_enter_command

@@ -37,7 +37,7 @@ impl SttRouter {
 
     /// The engine for the next dictation.
     pub fn selected(&self) -> Result<Arc<dyn SttEngine>, SttError> {
-        let stt = self.settings.get().stt;
+        let stt = self.settings.get().effective().stt;
         let (url, model) = match stt.engine {
             SttEngineId::LocalWhisper => return Ok(Arc::clone(&self.local) as Arc<dyn SttEngine>),
             SttEngineId::OpenAi => (OPENAI_URL, stt.openai_model),
@@ -64,7 +64,7 @@ impl SttRouter {
 #[async_trait]
 impl SttEngine for SttRouter {
     fn id(&self) -> SttEngineId {
-        self.settings.get().stt.engine
+        self.settings.get().effective().stt.engine
     }
 
     async fn transcribe(
@@ -114,5 +114,22 @@ mod tests {
         secrets.set(KeyAccount::Groq, "gsk_test").unwrap();
         assert_eq!(router.selected().unwrap().id(), SttEngineId::Groq);
         assert_eq!(router.id(), SttEngineId::Groq);
+    }
+
+    #[test]
+    fn privacy_mode_uses_whisper_on_this_mac() {
+        let mut settings = Settings::default();
+        settings.stt.engine = SttEngineId::Groq;
+        settings.privacy.privacy_mode = true;
+        let secrets = Arc::new(Secrets::new(Box::new(MemorySecrets::default())));
+        secrets.set(KeyAccount::Groq, "gsk_test").unwrap();
+        let router = SttRouter::new(
+            Arc::new(EngineSlot::new("loading")),
+            Arc::new(SettingsStore::in_memory(settings)),
+            secrets,
+            reqwest::Client::new(),
+        );
+        assert_eq!(router.selected().unwrap().id(), SttEngineId::LocalWhisper);
+        assert_eq!(router.id(), SttEngineId::LocalWhisper);
     }
 }
