@@ -93,13 +93,13 @@ pub fn next_milestone(words: i64) -> i64 {
     milestone
 }
 
-/// Words the stored transcripts must hold for a profile at `total` words.
-pub fn needed_locally(total: i64) -> i64 {
-    if total <= 2_000 {
+/// Words the stored transcripts must hold for the profile of `milestone`.
+pub fn needed_locally(milestone: i64) -> i64 {
+    if milestone <= 2_000 {
         2_000
-    } else if total <= 12_000 {
+    } else if milestone <= 12_000 {
         5_000
-    } else if total <= 37_000 {
+    } else if milestone <= 37_000 {
         10_000
     } else {
         20_000
@@ -117,7 +117,8 @@ pub fn status(db: &Connection) -> Result<VoiceProfileStatus, StorageError> {
         total_words,
         stored_words: stored_words(db)?,
         next_at,
-        needed_locally: needed_locally(total_words),
+        // What the milestone being generated needs, not what the total would.
+        needed_locally: needed_locally(next_at),
     })
 }
 
@@ -364,9 +365,23 @@ mod tests {
             milestones,
             [2_000, 7_000, 12_000, 22_000, 32_000, 42_000, 62_000, 82_000]
         );
-        assert_eq!(needed_locally(1_500), 2_000);
-        assert_eq!(needed_locally(9_000), 5_000);
-        assert_eq!(needed_locally(40_000), 20_000);
+        assert_eq!(needed_locally(2_000), 2_000);
+        assert_eq!(needed_locally(7_000), 5_000);
+        assert_eq!(needed_locally(22_000), 10_000);
+        assert_eq!(needed_locally(42_000), 20_000);
+    }
+
+    #[test]
+    fn the_first_profile_needs_two_thousand_stored_words_whatever_the_total() {
+        let database = crate::storage::Database::open_in_memory().unwrap();
+        let status = database
+            .with(|db| {
+                stats::record(db, &stats::counted("2026-10-13", 2_950))?;
+                status(db)
+            })
+            .unwrap();
+        assert_eq!(status.next_at, 2_000);
+        assert_eq!(status.needed_locally, 2_000);
     }
 
     #[test]
