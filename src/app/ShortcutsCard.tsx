@@ -1,8 +1,12 @@
 import { useEffect, useRef, useState } from "react";
-import { EVENTS, getShortcuts, type ShortcutInfo } from "../lib/ipc";
-import { useTauriEvent } from "../lib/useTauriEvent";
+import { getShortcuts, type ShortcutInfo } from "../lib/ipc";
 
-export function ShortcutsCard() {
+interface ShortcutsCardProps {
+  /** Increments each time the card should scroll into view and take focus. */
+  reveal: number;
+}
+
+export function ShortcutsCard({ reveal }: ShortcutsCardProps) {
   const [shortcuts, setShortcuts] = useState<ShortcutInfo[]>([]);
   const headingRef = useRef<HTMLHeadingElement>(null);
 
@@ -16,12 +20,17 @@ export function ShortcutsCard() {
     };
   }, []);
 
-  useTauriEvent<string>(EVENTS.navigate, (section) => {
-    if (section === "shortcuts") {
+  useEffect(() => {
+    if (reveal === 0) {
+      return;
+    }
+    // After the page switch has painted, so the card is laid out before it scrolls.
+    const frame = requestAnimationFrame(() => {
       headingRef.current?.scrollIntoView({ block: "start" });
       headingRef.current?.focus();
-    }
-  });
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [reveal]);
 
   return (
     <section className="card" id="shortcuts" aria-labelledby="shortcuts-heading">

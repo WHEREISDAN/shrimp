@@ -3,6 +3,7 @@ import { createRoot } from "react-dom/client";
 import { App } from "./app/App";
 import { loadDevBridge } from "./lib/devBridge";
 import "./app/App.css";
+import "./app/Pages.css";
 
 loadDevBridge();
 

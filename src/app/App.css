@@ -8,6 +8,11 @@
   --muted: rgb(0 0 0 / 0.55);
   --ok: #1f8a4c;
   --error: #d1453b;
+  --accent: #d6471f;
+  --on-accent: #ffffff;
+  --sidebar: #f3f1ee;
+  --selected: rgb(0 0 0 / 0.07);
+  --field: #ffffff;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -18,11 +23,54 @@
     --border: rgb(255 255 255 / 0.1);
     --muted: rgb(255 255 255 / 0.55);
     --ok: #4cc27a;
+    --error: #ff7a6e;
+    --accent: #ff7a54;
+    --on-accent: #1c1b1a;
+    --sidebar: #22211f;
+    --selected: rgb(255 255 255 / 0.1);
+    --field: #1c1b1a;
   }
 }
 
 body {
   margin: 0;
+}
+
+.shell {
+  display: grid;
+  grid-template-columns: 9.5rem minmax(0, 1fr);
+  height: 100vh;
+}
+
+.sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 1rem 0.6rem;
+  border-right: 1px solid var(--border);
+  background: var(--sidebar);
+}
+
+.sidebar-item {
+  padding: 0.45rem 0.7rem;
+  border: 0;
+  border-radius: 8px;
+  font-size: 0.95rem;
+  text-align: left;
+}
+
+.sidebar-item:hover {
+  background: var(--selected);
+}
+
+.sidebar-item[aria-current="page"] {
+  background: var(--selected);
+  font-weight: 600;
+}
+
+.content {
+  min-width: 0;
+  overflow-y: auto;
 }
 
 .app {
@@ -32,6 +80,7 @@ body {
   max-width: 620px;
   margin: 0 auto;
   padding: 2.5rem 1.5rem;
+  box-sizing: border-box;
 }
 
 .app-header h1 {
@@ -128,6 +177,16 @@ kbd {
   font-size: 0.85rem;
 }
 
+.card.stack {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.card.stack h2 {
+  margin: 0;
+}
+
 button {
   padding: 0.3rem 0.8rem;
   border: 1px solid var(--border);
@@ -149,4 +208,58 @@ button {
 .meta.error {
   color: var(--error);
   opacity: 1;
+}
+
+button:hover:not(:disabled) {
+  background: var(--selected);
+}
+
+button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+button:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+button.primary {
+  border-color: transparent;
+  background: var(--accent);
+  color: var(--on-accent);
+  font-weight: 550;
+}
+
+button.primary:hover:not(:disabled) {
+  background: var(--accent);
+  filter: brightness(1.08);
+}
+
+button.danger {
+  border-color: var(--error);
+  color: var(--error);
+}
+
+input[type="text"],
+input[type="search"],
+input[type="password"],
+textarea,
+select {
+  box-sizing: border-box;
+  width: 100%;
+  padding: 0.4rem 0.6rem;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--field);
+  color: inherit;
+  font: inherit;
+  font-size: 0.9rem;
+}
+
+textarea {
+  resize: vertical;
 }

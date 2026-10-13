@@ -1,56 +1,47 @@
-import { useEffect, useState } from "react";
-import { getAppInfo, type AppInfo } from "../lib/ipc";
-import { ModelCard } from "./ModelCard";
-import { PermissionsCard } from "./PermissionsCard";
-import { ShortcutsCard } from "./ShortcutsCard";
-
-type InfoState =
-  { status: "loading" } | { status: "ready"; info: AppInfo } | { status: "error"; message: string };
+import { useState } from "react";
+import { EVENTS } from "../lib/ipc";
+import { useTauriEvent } from "../lib/useTauriEvent";
+import { DictionaryPage } from "./DictionaryPage";
+import { HomePage } from "./HomePage";
+import { SettingsPage } from "./SettingsPage";
+import { Sidebar, type PageId } from "./Sidebar";
+import { SnippetsPage } from "./SnippetsPage";
+import { StylePage } from "./StylePage";
 
 export function App() {
+  const [page, setPage] = useState<PageId>("home");
+  const [revealShortcuts, setRevealShortcuts] = useState(0);
+
+  useTauriEvent<string>(EVENTS.navigate, (section) => {
+    if (section === "shortcuts") {
+      setPage("home");
+      setRevealShortcuts((count) => count + 1);
+    } else if (section === "settings") {
+      setPage("settings");
+    }
+  });
+
   return (
-    <main className="app">
-      <header className="app-header">
-        <h1>Shrimp</h1>
-        <p className="tagline">Speech to text, anywhere.</p>
-      </header>
-      <ModelCard />
-      <PermissionsCard />
-      <ShortcutsCard />
-      <AppInfoLine />
-    </main>
+    <div className="shell">
+      <Sidebar page={page} onSelect={setPage} />
+      <main className="content">
+        <CurrentPage page={page} revealShortcuts={revealShortcuts} />
+      </main>
+    </div>
   );
 }
 
-function AppInfoLine() {
-  const [state, setState] = useState<InfoState>({ status: "loading" });
-
-  useEffect(() => {
-    let cancelled = false;
-    getAppInfo()
-      .then((info) => !cancelled && setState({ status: "ready", info }))
-      .catch(
-        (error: unknown) => !cancelled && setState({ status: "error", message: String(error) }),
-      );
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  switch (state.status) {
-    case "loading":
-      return <p className="meta">Loading…</p>;
-    case "error":
-      return (
-        <p className="meta error" role="alert">
-          {state.message}
-        </p>
-      );
-    case "ready":
-      return (
-        <p className="meta" data-testid="app-info">
-          {state.info.name} {state.info.version} · {state.info.os}/{state.info.arch}
-        </p>
-      );
+function CurrentPage({ page, revealShortcuts }: { page: PageId; revealShortcuts: number }) {
+  switch (page) {
+    case "home":
+      return <HomePage revealShortcuts={revealShortcuts} />;
+    case "dictionary":
+      return <DictionaryPage />;
+    case "snippets":
+      return <SnippetsPage />;
+    case "style":
+      return <StylePage />;
+    case "settings":
+      return <SettingsPage />;
   }
 }
