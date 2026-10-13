@@ -34,6 +34,12 @@ auto-apply), context awareness (names and casing from the text around the cursor
 by website), split pasting for terminals and AI coding CLIs, remote-desktop pasting, the
 Press Enter shortcut and voice command, variable recognition, syntax-aware dictation and
 file tagging for coding, and dictionary auto-learn.
+
+Phase 4 so far adds a shortcuts dialog (up to four bindings per action, mouse buttons,
+Caps Lock, a no-Fn fallback, stuck-key recovery), a Whisper model picker, microphone
+ranking with mid-dictation fallback and warnings, whisper mode, sound settings, muting
+or pausing media while dictating, languages with auto-detect and spelling variants, and
+a Flow Bar that can hide, move to any edge and switch languages on hover.
 [docs/PARITY.md](docs/PARITY.md) tracks every feature.
 
 ## Getting started
