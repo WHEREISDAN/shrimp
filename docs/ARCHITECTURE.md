@@ -63,7 +63,7 @@ context/                context awareness: what surrounds the cursor (CTX-01..04
   words.rs              everyday English words (SCOWL), common first names, acronyms   (built)
 commands/               thin IPC handlers, one file per area                           (built)
   app.rs, dictation.rs, models.rs, permissions.rs, settings.rs, shortcuts.rs, ai.rs,
-  library.rs, history.rs, dev.rs (debug only)
+  library.rs, history.rs, insights.rs, dev.rs (debug only)
 audio/                  audio input                                                    (built)
   source.rs             AudioSource trait, AudioSink, AudioFormat                      (built)
   wav.rs                WavFileSource, read_wav                                        (built)
@@ -125,7 +125,12 @@ history/                transcript history (HIS-01..08)                         
                         storage, the hourly sweep and daily backup                     (built)
   journal.rs            the recording in progress saved as it arrives; leftovers of
                         a quit or crash become "Interrupted" entries (HIS-06)          (built)
-  fixes.rs              words the AI edit corrected, for Insights                      (built)
+  fixes.rs              words the AI edit removed or changed, for Insights             (built)
+insights/               Insights (STA-01..05)                                          (built)
+  mod.rs                speed, totals, streaks, the year's days, apps, the week's
+                        words; word-count and voice-profile milestones                 (built)
+  profile.rs            the voice profile: local facts and samples to the configured
+                        LLM, milestones, JSON reply parsing                            (built)
 dictation/              orchestration                                                  (built)
   controller/           the dictation actor (state machine below); shortcuts.rs for
                         Press Enter and bindings, transforms.rs for transform runs,
@@ -228,7 +233,7 @@ Built so far:
 | Commands | `app_info`, `get_dictation_state`, `flow_bar_control`, `flow_bar_ready`, `flow_bar_layout`, `run_notice_action`, `get_models`, `get_permissions`, `open_permission_settings`                                                                                                                                                                                                                                                                                                                                                               |
 | Phase 3  | `transform_action` (the changes view's Copy, Retry and Undo)                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
 | Phase 4  | `get_shortcuts` (every action's bindings, the overlap warning, Secure Keyboard Entry), `record_shortcut` (records through the hooks; progress as `shortcuts://recording`), `cancel_shortcut_recording`, `remove_shortcut`, `reset_shortcuts`; `retry_model`, `download_model`, `delete_model`; `get_microphones`, `select_microphone`, `rank_microphone`, `forget_microphone`, `start_mic_preview`, `stop_mic_preview`; `get_languages`, `set_languages`, `set_active_language`; `flow_bar_drag`, `flow_bar_action` (the right-click menu) |
-| Phase 4b | `list_history`, `copy_history`, `set_history_raw` (Undo/Redo AI edit), `retry_history`, `history_audio` (raw WAV bytes), `extract_history_audio`, `delete_history`, `set_history_storage` ("never" needs "delete all")                                                                                                                                                                                                                                                                                                                     |
+| Phase 4b | `get_insights`, `get_voice_profile`, `generate_voice_profile` (rejects with `{kind}`), `copy_image` and `save_image` (a raw PNG request body; the file name in an `x-file-name` header); `list_history`, `copy_history`, `set_history_raw` (Undo/Redo AI edit), `retry_history`, `history_audio` (raw WAV bytes), `extract_history_audio`, `delete_history`, `set_history_storage` ("never" needs "delete all")                                                                                                                            |
 | Phase 2  | `get_settings`, `update_settings`, `get_ai_options`, `get_api_keys`, `set_api_key`, `delete_api_key`, `list_ollama_models`, `test_ai_provider`; dictionary and snippet CRUD and imports (`list_dictionary`, `add_dictionary_entry`, `update_dictionary_entry`, `set_dictionary_pinned`, `delete_dictionary_entries`, `preview_dictionary_import`, `import_dictionary`, `list_snippets`, `add_snippet`, `update_snippet`, `delete_snippets`, `preview_snippet_import`, `import_snippets`)                                                   |
 | Dev only | `dev_get_audio_source`, `dev_set_audio_source`, `dev_set_app_category`, `dev_edit_text`, `dev_read_context`, `dev_set_microphones` (debug builds; see DEVELOPMENT.md)                                                                                                                                                                                                                                                                                                                                                                      |
 | Events   | `dictation://state`, `dictation://level` (Flow Bar only), `notify://notice`, `command://answer` and `transform://changes` (Flow Bar only), `models://status`, `app://navigate`, `settings://changed`, `shortcuts://recording`, `notify://dismiss` (a notice whose cause went away), `mic://devices`, `mic://level`, `flow-bar://hover` (Flow Bar only)                                                                                                                                                                                     |
@@ -350,6 +355,7 @@ pub struct Platform {
     pub label: fn(&Trigger) -> String, // "fn Space", "⌃⌘V", "Mouse 4"
     pub language: Option<String>,     // preferred language, ISO 639-1
     pub globe_key: GlobeKeyAction,    // what Fn alone does (CORE-02)
+    pub user_name: Option<String>,    // first name for Home's greeting (NSFullUserName)
 }
 
 /// Global shortcuts with press and release: keys, Fn and modifier-only chords, mouse buttons.
@@ -385,6 +391,8 @@ pub trait TextInserter: Send + Sync {
     fn press(&self, key: SyntheticKey, extra: Modifiers) -> Result<(), PlatformError>;
     /// Copies the selection with the copy shortcut, restoring the clipboard (CMD-02).
     fn copy_selection(&self) -> Result<Option<String>, PlatformError>;
+    /// A PNG on the clipboard (Insights' share card, STA-03).
+    fn copy_png(&self, png: &[u8]) -> Result<(), PlatformError>;
 }
 
 /// Opens URLs in the default browser (Command Mode searches).
@@ -914,6 +922,44 @@ dictionary, or was deleted from it before (`dictionary_rejected`; adding it by h
 forgives it). A casing fix of an unusual word ("tauri" → "Tauri") counts. Learned
 entries are marked `learned` (a "Learned" badge) and announced in one notice with View.
 Field text is read and compared on the device only.
+
+## Insights (STA-01..05)
+
+Insights read only the stats tables, which `History::record` fills for every dictation
+with words, whatever the storage choice, so they survive deletion (STA-05):
+
+- **Words per minute:** the words of the last 100 dictations with words (recordings
+  under 400 s) over their speech time, silence at either end trimmed.
+- **Fixes made:** words the AI edit removed or changed (a word-level longest common
+  subsequence of the raw and final text, `history/fixes.rs`) plus dictionary
+  corrections and snippets applied.
+- **Streaks:** consecutive active days; the current one ends at the last active day,
+  which must be today or yesterday. **Total words** compares this month so far with the
+  same days last month. The week runs from Monday.
+- **Activity:** a year of days, Sunday to Saturday per column, shaded 0, 1–249,
+  250–499, 500–749, 750+ words; each day's title gives its words, apps and top app.
+  **Apps:** words per app and the top app.
+
+Home shows a greeting with the user's first name and the push-to-talk shortcut, and a
+card with the week's words, speed and streak that opens Insights (STA-02). The share card
+is drawn on a canvas (1200 × 630) and sent to Rust as PNG bytes: Copy image writes
+`public.png` to the pasteboard, Download saves "My Shrimp activity <date>.png" to
+Downloads (STA-03). Insights refresh after each dictation (`history://changed`) and
+hourly.
+
+**Voice profile (STA-04).** It unlocks at 2,000 words, then at each milestone: every
+5,000 words to 12,000, every 10,000 to 37,000, then every 20,000. Building it needs as
+many words stored locally (2,000, 5,000, 10,000 or 20,000 by total), otherwise "You only
+have N words stored locally." `insights/profile.rs` reads local facts (total words, speed,
+top apps, the busiest weekday and two hours, and the word the AI edit removed most often
+across the last 200 transcripts) and about 1,200 words of recent transcripts, sends them
+as data to the configured provider (`LlmSource`, so Privacy mode keeps it on Ollama) and
+asks for one JSON object (archetype, description, catchphrase, most corrected word,
+active times) in the interface language. The JSON is taken from between the first `{`
+and the last `}`; the measured most-corrected word wins over the model's. The profile is
+stored in `meta`. Crossing a milestone raises a "Milestones" notice ("Discover your Voice
+Profile", then "Update your Voice Profile"); word counts of 1,000 to 1,000,000 raise
+"You've dictated N words with Shrimp."
 
 ## Context awareness
 

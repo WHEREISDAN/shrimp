@@ -127,6 +127,11 @@ impl TextInserter for MacInserter {
         })
     }
 
+    fn copy_png(&self, png: &[u8]) -> Result<(), PlatformError> {
+        let png = png.to_vec();
+        self.on_main(move || pasteboard::write_png(&png))
+    }
+
     fn press(&self, key: SyntheticKey, extra: Modifiers) -> Result<(), PlatformError> {
         if !permissions::accessibility_trusted() {
             return Err(PlatformError::AccessibilityMissing);

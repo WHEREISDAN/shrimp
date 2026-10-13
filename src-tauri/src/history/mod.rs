@@ -13,6 +13,7 @@ use chrono::{Datelike, Local, TimeZone, Timelike};
 use serde::Serialize;
 
 use crate::audio::{AudioClip, read_wav, wav_encode};
+use crate::insights::{self, Milestone};
 use crate::llm::LlmProviderId;
 use crate::platform::AppIdentity;
 use crate::settings::{HistoryStorage, SettingsStore};
@@ -87,6 +88,15 @@ impl From<StorageError> for HistoryError {
     }
 }
 
+/// What storing a dictation did.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct Stored {
+    /// The History entry, unless nothing is stored.
+    pub id: Option<i64>,
+    /// A milestone the dictation's words reached.
+    pub milestone: Option<Milestone>,
+}
+
 /// A finished dictation, as the pipeline reports it.
 #[derive(Debug, Clone, Default)]
 pub struct Dictation {
@@ -153,12 +163,17 @@ impl History {
         (self.storage() != HistoryStorage::Never).then(|| Journal::new(&self.recordings, now_ms()))
     }
 
-    /// Stores a dictation and counts its words. Returns the entry's id.
-    /// Blocking: call from the blocking pool.
-    pub fn record(&self, dictation: Dictation, status: HistoryStatus) -> Option<i64> {
-        if status.has_text() {
-            self.count(&dictation);
+    /// Stores a dictation and counts its words. Blocking: call from the
+    /// blocking pool.
+    pub fn record(&self, dictation: Dictation, status: HistoryStatus) -> Stored {
+        let milestone = status.has_text().then(|| self.count(&dictation)).flatten();
+        Stored {
+            id: self.store(dictation, status),
+            milestone,
         }
+    }
+
+    fn store(&self, dictation: Dictation, status: HistoryStatus) -> Option<i64> {
         if self.storage() == HistoryStorage::Never {
             return None;
         }
@@ -240,7 +255,8 @@ impl History {
             .with(|db| history::update_transcript(db, id, &result))?)
     }
 
-    fn count(&self, dictation: &Dictation) {
+    /// Counts the words; returns a milestone they reached.
+    fn count(&self, dictation: &Dictation) -> Option<Milestone> {
         let at = local(dictation.created_at);
         let counted = stats::Counted {
             created_at: dictation.created_at,
@@ -255,8 +271,17 @@ impl History {
             fixes: fixes::words_corrected(&dictation.raw, &dictation.text),
             dictionary_fixes: dictation.dictionary_fixes,
         };
-        if let Err(error) = self.database.with(|db| stats::record(db, &counted)) {
-            log::warn!("could not count the dictation: {error}");
+        let counted = self.database.with(|db| {
+            let before = stats::total_words(db)?;
+            stats::record(db, &counted)?;
+            Ok((before, stats::total_words(db)?))
+        });
+        match counted {
+            Ok((before, after)) => insights::milestone(before, after),
+            Err(error) => {
+                log::warn!("could not count the dictation: {error}");
+                None
+            }
         }
     }
 
@@ -567,6 +592,7 @@ mod tests {
         let id = f
             .history
             .record(dictation("Ship it today.", 2), HistoryStatus::Inserted)
+            .id
             .unwrap();
         let list = f.history.list("").unwrap();
         assert_eq!(list.entries.len(), 1);
@@ -585,10 +611,12 @@ mod tests {
         let short = f
             .history
             .record(dictation("", 3), HistoryStatus::Failed)
+            .id
             .unwrap();
         let long = f
             .history
             .record(dictation("", 6), HistoryStatus::Empty)
+            .id
             .unwrap();
         assert!(matches!(
             f.history.retry_clip(short),
@@ -605,6 +633,7 @@ mod tests {
         let id = f
             .history
             .record(dictation("one two", 1), HistoryStatus::Inserted)
+            .id
             .unwrap();
         f.history.backup();
         f.settings
@@ -616,7 +645,8 @@ mod tests {
         assert!(backup::copies(&f.dir.path().join("backups")).is_empty());
         assert_eq!(
             f.history
-                .record(dictation("three", 1), HistoryStatus::Inserted),
+                .record(dictation("three", 1), HistoryStatus::Inserted)
+                .id,
             None
         );
         assert_eq!(total_words(&f.history), 3, "stats survive (STA-05)");
@@ -646,7 +676,7 @@ mod tests {
         let f = fixture();
         let mut old = dictation("", 6);
         old.created_at = now_ms() - 15 * DAY_MS;
-        let id = f.history.record(old, HistoryStatus::Failed).unwrap();
+        let id = f.history.record(old, HistoryStatus::Failed).id.unwrap();
         f.history.sweep();
         let item = f.history.get(id).unwrap();
         assert!(!item.has_audio);
@@ -683,11 +713,12 @@ mod tests {
         let id = f
             .history
             .record(dictation("", 6), HistoryStatus::Failed)
+            .id
             .unwrap();
         let mut again = dictation("Second try.", 6);
         again.replaces = Some(id);
         assert_eq!(
-            f.history.record(again, HistoryStatus::Transcribed),
+            f.history.record(again, HistoryStatus::Transcribed).id,
             Some(id)
         );
         let item = f.history.get(id).unwrap();

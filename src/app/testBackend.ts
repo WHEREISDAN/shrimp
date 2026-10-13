@@ -2,6 +2,8 @@ import { mockIPC } from "@tauri-apps/api/mocks";
 import { fireEvent } from "@testing-library/react";
 import type {
   AiOptions,
+  Insights,
+  VoiceProfileStatus,
   DictionaryEntry,
   Languages,
   MicrophoneList,
@@ -288,4 +290,34 @@ export const AI_OPTIONS: AiOptions = {
       key: "groq",
     },
   ],
+};
+
+export const INSIGHTS: Insights = {
+  wpm: 142,
+  totalWords: 2_480,
+  totalDictations: 61,
+  wordsCorrected: 310,
+  dictionaryFixes: 12,
+  month: { current: 1_200, previous: 1_000 },
+  currentStreak: 3,
+  longestStreak: 5,
+  weekWords: 640,
+  days: [
+    { day: "2026-10-12", words: 300, dictations: 7, apps: 2, topApp: "Slack" },
+    { day: "2026-10-13", words: 340, dictations: 9, apps: 3, topApp: "TextEdit" },
+  ],
+  apps: [
+    { name: "Slack", words: 1_500, dictations: 30 },
+    { name: "TextEdit", words: 980, dictations: 31 },
+  ],
+  appsUsed: 2,
+  topApp: "Slack",
+};
+
+export const VOICE_PROFILE: VoiceProfileStatus = {
+  profile: null,
+  totalWords: 2_480,
+  storedWords: 2_480,
+  nextAt: 2_000,
+  neededLocally: 2_000,
 };

@@ -1,12 +1,16 @@
-export type PageId = "home" | "dictionary" | "snippets" | "style" | "transforms" | "settings";
+import { useTranslation } from "react-i18next";
 
-const ITEMS: { id: PageId; label: string }[] = [
-  { id: "home", label: "Home" },
-  { id: "dictionary", label: "Dictionary" },
-  { id: "snippets", label: "Snippets" },
-  { id: "style", label: "Style" },
-  { id: "transforms", label: "Transforms" },
-  { id: "settings", label: "Settings" },
+export type PageId =
+  "home" | "insights" | "dictionary" | "snippets" | "style" | "transforms" | "settings";
+
+export const PAGES: PageId[] = [
+  "home",
+  "insights",
+  "dictionary",
+  "snippets",
+  "style",
+  "transforms",
+  "settings",
 ];
 
 interface SidebarProps {
@@ -15,17 +19,18 @@ interface SidebarProps {
 }
 
 export function Sidebar({ page, onSelect }: SidebarProps) {
+  const { t } = useTranslation();
   return (
-    <nav className="sidebar" aria-label="Main">
-      {ITEMS.map((item) => (
+    <nav className="sidebar" aria-label={t("nav.label")}>
+      {PAGES.map((id) => (
         <button
-          key={item.id}
+          key={id}
           type="button"
           className="sidebar-item"
-          aria-current={item.id === page ? "page" : undefined}
-          onClick={() => onSelect(item.id)}
+          aria-current={id === page ? "page" : undefined}
+          onClick={() => onSelect(id)}
         >
-          {item.label}
+          {t(`nav.${id}`)}
         </button>
       ))}
     </nav>

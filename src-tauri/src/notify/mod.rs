@@ -70,6 +70,12 @@ pub enum NoticeAction {
     ShowFlowBar,
     /// Opens Home's history (HIS-06).
     OpenHistory,
+    /// Opens Insights (a word-count milestone).
+    OpenInsights,
+    /// Opens the voice profile, which can now be generated (STA-04).
+    SeeVoiceProfile,
+    /// Opens the voice profile, which can now be updated.
+    UpdateVoiceProfile,
 }
 
 impl NoticeAction {
@@ -97,6 +103,9 @@ impl NoticeAction {
             Self::DismissLanguageCard => "Don't show again",
             Self::ShowFlowBar => "Undo",
             Self::OpenHistory => "Open History",
+            Self::OpenInsights => "View insights",
+            Self::SeeVoiceProfile => "See profile",
+            Self::UpdateVoiceProfile => "Update profile",
         }
     }
 }

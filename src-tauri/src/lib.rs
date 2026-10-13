@@ -8,6 +8,7 @@ pub mod dictation;
 pub mod edit;
 pub mod history;
 pub mod hotkeys;
+pub mod insights;
 pub mod lang;
 pub mod llm;
 pub mod mic;
@@ -92,6 +93,11 @@ pub fn run() {
                 commands::history::extract_history_audio,
                 commands::history::delete_history,
                 commands::history::set_history_storage,
+                commands::insights::get_insights,
+                commands::insights::get_voice_profile,
+                commands::insights::generate_voice_profile,
+                commands::insights::copy_image,
+                commands::insights::save_image,
                 $($dev)*
             ]
         };

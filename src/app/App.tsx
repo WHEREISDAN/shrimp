@@ -3,6 +3,7 @@ import { EVENTS } from "../lib/ipc";
 import { useTauriEvent } from "../lib/useTauriEvent";
 import { DictionaryPage } from "./DictionaryPage";
 import { HomePage } from "./HomePage";
+import { InsightsPage } from "./InsightsPage";
 import { SettingsPage } from "./SettingsPage";
 import { ShortcutsDialog } from "./ShortcutsDialog";
 import { Sidebar, type PageId } from "./Sidebar";
@@ -16,6 +17,7 @@ export function App() {
   const [revealExperimental, setRevealExperimental] = useState(0);
   const [revealMicrophone, setRevealMicrophone] = useState(0);
   const [revealLanguages, setRevealLanguages] = useState(0);
+  const [revealVoiceProfile, setRevealVoiceProfile] = useState(0);
   const openShortcuts = () => setShortcutsOpen(true);
 
   useTauriEvent<string>(EVENTS.navigate, (section) => {
@@ -28,6 +30,11 @@ export function App() {
       setPage("home");
     } else if (section === "dictionary") {
       setPage("dictionary");
+    } else if (section === "insights") {
+      setPage("insights");
+    } else if (section === "voiceProfile") {
+      setPage("insights");
+      setRevealVoiceProfile((count) => count + 1);
     } else if (section === "languages") {
       setPage("settings");
       setRevealLanguages((count) => count + 1);
@@ -50,6 +57,8 @@ export function App() {
           revealExperimental={revealExperimental}
           revealMicrophone={revealMicrophone}
           revealLanguages={revealLanguages}
+          revealVoiceProfile={revealVoiceProfile}
+          onNavigate={setPage}
         />
       </main>
       {shortcutsOpen && <ShortcutsDialog onClose={() => setShortcutsOpen(false)} />}
@@ -63,6 +72,8 @@ interface CurrentPageProps {
   revealExperimental: number;
   revealMicrophone: number;
   revealLanguages: number;
+  revealVoiceProfile: number;
+  onNavigate: (page: PageId) => void;
 }
 
 function CurrentPage({
@@ -71,10 +82,14 @@ function CurrentPage({
   revealExperimental,
   revealMicrophone,
   revealLanguages,
+  revealVoiceProfile,
+  onNavigate,
 }: CurrentPageProps) {
   switch (page) {
     case "home":
-      return <HomePage onOpenShortcuts={onOpenShortcuts} />;
+      return <HomePage onOpenInsights={() => onNavigate("insights")} />;
+    case "insights":
+      return <InsightsPage revealVoiceProfile={revealVoiceProfile} />;
     case "dictionary":
       return <DictionaryPage />;
     case "snippets":

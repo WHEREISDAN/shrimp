@@ -7,6 +7,8 @@ export interface AppInfo {
   version: string;
   os: string;
   arch: string;
+  /** The user's first name, for the greeting. */
+  userName: string | null;
 }
 
 /** Mirrors `dictation::DictationState`. */
@@ -41,7 +43,10 @@ export type NoticeAction =
   | "addDetectedLanguage"
   | "dismissLanguageCard"
   | "showFlowBar"
-  | "openHistory";
+  | "openHistory"
+  | "openInsights"
+  | "seeVoiceProfile"
+  | "updateVoiceProfile";
 
 /** Mirrors `notify::Notice`. */
 export interface Notice {
@@ -458,6 +463,64 @@ export interface HistoryList {
   disabled: boolean;
 }
 
+/** Mirrors `insights::DayActivity`: one active day of the heatmap. */
+export interface DayActivity {
+  /** YYYY-MM-DD. */
+  day: string;
+  words: number;
+  dictations: number;
+  apps: number;
+  topApp: string | null;
+}
+
+/** Mirrors `insights::Insights` (STA-01). */
+export interface Insights {
+  wpm: number;
+  totalWords: number;
+  totalDictations: number;
+  wordsCorrected: number;
+  dictionaryFixes: number;
+  /** This month so far against the same days last month. */
+  month: { current: number; previous: number } | null;
+  currentStreak: number;
+  longestStreak: number;
+  /** Since Monday. */
+  weekWords: number;
+  /** Active days of the last year, oldest first. */
+  days: DayActivity[];
+  apps: { name: string; words: number; dictations: number }[];
+  appsUsed: number;
+  topApp: string | null;
+}
+
+/** Mirrors `insights::profile::VoiceProfile` (STA-04). */
+export interface VoiceProfile {
+  archetype: string;
+  description: string;
+  catchphrase: string;
+  mostCorrected: string;
+  activeTimes: string;
+  generatedAt: number;
+  /** Total words when it was generated. */
+  words: number;
+}
+
+/** Mirrors `insights::profile::VoiceProfileStatus`. */
+export interface VoiceProfileStatus {
+  profile: VoiceProfile | null;
+  totalWords: number;
+  storedWords: number;
+  /** Total words at which the first profile, or the next update, unlocks. */
+  nextAt: number;
+  neededLocally: number;
+}
+
+/** Mirrors `commands::insights::VoiceProfileError`. */
+export type VoiceProfileError =
+  | { kind: "notEnoughStored"; stored: number; needed: number }
+  | { kind: "notYet"; nextAt: number }
+  | { kind: "failed"; message: string };
+
 /** Mirrors `commands::CommandError`: what a rejected command throws. */
 export interface CommandError {
   code: string;
@@ -643,6 +706,22 @@ export const setHistoryStorage = (
   storage: HistoryStorage,
   confirmation: string | null = null,
 ): Promise<Settings> => invoke<Settings>("set_history_storage", { storage, confirmation });
+
+export const getInsights = (): Promise<Insights> => invoke<Insights>("get_insights");
+
+export const getVoiceProfile = (): Promise<VoiceProfileStatus> =>
+  invoke<VoiceProfileStatus>("get_voice_profile");
+
+/** Rejects with a `VoiceProfileError`; `language` is an English name such as "German". */
+export const generateVoiceProfile = (language: string): Promise<VoiceProfileStatus> =>
+  invoke<VoiceProfileStatus>("generate_voice_profile", { language });
+
+/** Puts a PNG on the clipboard. */
+export const copyImage = (png: Uint8Array): Promise<void> => invoke("copy_image", png);
+
+/** Saves a PNG to Downloads as "<name> <date>.png" and returns its path. */
+export const saveImage = (png: Uint8Array, name: string): Promise<string> =>
+  invoke<string>("save_image", png, { headers: { "x-file-name": encodeURIComponent(name) } });
 
 /** Event names emitted by src-tauri/src/app/events.rs. */
 export const EVENTS = {

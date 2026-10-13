@@ -40,7 +40,14 @@ pub fn platform(main_thread: MainThread) -> Platform {
         label: macos_label,
         language: preferred_language(),
         globe_key: globe::globe_key_action(),
+        user_name: first_name(),
     }
+}
+
+/// The first word of the account's full name.
+fn first_name() -> Option<String> {
+    let full = objc2_foundation::NSFullUserName().to_string();
+    full.split_whitespace().next().map(str::to_owned)
 }
 
 pub use globe::{open_keyboard_settings, open_sound_settings};

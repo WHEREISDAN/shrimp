@@ -23,6 +23,9 @@ const ACTION_LABELS: Record<NoticeAction, string> = {
   dismissLanguageCard: "Don't show again",
   showFlowBar: "Undo",
   openHistory: "Open History",
+  openInsights: "View insights",
+  seeVoiceProfile: "See profile",
+  updateVoiceProfile: "Update profile",
 };
 
 interface NoticeCardProps {

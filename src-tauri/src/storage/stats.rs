@@ -92,6 +92,147 @@ pub fn total_words(db: &Connection) -> Result<i64, StorageError> {
     )
 }
 
+/// Sums over every day.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct Totals {
+    pub words: i64,
+    pub dictations: i64,
+    pub fixes: i64,
+    pub dictionary_fixes: i64,
+}
+
+pub fn totals(db: &Connection) -> Result<Totals, StorageError> {
+    Ok(db.query_row(
+        "SELECT IFNULL(SUM(words), 0), IFNULL(SUM(dictations), 0), IFNULL(SUM(fixes), 0),
+                IFNULL(SUM(dictionary_fixes), 0)
+         FROM daily_stats",
+        [],
+        |row| {
+            Ok(Totals {
+                words: row.get(0)?,
+                dictations: row.get(1)?,
+                fixes: row.get(2)?,
+                dictionary_fixes: row.get(3)?,
+            })
+        },
+    )?)
+}
+
+/// Words per minute over the recent dictations, rounded; 0 without any.
+pub fn speed(db: &Connection) -> Result<i64, StorageError> {
+    let (words, speech_ms): (i64, i64) = db.query_row(
+        "SELECT IFNULL(SUM(words), 0), IFNULL(SUM(speech_ms), 0) FROM recent_speed",
+        [],
+        |row| Ok((row.get(0)?, row.get(1)?)),
+    )?;
+    if speech_ms <= 0 {
+        return Ok(0);
+    }
+    Ok(((words as f64) * 60_000.0 / speech_ms as f64).round() as i64)
+}
+
+/// Words dictated from `from` to `to` (local dates, inclusive).
+pub fn words_between(db: &Connection, from: &str, to: &str) -> Result<i64, StorageError> {
+    Ok(db.query_row(
+        "SELECT IFNULL(SUM(words), 0) FROM daily_stats WHERE day BETWEEN ?1 AND ?2",
+        params![from, to],
+        |row| row.get(0),
+    )?)
+}
+
+/// One active day, for the heatmap.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Day {
+    pub day: String,
+    pub words: i64,
+    pub dictations: i64,
+    pub apps: i64,
+    pub top_app: Option<String>,
+}
+
+/// Every day with words since `from` (inclusive), oldest first.
+pub fn days_since(db: &Connection, from: &str) -> Result<Vec<Day>, StorageError> {
+    let mut statement = db.prepare(
+        "SELECT d.day, d.words, d.dictations,
+                (SELECT COUNT(*) FROM app_usage a WHERE a.day = d.day),
+                (SELECT a.app_name FROM app_usage a WHERE a.day = d.day
+                 ORDER BY a.words DESC, a.app_name LIMIT 1)
+         FROM daily_stats d WHERE d.day >= ?1 AND d.words > 0 ORDER BY d.day",
+    )?;
+    let days = statement
+        .query_map([from], |row| {
+            Ok(Day {
+                day: row.get(0)?,
+                words: row.get(1)?,
+                dictations: row.get(2)?,
+                apps: row.get(3)?,
+                top_app: row.get(4)?,
+            })
+        })?
+        .collect::<rusqlite::Result<Vec<_>>>()?;
+    Ok(days)
+}
+
+/// Every day with words, oldest first, for streaks.
+pub fn active_days(db: &Connection) -> Result<Vec<String>, StorageError> {
+    let mut statement = db.prepare("SELECT day FROM daily_stats WHERE words > 0 ORDER BY day")?;
+    let days = statement
+        .query_map([], |row| row.get(0))?
+        .collect::<rusqlite::Result<Vec<_>>>()?;
+    Ok(days)
+}
+
+/// One app over all time.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AppTotal {
+    pub app_id: String,
+    pub name: String,
+    pub words: i64,
+    pub dictations: i64,
+}
+
+/// Apps by words dictated, most first.
+pub fn apps(db: &Connection) -> Result<Vec<AppTotal>, StorageError> {
+    let mut statement = db.prepare(
+        "SELECT app_id, MAX(app_name), SUM(words), SUM(dictations) FROM app_usage
+         GROUP BY app_id ORDER BY SUM(words) DESC, MAX(app_name)",
+    )?;
+    let apps = statement
+        .query_map([], |row| {
+            Ok(AppTotal {
+                app_id: row.get(0)?,
+                name: row.get(1)?,
+                words: row.get(2)?,
+                dictations: row.get(3)?,
+            })
+        })?
+        .collect::<rusqlite::Result<Vec<_>>>()?;
+    Ok(apps)
+}
+
+/// Words by weekday (0 is Sunday) and hour.
+pub fn hourly(db: &Connection) -> Result<[[i64; 24]; 7], StorageError> {
+    let mut grid = [[0; 24]; 7];
+    let mut statement = db.prepare("SELECT weekday, hour, words FROM hourly_activity")?;
+    let rows = statement.query_map([], |row| {
+        Ok((
+            row.get::<_, i64>(0)?,
+            row.get::<_, i64>(1)?,
+            row.get::<_, i64>(2)?,
+        ))
+    })?;
+    for row in rows {
+        let (weekday, hour, words) = row?;
+        let (Ok(weekday), Ok(hour)) = (usize::try_from(weekday), usize::try_from(hour)) else {
+            continue;
+        };
+        if let Some(cell) = grid.get_mut(weekday).and_then(|day| day.get_mut(hour)) {
+            *cell = words;
+        }
+    }
+    Ok(grid)
+}
+
 pub fn meta(db: &Connection, key: &str) -> Result<Option<String>, StorageError> {
     Ok(db
         .query_row("SELECT value FROM meta WHERE key = ?1", [key], |row| {
@@ -147,6 +288,20 @@ mod tests {
                 let days: i64 =
                     db.query_row("SELECT COUNT(*) FROM daily_stats", [], |row| row.get(0))?;
                 assert_eq!(days, 1, "a dictation without words isn't counted");
+                let totals = totals(db)?;
+                assert_eq!(
+                    (totals.words, totals.dictations, totals.fixes),
+                    (1_050, 105, 210)
+                );
+                assert_eq!(speed(db)?, 75, "10 words in 8 s");
+                assert_eq!(words_between(db, "2026-10-12", "2026-10-13")?, 1_050);
+                let days = days_since(db, "2026-01-01")?;
+                assert_eq!(days.len(), 1);
+                assert_eq!(days[0].top_app.as_deref(), Some("TextEdit"));
+                assert_eq!(days[0].apps, 1);
+                assert_eq!(apps(db)?[0].words, 1_050);
+                assert_eq!(hourly(db)?[1][9], 1_050);
+                assert_eq!(active_days(db)?, ["2026-10-12"]);
                 set_meta(db, "k", "v")?;
                 assert_eq!(meta(db, "k")?.as_deref(), Some("v"));
                 Ok(())

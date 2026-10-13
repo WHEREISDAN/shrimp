@@ -1,29 +1,23 @@
 import { useEffect, useState } from "react";
-import { useTranslation } from "react-i18next";
 import { getAppInfo, type AppInfo } from "../lib/ipc";
+import { Greeting } from "./Greeting";
 import { HistorySection } from "./HistorySection";
 import { ModelCard } from "./ModelCard";
 import { PermissionsCard } from "./PermissionsCard";
-import { ShortcutsCard } from "./ShortcutsCard";
 
 type InfoState =
   { status: "loading" } | { status: "ready"; info: AppInfo } | { status: "error"; message: string };
 
 interface HomePageProps {
-  onOpenShortcuts: () => void;
+  onOpenInsights: () => void;
 }
 
-export function HomePage({ onOpenShortcuts }: HomePageProps) {
-  const { t } = useTranslation();
+export function HomePage({ onOpenInsights }: HomePageProps) {
   return (
     <div className="app">
-      <header className="app-header">
-        <h1>Shrimp</h1>
-        <p className="tagline">{t("home.tagline")}</p>
-      </header>
+      <Greeting onOpenInsights={onOpenInsights} />
       <ModelCard />
       <PermissionsCard />
-      <ShortcutsCard onOpenShortcuts={onOpenShortcuts} />
       <HistorySection />
       <AppInfoLine />
     </div>
@@ -47,7 +41,7 @@ function AppInfoLine() {
 
   switch (state.status) {
     case "loading":
-      return <p className="meta">Loading…</p>;
+      return null;
     case "error":
       return (
         <p className="meta error" role="alert">

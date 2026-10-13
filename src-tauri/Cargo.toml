@@ -43,7 +43,7 @@ whisper-rs = { version = "0.16.0", features = ["metal"] }
 tauri-nspanel = "2.1.1"
 block2 = "0.6"
 objc2 = "0.6"
-objc2-foundation = { version = "0.3.2", default-features = false, features = ["std", "NSData", "NSString", "NSArray", "NSURL", "NSLocale"] }
+objc2-foundation = { version = "0.3.2", default-features = false, features = ["std", "NSData", "NSString", "NSArray", "NSURL", "NSLocale", "NSPathUtilities"] }
 objc2-core-foundation = { version = "0.3.2", default-features = false, features = ["std", "CFString", "CFData", "CFArray", "CFDictionary", "CFNumber", "CFBase", "CFPreferences", "CFURL", "CFMachPort", "CFRunLoop"] }
 objc2-app-kit = { version = "0.3.2", default-features = false, features = ["std", "NSPasteboard", "NSPasteboardItem", "NSRunningApplication", "NSWorkspace", "NSSound", "libc"] }
 objc2-core-graphics = { version = "0.3.2", default-features = false, features = ["std", "CGEvent", "CGEventSource", "CGEventTypes", "CGRemoteOperation", "CGSession"] }

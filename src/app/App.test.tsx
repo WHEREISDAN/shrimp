@@ -4,7 +4,7 @@ import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { EVENTS, type ModelStatus, type PermissionsInfo } from "../lib/ipc";
 import { App } from "./App";
-import { AI_OPTIONS, SETTINGS, SHORTCUTS } from "./testBackend";
+import { AI_OPTIONS, INSIGHTS, SETTINGS, SHORTCUTS, VOICE_PROFILE } from "./testBackend";
 
 const model = (overrides: Partial<ModelStatus>): ModelStatus =>
   ({
@@ -21,7 +21,7 @@ function backend(models: ModelStatus[]) {
   return (cmd: string) => {
     switch (cmd) {
       case "app_info":
-        return { name: "Shrimp", version: "0.1.0", os: "macos", arch: "aarch64" };
+        return { name: "Shrimp", version: "0.1.0", os: "macos", arch: "aarch64", userName: "Dan" };
       case "get_models":
         return models;
       case "get_permissions":
@@ -38,6 +38,10 @@ function backend(models: ModelStatus[]) {
         return { anthropic: false, openai: false, groq: false };
       case "list_history":
         return { entries: [], disabled: false };
+      case "get_insights":
+        return INSIGHTS;
+      case "get_voice_profile":
+        return VOICE_PROFILE;
       default:
         throw new Error(`unexpected command ${cmd}`);
     }
@@ -72,12 +76,15 @@ describe("App", () => {
     );
   });
 
-  it("lists permissions and shortcuts", async () => {
+  it("greets with the push-to-talk shortcut and lists permissions", async () => {
     mockIPC(backend([model({})]), { shouldMockEvents: true });
     render(<App />);
+    expect(
+      await screen.findByRole("heading", { name: /^Good (morning|afternoon|evening), Dan$/ }),
+    ).toBeInTheDocument();
+    expect(await screen.findByText("fn")).toBeInTheDocument();
     expect(await screen.findByText("Not asked yet")).toBeInTheDocument();
     expect(await screen.findByRole("button", { name: "Allow…" })).toBeInTheDocument();
-    expect(await screen.findByText("⌃⌘V")).toBeInTheDocument();
     expect(await screen.findByText(/Ready\. Dictation runs entirely/)).toBeInTheDocument();
   });
 
@@ -99,7 +106,14 @@ describe("App", () => {
       screen.getAllByRole("button").filter((button) => button.hasAttribute("aria-current")),
     ).toHaveLength(1);
     expect(new Set(commands.filter((cmd) => !cmd.startsWith("plugin:")))).toEqual(
-      new Set(["app_info", "get_models", "get_permissions", "get_shortcuts", "list_history"]),
+      new Set([
+        "app_info",
+        "get_models",
+        "get_permissions",
+        "get_shortcuts",
+        "list_history",
+        "get_insights",
+      ]),
     );
   });
 

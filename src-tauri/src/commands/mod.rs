@@ -7,6 +7,7 @@ pub mod app;
 pub mod dev;
 pub mod dictation;
 pub mod history;
+pub mod insights;
 pub mod languages;
 pub mod library;
 pub mod microphones;
@@ -78,6 +79,11 @@ pub const NAMES: &[&str] = &[
     "extract_history_audio",
     "delete_history",
     "set_history_storage",
+    "get_insights",
+    "get_voice_profile",
+    "generate_voice_profile",
+    "copy_image",
+    "save_image",
     #[cfg(debug_assertions)]
     "dev_get_audio_source",
     #[cfg(debug_assertions)]

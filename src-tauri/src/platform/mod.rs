@@ -167,6 +167,10 @@ pub trait TextInserter: Send + Sync {
     ) -> Result<InsertOutcome, PlatformError>;
     /// Puts `text` on the clipboard and leaves it there.
     fn copy(&self, text: &InsertText) -> Result<(), PlatformError>;
+    /// Puts a PNG image on the clipboard (Insights' share card, STA-03).
+    fn copy_png(&self, _png: &[u8]) -> Result<(), PlatformError> {
+        Err(PlatformError::Unsupported)
+    }
     /// Presses `key` in the focused app with `extra` modifiers held (Shift+Enter).
     fn press(&self, _key: SyntheticKey, _extra: Modifiers) -> Result<(), PlatformError> {
         Err(PlatformError::Unsupported)
@@ -340,6 +344,8 @@ pub struct Platform {
     pub language: Option<String>,
     /// What the Fn key does by itself, which a Fn shortcut must not trigger.
     pub globe_key: GlobeKeyAction,
+    /// The user's first name, for Home's greeting (STA-02).
+    pub user_name: Option<String>,
 }
 
 /// The system action of the Fn (Globe) key pressed alone.

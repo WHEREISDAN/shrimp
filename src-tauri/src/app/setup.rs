@@ -12,14 +12,16 @@ use super::{flow_bar, tray};
 use crate::audio::SwitchableDevices;
 use crate::audio::{AudioSourceSpec, DeviceProvider};
 use crate::commands::ai::HttpClient;
+use crate::commands::app::UserName;
 use crate::commands::history::Clipboard;
+use crate::commands::insights::AppLlm;
 use crate::commands::permissions::AppPermissions;
 use crate::commands::shortcuts::DefaultBindings;
 use crate::dictation::{self, ControllerInput, DictationUi, Services, Timing};
 use crate::edit::{EditTimeout, Editor, Library};
 use crate::history::History;
 use crate::lang;
-use crate::llm::{Providers, http};
+use crate::llm::{LlmSource, Providers, http};
 use crate::mic::Microphones;
 use crate::notify::{Notice, NoticeAction};
 use crate::platform::{self, CuePlayer, MainThread};
@@ -56,9 +58,10 @@ pub fn setup(app: &mut App) -> Result<(), Box<dyn std::error::Error>> {
     let database = Arc::new(open_database(&data_dir, ui.as_ref()));
     let history = start_history(&handle, &database, &data_dir, &settings, ui.as_ref());
     let client = http::client();
+    let llm: Arc<dyn LlmSource> = Arc::new(Providers::new(client.clone(), Arc::clone(&secrets)));
     let editor = Arc::new(Editor::new(
         Arc::clone(&settings),
-        Arc::new(Providers::new(client.clone(), Arc::clone(&secrets))),
+        Arc::clone(&llm),
         Arc::clone(&database) as Arc<dyn Library>,
         EditTimeout::default(),
     ));
@@ -109,6 +112,7 @@ pub fn setup(app: &mut App) -> Result<(), Box<dyn std::error::Error>> {
     );
     Arc::clone(&microphones).watch();
     app.manage(Clipboard(Arc::clone(&platform.inserter)));
+    app.manage(UserName(platform.user_name.clone()));
     app.manage(DefaultBindings {
         bindings: platform.default_bindings.clone(),
         label: platform.label,
@@ -145,6 +149,7 @@ pub fn setup(app: &mut App) -> Result<(), Box<dyn std::error::Error>> {
     app.manage(history);
     app.manage(editor);
     app.manage(HttpClient(client));
+    app.manage(AppLlm(llm));
     app.manage(Arc::clone(&models));
     app.manage(microphones);
     app.manage(Arc::clone(&slot));

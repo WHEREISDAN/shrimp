@@ -11,6 +11,7 @@ use crate::audio::{AudioClip, level};
 use crate::context::{AppKind, DictationContext, PendingContext};
 use crate::edit::{CleanupLevel, Editor};
 use crate::history::{Dictation, History};
+use crate::insights;
 use crate::lang;
 use crate::notify::Notice;
 use crate::settings::SettingsStore;
@@ -169,16 +170,21 @@ impl Pipeline {
             Outcome::NoSpeech => Some(HistoryStatus::Empty),
             _ => None,
         };
-        processed.history_id = tokio::task::spawn_blocking(move || {
-            let id = status.and_then(|status| history.record(record, status));
+        let stored = tokio::task::spawn_blocking(move || {
+            let stored = status.map(|status| history.record(record, status));
             if let Some(journal) = journal {
                 journal.delete();
             }
-            id
+            stored
         })
         .await
         .ok()
-        .flatten();
+        .flatten()
+        .unwrap_or_default();
+        processed.history_id = stored.id;
+        processed
+            .notices
+            .extend(stored.milestone.map(insights::notice));
     }
 
     /// History's Retry and Recover: transcribes an entry's audio again and
@@ -240,9 +246,11 @@ impl Pipeline {
                 Vec::new(),
             ),
         };
-        let stored = tokio::task::spawn_blocking(move || history.record(record, status)).await;
-        if !matches!(stored, Ok(Some(_))) {
-            notices.push(Notice::error(FAILED));
+        match tokio::task::spawn_blocking(move || history.record(record, status)).await {
+            Ok(stored) if stored.id.is_some() => {
+                notices.extend(stored.milestone.map(insights::notice));
+            }
+            _ => notices.push(Notice::error(FAILED)),
         }
         Processed {
             notices,

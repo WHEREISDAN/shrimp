@@ -6,6 +6,7 @@ import { loadDevBridge } from "./lib/devBridge";
 import "./app/App.css";
 import "./app/Pages.css";
 import "./app/History.css";
+import "./app/Insights.css";
 
 loadDevBridge();
 setupI18n();

@@ -4,8 +4,8 @@
 use objc2::rc::Retained;
 use objc2::runtime::ProtocolObject;
 use objc2_app_kit::{
-    NSPasteboard, NSPasteboardItem, NSPasteboardTypeHTML, NSPasteboardTypeString,
-    NSPasteboardWriting,
+    NSPasteboard, NSPasteboardItem, NSPasteboardTypeHTML, NSPasteboardTypePNG,
+    NSPasteboardTypeString, NSPasteboardWriting,
 };
 use objc2_foundation::{NSArray, NSData, NSString};
 
@@ -72,6 +72,15 @@ pub fn write_text(text: &InsertText, transient: bool) -> isize {
         }
     }
     pasteboard.changeCount()
+}
+
+/// Replaces the clipboard with a PNG image.
+pub fn write_png(png: &[u8]) {
+    let pasteboard = NSPasteboard::generalPasteboard();
+    pasteboard.clearContents();
+    pasteboard.setData_forType(Some(&NSData::with_bytes(png)), unsafe {
+        NSPasteboardTypePNG
+    });
 }
 
 pub fn restore(snapshot: &Snapshot) {

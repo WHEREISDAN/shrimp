@@ -1,5 +1,8 @@
 use serde::Serialize;
-use tauri::{AppHandle, PackageInfo};
+use tauri::{AppHandle, PackageInfo, State};
+
+/// The user's first name, read once at startup.
+pub struct UserName(pub Option<String>);
 
 /// Mirrors `AppInfo` in src/lib/ipc.ts.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
@@ -9,22 +12,25 @@ pub struct AppInfo {
     pub version: String,
     pub os: &'static str,
     pub arch: &'static str,
+    /// For Home's greeting.
+    pub user_name: Option<String>,
 }
 
 impl AppInfo {
-    fn from_package(package: &PackageInfo) -> Self {
+    fn from_package(package: &PackageInfo, user_name: Option<String>) -> Self {
         Self {
             name: package.name.clone(),
             version: package.version.to_string(),
             os: std::env::consts::OS,
             arch: std::env::consts::ARCH,
+            user_name,
         }
     }
 }
 
 #[tauri::command]
-pub fn app_info(app: AppHandle) -> AppInfo {
-    AppInfo::from_package(app.package_info())
+pub fn app_info(app: AppHandle, user: State<'_, UserName>) -> AppInfo {
+    AppInfo::from_package(app.package_info(), user.0.clone())
 }
 
 #[cfg(test)]
@@ -38,11 +44,13 @@ mod tests {
             version: "0.1.0".into(),
             os: "macos",
             arch: "aarch64",
+            user_name: Some("Dan".into()),
         };
         let json = serde_json::to_value(&info).unwrap();
         assert_eq!(
             json,
-            serde_json::json!({"name": "Shrimp", "version": "0.1.0", "os": "macos", "arch": "aarch64"})
+            serde_json::json!({"name": "Shrimp", "version": "0.1.0", "os": "macos",
+                "arch": "aarch64", "userName": "Dan"})
         );
     }
 }
