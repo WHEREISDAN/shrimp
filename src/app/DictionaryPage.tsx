@@ -16,6 +16,7 @@ import { DictionaryRow } from "./DictionaryRow";
 import { ImportDialog, ImportFileInput } from "./ImportDialog";
 import { Page } from "./Page";
 import { useFileImport } from "./useFileImport";
+import { primaryKey } from "../lib/platform";
 
 type Dialog =
   | { kind: "edit"; entry: DictionaryEntry | null }
@@ -87,7 +88,7 @@ export function DictionaryPage() {
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
-      if (!event.metaKey || event.key !== "Backspace") {
+      if (!primaryKey(event) || event.key !== "Backspace") {
         return;
       }
       if (selectedIds.length > 0 && !modalOpen && !isTextEntry(document.activeElement)) {

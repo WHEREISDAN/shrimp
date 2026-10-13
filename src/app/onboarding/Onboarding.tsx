@@ -11,6 +11,7 @@ import { LanguagesSection } from "../LanguagesSection";
 import { MicrophoneSection } from "../MicrophoneSection";
 import { usePushToTalk } from "./usePushToTalk";
 import { runNoticeAction } from "../../lib/ipc";
+import { IS_WINDOWS } from "../../lib/platform";
 
 /** Each step's title takes focus, so screen readers announce the new step. */
 const focusOnMount = (node: HTMLHeadingElement | null) => node?.focus();
@@ -80,16 +81,18 @@ export function Onboarding({ settings, update }: OnboardingProps) {
               {t("onboarding.changeShortcut")}
             </button>
           </div>
-          <p className="muted">
-            {t("onboarding.globeKey")}{" "}
-            <button
-              type="button"
-              className="link-button"
-              onClick={() => void runNoticeAction("openKeyboardSettings").catch(() => undefined)}
-            >
-              {t("onboarding.openKeyboardSettings")}
-            </button>
-          </p>
+          {!IS_WINDOWS && (
+            <p className="muted">
+              {t("onboarding.globeKey")}{" "}
+              <button
+                type="button"
+                className="link-button"
+                onClick={() => void runNoticeAction("openKeyboardSettings").catch(() => undefined)}
+              >
+                {t("onboarding.openKeyboardSettings")}
+              </button>
+            </p>
+          )}
         </>
       );
       break;

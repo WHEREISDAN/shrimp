@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { PAGES, type PageId } from "./Sidebar";
+import { primaryKey } from "../lib/platform";
 
 interface History {
   pages: PageId[];
@@ -30,7 +31,7 @@ export function usePageHistory(first: PageId = "home") {
       if (event.defaultPrevented) {
         return;
       }
-      if (event.metaKey && (event.key === "[" || event.key === "]")) {
+      if (primaryKey(event) && (event.key === "[" || event.key === "]")) {
         event.preventDefault();
         const step = event.key === "[" ? -1 : 1;
         setHistory((current) => {
@@ -42,6 +43,7 @@ export function usePageHistory(first: PageId = "home") {
       if (
         event.altKey &&
         !event.metaKey &&
+        !event.ctrlKey &&
         (event.key === "ArrowUp" || event.key === "ArrowDown")
       ) {
         event.preventDefault();

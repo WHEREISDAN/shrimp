@@ -3,6 +3,7 @@ import { core } from "./core";
 import { library } from "./library";
 import { settingsSections } from "./settingsSections";
 import { styleTransforms } from "./styleTransforms";
+import type { windows } from "./windows";
 
 /**
  * The English interface text, the source for every other language (LANG-06).
@@ -25,3 +26,5 @@ export type LibraryCatalog = Messages<typeof library>;
 export type StyleTransformsCatalog = Messages<typeof styleTransforms>;
 export type SettingsSectionsCatalog = Messages<typeof settingsSections>;
 export type ControlsCatalog = Messages<typeof controls>;
+/** The texts that replace English ones on Windows; each translation has the same keys. */
+export type WindowsCatalog = Messages<typeof windows>;

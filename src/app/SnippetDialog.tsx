@@ -16,6 +16,7 @@ import {
 } from "../lib/ipc";
 import { Dialog } from "./Dialog";
 import { insertLink, wrapSelection, type TextEdit } from "./markdownEdit";
+import { primaryKey } from "../lib/platform";
 
 const MAX_TRIGGER = 60;
 const MAX_EXPANSION = 4000;
@@ -76,14 +77,14 @@ export function SnippetDialog({ snippet, onSaved, onClose }: SnippetDialogProps)
 
   const onTextareaKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
     const shortcut = shortcuts[event.key.toLowerCase()];
-    if (event.metaKey && !event.shiftKey && !event.altKey && shortcut) {
+    if (primaryKey(event) && !event.shiftKey && !event.altKey && shortcut) {
       event.preventDefault();
       shortcut();
     }
   };
 
   const onFormKeyDown = (event: KeyboardEvent<HTMLFormElement>) => {
-    if (event.metaKey && event.key === "Enter") {
+    if (primaryKey(event) && event.key === "Enter") {
       event.preventDefault();
       void save();
     }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { CATALOGS, i18n, languageFor, resolveLanguage } from ".";
+import { CATALOGS, catalogFor, i18n, languageFor, resolveLanguage, WINDOWS_TEXT } from ".";
 
 type Tree = { [key: string]: string | Tree };
 
@@ -46,6 +46,31 @@ describe.each(Object.entries(CATALOGS).filter(([language]) => language !== "en")
     });
   },
 );
+
+describe("the Windows texts", () => {
+  const windowsEnglish = flatten(WINDOWS_TEXT.en as Tree);
+  const base = flatten(CATALOGS.en as Tree);
+
+  it("replace existing English texts", () => {
+    expect([...windowsEnglish.keys()].filter((key) => !base.has(key))).toEqual([]);
+  });
+
+  it.each(Object.entries(WINDOWS_TEXT))("are complete in %s", (_, catalog) => {
+    const texts = flatten(catalog as Tree);
+    expect([...texts.keys()].sort()).toEqual([...windowsEnglish.keys()].sort());
+    const changed = [...windowsEnglish].filter(
+      ([key, text]) => markers(texts.get(key) ?? "").join() !== markers(text).join(),
+    );
+    expect(changed.map(([key]) => key)).toEqual([]);
+    expect([...texts.values()].filter((text) => /\bMac\b|macOS|⌘|⌥/.test(text))).toEqual([]);
+  });
+
+  it("take the place of the macOS wording only on Windows", () => {
+    expect(catalogFor("de", true).help.about).toBe(WINDOWS_TEXT.de.help.about);
+    expect(catalogFor("de", true).help.keyBack).toBe(CATALOGS.de.help.keyBack);
+    expect(catalogFor("de", false).help.about).toBe(CATALOGS.de.help.about);
+  });
+});
 
 describe("the interface language", () => {
   it("follows the setting, else the Mac, else English", () => {

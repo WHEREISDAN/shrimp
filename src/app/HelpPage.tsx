@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { getAppInfo, getShortcuts, type ShortcutList } from "../lib/ipc";
 import { MicAdviceDialog } from "./MicAdviceDialog";
 import { Page } from "./Page";
+import { IS_WINDOWS } from "../lib/platform";
 
 interface HelpPageProps {
   onOpenShortcuts: () => void;
@@ -10,7 +11,7 @@ interface HelpPageProps {
   onSetup?: () => void;
 }
 
-const KEYS = [
+const MAC_KEYS = [
   { keys: "⌘[  ⌘]", label: "help.keyBack" },
   { keys: "⌥↑  ⌥↓", label: "help.keyPages" },
   { keys: "⌘F  /", label: "help.keySearch" },
@@ -18,6 +19,17 @@ const KEYS = [
   { keys: "← →", label: "help.keyTabs" },
   { keys: "⌘↩", label: "help.keySubmit" },
 ] as const;
+
+const WINDOWS_KEYS = [
+  { keys: "Ctrl+[  Ctrl+]", label: "help.keyBack" },
+  { keys: "Alt+↑  Alt+↓", label: "help.keyPages" },
+  { keys: "Ctrl+F  /", label: "help.keySearch" },
+  { keys: "↑↓  j k", label: "help.keyRows" },
+  { keys: "← →", label: "help.keyTabs" },
+  { keys: "Ctrl+Enter", label: "help.keySubmit" },
+] as const;
+
+const KEYS = IS_WINDOWS ? WINDOWS_KEYS : MAC_KEYS;
 
 /** Help: how to dictate, the shortcuts, keyboard navigation and setup (APP-04). */
 export function HelpPage({ onOpenShortcuts, onSetup }: HelpPageProps) {

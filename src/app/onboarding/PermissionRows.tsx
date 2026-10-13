@@ -5,14 +5,16 @@ import {
   type PermissionsInfo,
   type PermissionStatus,
 } from "../../lib/ipc";
+import { IS_WINDOWS } from "../../lib/platform";
 
-const ROWS: Permission[] = ["microphone", "accessibility"];
+/** Windows asks no Accessibility permission. */
+const ROWS: Permission[] = IS_WINDOWS ? ["microphone"] : ["microphone", "accessibility"];
 
 interface PermissionRowsProps {
   info: PermissionsInfo | null;
 }
 
-/** Microphone and Accessibility with their live state and a way to grant each (ONB-01, ONB-08). */
+/** Microphone and, on macOS, Accessibility with their live state and a way to grant each (ONB-01, ONB-08). */
 export function PermissionRows({ info }: PermissionRowsProps) {
   const { t } = useTranslation();
   const state = (status: PermissionStatus | undefined) =>

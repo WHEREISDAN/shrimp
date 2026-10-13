@@ -14,6 +14,7 @@ import { ConfirmDialog } from "./ConfirmDialog";
 import { groupByDay } from "./historyGroups";
 import { HistoryRow, type HistoryActions } from "./HistoryRow";
 import { useHistory } from "./useHistory";
+import { primaryKey } from "../lib/platform";
 
 /** How long a status message stays. */
 const STATUS_MS = 3000;
@@ -61,10 +62,10 @@ export function HistorySection() {
     [playing],
   );
 
-  // Cmd+F or / searches when not typing (HIS-02).
+  // Cmd+F (Ctrl+F on Windows) or / searches when not typing (HIS-02).
   useEffect(() => {
     const onKeyDown = (event: globalThis.KeyboardEvent) => {
-      const find = event.key === "f" && event.metaKey && !event.shiftKey && !event.altKey;
+      const find = event.key === "f" && primaryKey(event) && !event.shiftKey && !event.altKey;
       if (find || (event.key === "/" && !isTyping(event.target))) {
         event.preventDefault();
         searchRef.current?.focus();

@@ -7,11 +7,12 @@ import {
   type PermissionsInfo,
   type PermissionStatus,
 } from "../lib/ipc";
+import { IS_WINDOWS } from "../lib/platform";
 
 /** Grants change in System Settings, outside the app, so they are polled. */
 const POLL_MS = 2000;
 
-const ROWS = [
+const ALL_ROWS = [
   {
     permission: "microphone",
     name: "onboarding.permission.microphone",
@@ -23,6 +24,9 @@ const ROWS = [
     purpose: "permissionsCard.accessibilityWhy",
   },
 ] as const satisfies readonly { permission: Permission; name: string; purpose: string }[];
+
+/** Windows asks no Accessibility permission. */
+const ROWS = ALL_ROWS.filter((row) => !IS_WINDOWS || row.permission === "microphone");
 
 const STATUS_TEXT = {
   granted: "onboarding.permission.granted",
