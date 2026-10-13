@@ -7,6 +7,8 @@ mod clipboard;
 mod context;
 pub mod flow_bar;
 mod focus;
+#[cfg(feature = "vulkan")]
+mod gpu;
 mod hook;
 mod hotkeys;
 mod input;

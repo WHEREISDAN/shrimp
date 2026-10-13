@@ -6,6 +6,12 @@ authors = ["Dantavious Williams"]
 edition = "2024"
 rust-version = "1.90"
 
+[features]
+# Windows release builds: Whisper on the GPU through whisper.cpp's Vulkan backend,
+# with the CPU as fallback. Needs the Vulkan SDK (VULKAN_SDK) and a short target
+# directory (see docs/DEVELOPMENT.md).
+vulkan = ["whisper-rs/vulkan"]
+
 [lib]
 # The `_lib` suffix keeps the lib name distinct from the bin name (cargo#8519 on Windows).
 name = "shrimp_lib"
