@@ -8,10 +8,19 @@ pub mod setup;
 pub mod tray;
 pub mod window;
 
-use tauri::{AppHandle, RunEvent, Runtime};
+use std::sync::Arc;
 
-#[cfg_attr(not(target_os = "macos"), allow(unused_variables))]
+use tauri::{AppHandle, Manager, RunEvent, Runtime};
+
+use crate::stt::EngineSlot;
+
 pub fn on_run_event<R: Runtime>(app: &AppHandle<R>, event: RunEvent) {
+    // Unload the Whisper model before static destructors run (see EngineSlot::clear).
+    if let RunEvent::Exit = event
+        && let Some(slot) = app.try_state::<Arc<EngineSlot>>()
+    {
+        slot.clear();
+    }
     // macOS: clicking the Dock icon while every window is hidden.
     #[cfg(target_os = "macos")]
     if let RunEvent::Reopen {

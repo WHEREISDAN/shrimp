@@ -24,6 +24,15 @@ impl EngineSlot {
         *self.engine.write().unwrap_or_else(|err| err.into_inner()) = Some(engine);
     }
 
+    /// Drops the engine. Called before the process exits: whisper.cpp's Metal
+    /// backend aborts in its static destructor if a model is still loaded.
+    pub fn clear(&self) {
+        self.engine
+            .write()
+            .unwrap_or_else(|err| err.into_inner())
+            .take();
+    }
+
     /// Why no engine is available yet, e.g. "Downloading the speech model (42%)".
     pub fn set_status(&self, status: impl Into<String>) {
         *self.status.write().unwrap_or_else(|err| err.into_inner()) = status.into();

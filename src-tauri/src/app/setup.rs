@@ -96,7 +96,7 @@ pub fn setup(app: &mut App) -> Result<(), Box<dyn std::error::Error>> {
         permissions: Arc::clone(&platform.permissions),
         sounds: platform.sounds,
         engine: Arc::new(router),
-        fallback_engine: Some(slot as Arc<dyn SttEngine>),
+        fallback_engine: Some(Arc::clone(&slot) as Arc<dyn SttEngine>),
         languages: platform.language.into_iter().collect(),
         editor: Arc::clone(&editor),
         ui: Arc::clone(&ui) as Arc<dyn DictationUi>,
@@ -111,6 +111,7 @@ pub fn setup(app: &mut App) -> Result<(), Box<dyn std::error::Error>> {
     app.manage(editor);
     app.manage(HttpClient(client));
     app.manage(Arc::clone(&models));
+    app.manage(Arc::clone(&slot));
     app.manage(ui);
     app.manage(AppPermissions(platform.permissions));
     app.manage(Shortcuts(shortcuts));
