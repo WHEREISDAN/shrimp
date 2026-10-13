@@ -1,3 +1,4 @@
+import { resolve } from "node:path";
 import process from "node:process";
 import react from "@vitejs/plugin-react";
 import { defineConfig } from "vitest/config";
@@ -15,6 +16,15 @@ export default defineConfig({
     host: host || false,
     hmr: host ? { protocol: "ws", host, port: 1421 } : undefined,
     watch: { ignored: ["**/src-tauri/**"] },
+  },
+  build: {
+    // One page per webview: the main window and the Flow Bar.
+    rollupOptions: {
+      input: {
+        main: resolve(import.meta.dirname, "index.html"),
+        "flow-bar": resolve(import.meta.dirname, "flow-bar.html"),
+      },
+    },
   },
   test: {
     environment: "jsdom",

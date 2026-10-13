@@ -1,7 +1,10 @@
-//! App shell: windows, tray, run-loop events and the dev-only MCP bridge.
+//! App shell: setup, windows, tray, Flow Bar, events and the dev-only MCP bridge.
 
 #[cfg(debug_assertions)]
 pub mod dev_bridge;
+pub mod events;
+pub mod flow_bar;
+pub mod setup;
 pub mod tray;
 pub mod window;
 

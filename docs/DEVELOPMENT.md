@@ -119,7 +119,8 @@ Release builds use a Developer ID identity (phase 5), never this one.
 The owner gives each permission to "Shrimp Dev" once. The grants then survive rebuilds for
 as long as the identity and the bundle identifier stay the same.
 
-- **Microphone:** macOS asks on the first recording. Click Allow.
+- **Microphone:** macOS asks on the first microphone dictation. Click Allow. A Mac without
+  any input device shows "No microphone found" instead and never prompts.
 - **Accessibility:** System Settings > Privacy & Security > Accessibility, then turn on
   "Shrimp Dev". The global hotkey (an active event tap), pasting and reading text all depend
   on it. An agent cannot do this, because macOS protects these panes.
@@ -168,9 +169,14 @@ Things to know:
 - Every webview that agents should drive must call `setupPluginListeners()` (see
   `src/main.tsx`), including the Flow Bar window from phase 1, and must be listed in the
   capability that grants `mcp:default`.
-- `take_screenshot` works on the signed bundle without a Screen Recording grant. The
-  plugin's macOS capture skips windows smaller than 100×100 points, so check in phase 1
-  whether it captures the Flow Bar; `query_page` and `read_text` work regardless.
+- `take_screenshot` works on the signed bundle without a Screen Recording grant, but the
+  plugin's macOS capture skips windows smaller than 100×100 points, which includes the Flow
+  Bar. Capture it with `screencapture -R x,y,w,h`, using the bounds of the window titled
+  "Shrimp Flow Bar" from `CGWindowListCopyWindowInfo` (the terminal needs Screen
+  Recording). `query_page`, `read_text` and `click` with `window_label: "flow-bar"` work
+  regardless.
+- `execute_js` fails: the CSP has no `unsafe-eval`. Use `query_page`, `read_text` and
+  `manage_ipc` instead.
 - The plugin leaves `/tmp/tauri-mcp.sock` and its `.token` file behind when the app quits.
   The next launch replaces them, so they are harmless.
 - The crates.io crate called `tauri-plugin-mcp` is an unrelated project. Shrimp depends on
@@ -226,10 +232,60 @@ Debug builds read `SHRIMP_AUDIO_SOURCE`, which `audio::AudioSourceSpec` parses:
 | `mic:<device>` | Microphone by device name.                        |
 | `wav:<path>`   | WAV file at real-time pace. Use an absolute path. |
 
-Release builds ignore the variable. Phase 1 connects it to the dictation controller. A
-hotkey press then records from the file instead of the microphone, until the file ends or
-the hotkey is released. Phase 1 also adds a debug-only IPC command, so an agent can switch
-sources through `manage_ipc` without relaunching the app.
+Release builds ignore the variable. A dictation then records from the file instead of the
+microphone, until the file ends (which finishes the dictation as if the shortcut had been
+released) or the shortcut is released.
+
+Debug builds also register two commands, so an agent can switch sources through
+`manage_ipc` without relaunching the app. The change applies from the next dictation.
+
+| Command                | Arguments             | Returns                                                                   |
+| ---------------------- | --------------------- | ------------------------------------------------------------------------- |
+| `dev_get_audio_source` | none                  | The current source, e.g. `mic`.                                           |
+| `dev_set_audio_source` | `{ "spec": "wav:…" }` | The new source; an error if the file is missing or the spec is malformed. |
+
+`flow_bar_control` with `{ "control": "start" }` (then `"stop"` or `"cancel"`) starts a
+hands-free dictation without any shortcut, which needs no Accessibility grant.
+
+### Local Whisper tests
+
+`src-tauri/tests/whisper_local.rs` runs the real model on the fixtures. It needs the model
+files, so it is ignored by default. The dev app downloads them to
+`~/Library/Application Support/com.shrimp.desktop.dev/models/` on first launch:
+
+```sh
+cargo test --manifest-path src-tauri/Cargo.toml --test whisper_local -- --ignored --nocapture
+```
+
+`SHRIMP_MODELS_DIR` points it at another folder and `SHRIMP_WHISPER_MODEL` picks another
+catalog model (for example `small-q5_1`). It prints the latency of each run. The other
+fixtures are `silence.wav` (3 s of digital silence) and `hello-shrimp-padded.wav` (the
+speech fixture with 2 s of silence on each side).
+
+## Testing shortcuts and pasting in the real app
+
+The keyboard hook sees events posted through the HID event tap like physical keys, so a
+small helper run from a terminal that has Accessibility can drive dictation: post a
+`kCGEventFlagsChanged` event with key code 63 and `kCGEventFlagMaskSecondaryFn` for Fn
+down, then one with no flags for Fn up (Space with the Fn flag for Fn+Space). Read the
+result back from the target app through System Events, for example the `value` of
+TextEdit's text area.
+
+Things to know:
+
+- handy-keys tracks Command, Control, Option and Shift from `FlagsChanged` events. A
+  synthetic Cmd+key posted with flags only (System Events `keystroke … using command
+down`, or a helper that does the same) leaves Command looking held until the next plain
+  key event, so the next Fn press does not match. Post a plain key such as Esc first, or
+  post helper keys at `kCGAnnotatedSessionEventTap`, after the session taps. Physical keys
+  always send `FlagsChanged` and are not affected; Shrimp posts its own paste after the
+  session taps for the same reason.
+- A listen-only tap appended at the tail of the session (`tailAppendEventTap`) only sees
+  what every other tap let through, which shows whether a shortcut was swallowed.
+- Another dictation app that uses Fn (for example Wispr Flow) also hooks the keyboard and
+  may draw its own bar where the Flow Bar is. Real clicks on the Flow Bar can land on it.
+- Esc exits full screen in many apps, so do not use it as a reset key while testing in a
+  full-screen Space.
 
 A WAV source needs no microphone permission. Everything from recording to transcription
 and AI edits can therefore be tested without privacy grants. Only the hotkey and the paste

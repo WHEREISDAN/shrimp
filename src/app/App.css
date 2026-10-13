@@ -3,12 +3,21 @@
   color: #1d1d1f;
   background-color: #fbfaf8;
   -webkit-font-smoothing: antialiased;
+  --card: #ffffff;
+  --border: rgb(0 0 0 / 0.08);
+  --muted: rgb(0 0 0 / 0.55);
+  --ok: #1f8a4c;
+  --error: #d1453b;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
     color: #f5f5f7;
     background-color: #1c1b1a;
+    --card: #262523;
+    --border: rgb(255 255 255 / 0.1);
+    --muted: rgb(255 255 255 / 0.55);
+    --ok: #4cc27a;
   }
 }
 
@@ -19,30 +28,125 @@ body {
 .app {
   display: flex;
   flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  min-height: 100vh;
-  gap: 0.25rem;
+  gap: 1rem;
+  max-width: 620px;
+  margin: 0 auto;
+  padding: 2.5rem 1.5rem;
 }
 
-.app h1 {
+.app-header h1 {
   margin: 0;
   font-size: 2rem;
   font-weight: 650;
 }
 
 .tagline {
-  margin: 0;
+  margin: 0.25rem 0 0;
   opacity: 0.7;
 }
 
+.card {
+  padding: 1rem 1.25rem;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--card);
+}
+
+.card h2 {
+  margin: 0 0 0.6rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.card h2:focus {
+  outline: none;
+}
+
+.card p {
+  margin: 0;
+}
+
+.card-title {
+  font-weight: 550;
+}
+
+.muted {
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.ok {
+  color: var(--ok);
+  font-size: 0.9rem;
+}
+
+.error {
+  color: var(--error);
+  font-size: 0.9rem;
+}
+
+.rows {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  margin: 0 0 0.6rem;
+  padding: 0;
+  list-style: none;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.row-end,
+.progress-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.progress-row {
+  margin-top: 0.5rem;
+}
+
+progress {
+  flex: 1;
+  height: 6px;
+}
+
+kbd {
+  padding: 0.15rem 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-family: inherit;
+  font-size: 0.85rem;
+}
+
+button {
+  padding: 0.3rem 0.8rem;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
 .meta {
-  margin-top: 1.5rem;
+  margin-top: 0.5rem;
   font-size: 0.8rem;
   opacity: 0.5;
+  text-align: center;
 }
 
 .meta.error {
-  color: #d1453b;
+  color: var(--error);
   opacity: 1;
 }

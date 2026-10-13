@@ -1,10 +1,28 @@
 import { useEffect, useState } from "react";
 import { getAppInfo, type AppInfo } from "../lib/ipc";
+import { ModelCard } from "./ModelCard";
+import { PermissionsCard } from "./PermissionsCard";
+import { ShortcutsCard } from "./ShortcutsCard";
 
 type InfoState =
   { status: "loading" } | { status: "ready"; info: AppInfo } | { status: "error"; message: string };
 
 export function App() {
+  return (
+    <main className="app">
+      <header className="app-header">
+        <h1>Shrimp</h1>
+        <p className="tagline">Speech to text, anywhere.</p>
+      </header>
+      <ModelCard />
+      <PermissionsCard />
+      <ShortcutsCard />
+      <AppInfoLine />
+    </main>
+  );
+}
+
+function AppInfoLine() {
   const [state, setState] = useState<InfoState>({ status: "loading" });
 
   useEffect(() => {
@@ -19,16 +37,6 @@ export function App() {
     };
   }, []);
 
-  return (
-    <main className="app">
-      <h1>Shrimp</h1>
-      <p className="tagline">Speech to text, anywhere.</p>
-      <AppInfoLine state={state} />
-    </main>
-  );
-}
-
-function AppInfoLine({ state }: { state: InfoState }) {
   switch (state.status) {
     case "loading":
       return <p className="meta">Loading…</p>;
