@@ -17,7 +17,9 @@
     "clippy": "cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets -- -D warnings",
     "check": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm test && pnpm clippy && pnpm test:rust",
     "tauri": "tauri",
-    "tauri:dev": "tauri dev --config src-tauri/tauri.conf.dev.json"
+    "tauri:dev": "tauri dev --config src-tauri/tauri.conf.dev.json",
+    "app:dev": "scripts/macos/dev-app.sh build",
+    "app:dev:open": "scripts/macos/dev-app.sh open"
   },
   "pnpm": {
     "onlyBuiltDependencies": [

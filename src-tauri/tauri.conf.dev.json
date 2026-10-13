@@ -4,5 +4,10 @@
   "identifier": "com.shrimp.desktop.dev",
   "build": {
     "beforeBuildCommand": "pnpm build:dev"
+  },
+  "bundle": {
+    "macOS": {
+      "signingIdentity": "Shrimp Dev"
+    }
   }
 }
