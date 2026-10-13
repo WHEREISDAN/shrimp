@@ -52,11 +52,16 @@ fn warnings_come_with_the_notice_sound_unless_it_is_off() {
 }
 
 #[test]
-fn nothing_is_muted_or_paused_by_default() {
+fn nothing_is_paused_and_muting_follows_the_platform_by_default() {
     let h = Harness::speech(1.5);
     dictate(&h);
     wait_until("inserted", || !h.fakes.inserted().is_empty());
-    assert!(h.fakes.media.lock().unwrap().is_empty());
+    let expected: &[&str] = if shrimp_lib::platform::MUTE_BY_DEFAULT {
+        &["mute", "unmute"]
+    } else {
+        &[]
+    };
+    wait_until("restored", || *h.fakes.media.lock().unwrap() == expected);
 }
 
 #[test]
@@ -78,6 +83,7 @@ fn muting_starts_within_300_ms_and_is_undone_when_the_dictation_ends() {
 #[test]
 fn pausing_resumes_when_the_dictation_is_cancelled_too() {
     let mut settings = Settings::default();
+    settings.media.mute = false;
     settings.media.pause = true;
     let h = with(settings);
     h.shortcut(Action::PushToTalk, true);

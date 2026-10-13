@@ -47,11 +47,7 @@ pub fn actions(settings: &Settings) -> Vec<Action> {
 }
 
 fn default_triggers(action: Action, defaults: &[Binding]) -> Vec<Trigger> {
-    let fixed = |text: &str| text.parse::<Trigger>().into_iter().collect();
     match action {
-        Action::Polish => fixed("Opt+1"),
-        Action::PromptEngineer => fixed("Opt+2"),
-        Action::ViewChanges => fixed("Opt+O"),
         Action::PressEnter | Action::CustomTransform(_) => Vec::new(),
         action => defaults
             .iter()
@@ -71,8 +67,10 @@ pub fn triggers(action: Action, defaults: &[Binding], settings: &Settings) -> Ve
     }
 }
 
+/// Press Enter passes extra modifiers on (Shift+Enter); Cancel works while
+/// the dictation's own modifiers are still held (Esc during Ctrl+Win).
 fn binding(action: Action, trigger: Trigger) -> Binding {
-    if action == Action::PressEnter {
+    if matches!(action, Action::PressEnter | Action::Cancel) {
         Binding::with_passthrough(action, trigger)
     } else {
         Binding::new(action, trigger)
@@ -123,6 +121,7 @@ pub fn with_trigger(
     index: Option<usize>,
     trigger: Trigger,
     label: fn(&Trigger) -> String,
+    reserved: fn(&Trigger) -> bool,
 ) -> Result<(Value, Option<String>), String> {
     let mut list = triggers(action, defaults, settings);
     let others: Vec<Binding> = configured(defaults, settings)
@@ -135,7 +134,7 @@ pub fn with_trigger(
                 .map(|(_, trigger)| Binding::new(action, *trigger)),
         )
         .collect();
-    validation::validate(&trigger, action, &others, label)?;
+    validation::validate(&trigger, action, &others, label, reserved)?;
     match index.filter(|index| *index < list.len()) {
         Some(index) => list[index] = trigger,
         None if list.len() >= action.max_bindings() => {
@@ -188,7 +187,7 @@ fn patch(settings: &Settings, action: Action, list: &[Trigger]) -> Result<Value,
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::hotkeys::{macos_defaults, macos_label};
+    use crate::hotkeys::{macos_defaults, macos_label, macos_reserved};
     use crate::settings::SettingsStore;
 
     fn actions_of(bindings: &[Binding]) -> Vec<Action> {
@@ -212,6 +211,34 @@ mod tests {
             onboarding: crate::settings::OnboardingSettings::done(),
             ..Settings::default()
         }
+    }
+
+    #[test]
+    fn esc_and_backspace_cancel_while_the_shortcut_is_held() {
+        use handy_keys::{Hotkey, Key, Modifiers};
+        let defaults = crate::hotkeys::windows_defaults();
+        let commanding = Moment {
+            cancelable: true,
+            command: true,
+        };
+        let bound = active(&defaults, &set_up(), commanding);
+        let held = Modifiers::CTRL_LEFT | Modifiers::CMD_LEFT | Modifiers::OPT_LEFT;
+        let blocked = crate::hotkeys::blocked_hotkeys(&bound);
+        for key in [Key::Escape, Key::Delete] {
+            assert!(
+                blocked.contains(&Hotkey {
+                    modifiers: Modifiers::CTRL | Modifiers::CMD | Modifiers::OPT,
+                    key: Some(key),
+                }),
+                "{key:?} is swallowed under Ctrl+Win+Alt"
+            );
+        }
+        assert!(
+            bound
+                .iter()
+                .filter(|binding| binding.action == Action::Cancel)
+                .all(|binding| binding.extra_modifiers(held).is_some())
+        );
     }
 
     #[test]
@@ -254,6 +281,7 @@ mod tests {
             None,
             trigger("Opt+Return"),
             macos_label,
+            macos_reserved,
         )
         .unwrap();
         let settings = store.update(&patch).unwrap();
@@ -305,6 +333,7 @@ mod tests {
                 None,
                 trigger(text),
                 macos_label,
+                macos_reserved,
             )
             .unwrap();
             assert_eq!(warning, None);
@@ -323,6 +352,7 @@ mod tests {
             None,
             trigger("Mouse5"),
             macos_label,
+            macos_reserved,
         );
         assert!(fifth.unwrap_err().contains("at most 4"));
         let replaced = with_trigger(
@@ -332,6 +362,7 @@ mod tests {
             Some(3),
             trigger("Mouse5"),
             macos_label,
+            macos_reserved,
         );
         assert!(replaced.is_ok());
         let duplicate = with_trigger(
@@ -341,6 +372,7 @@ mod tests {
             Some(3),
             trigger("Mouse4"),
             macos_label,
+            macos_reserved,
         );
         assert_eq!(duplicate.unwrap_err(), "This shortcut is already in use");
 
@@ -376,6 +408,7 @@ mod tests {
             Some(0),
             trigger("Ctrl+Opt+Space"),
             macos_label,
+            macos_reserved,
         )
         .unwrap();
         store.update(&patch).unwrap();
@@ -386,6 +419,7 @@ mod tests {
             Some(0),
             trigger("Ctrl+Opt"),
             macos_label,
+            macos_reserved,
         )
         .unwrap();
         assert!(warning.is_some_and(|warning| warning.starts_with("Warning: Your Hands-free")));
@@ -402,6 +436,7 @@ mod tests {
             None,
             trigger("Ctrl+Escape"),
             macos_label,
+            macos_reserved,
         );
         assert!(added.unwrap_err().contains("at most 1"));
     }

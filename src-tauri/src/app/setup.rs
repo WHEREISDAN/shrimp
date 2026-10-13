@@ -37,6 +37,10 @@ use crate::stt::{EngineSlot, ModelManager, SttEngine, SttRouter};
 use crate::t;
 
 pub fn setup(app: &mut App) -> Result<(), Box<dyn std::error::Error>> {
+    // `--quit` reached no running instance: nothing to quit.
+    if cfg!(debug_assertions) && std::env::args().any(|arg| arg == "--quit") {
+        std::process::exit(0);
+    }
     let handle = app.handle().clone();
     let platform = platform::native(main_thread(&handle));
 
@@ -148,6 +152,7 @@ pub fn setup(app: &mut App) -> Result<(), Box<dyn std::error::Error>> {
         hotkeys: platform.hotkeys,
         bindings: platform.default_bindings,
         label: platform.label,
+        reserved: platform.reserved,
         inserter: platform.inserter,
         focus: platform.focus,
         permissions: Arc::clone(&permissions),

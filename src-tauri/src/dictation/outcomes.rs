@@ -29,6 +29,10 @@ pub fn report(outcome: Outcome, ui: &dyn DictationUi) -> Option<LastDictation> {
                     Notice::error(t!("notice.paste.needAccessibility"))
                         .with_action(NoticeAction::OpenAccessibilitySettings),
                 ),
+                CopyReason::Elevated => ui.notice(
+                    Notice::warning(t!("notice.paste.elevated"))
+                        .with_action(NoticeAction::CopyLastTranscript),
+                ),
                 // The command explains it in its own notice.
                 CopyReason::TargetChanged => {}
             }

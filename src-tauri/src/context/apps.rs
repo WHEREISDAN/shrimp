@@ -90,6 +90,29 @@ const CODE_EDITORS: &[(&str, &str)] = &[
     ("Cursor.exe", "Cursor"),
     ("Windsurf.exe", "Windsurf"),
     ("Code.exe", "Visual Studio Code"),
+    ("Code - Insiders.exe", "Visual Studio Code - Insiders"),
+    ("VSCodium.exe", "VSCodium"),
+    ("Zed.exe", "Zed"),
+    ("sublime_text.exe", "Sublime Text"),
+    ("devenv.exe", "Microsoft Visual Studio"),
+    ("idea64.exe", "IntelliJ IDEA"),
+    ("pycharm64.exe", "PyCharm"),
+    ("webstorm64.exe", "WebStorm"),
+    ("clion64.exe", "CLion"),
+    ("goland64.exe", "GoLand"),
+    ("rider64.exe", "JetBrains Rider"),
+    ("phpstorm64.exe", "PhpStorm"),
+    ("rubymine64.exe", "RubyMine"),
+    ("studio64.exe", "Android Studio"),
+];
+
+/// Windows apps that read a pasted clipboard late, so it is held longer (WIN-04).
+const LATE_CLIPBOARD_READERS: &[(&str, &str)] = &[
+    ("OUTLOOK.EXE", "Microsoft Outlook"),
+    ("olk.exe", "Outlook"),
+    ("WINWORD.EXE", "Microsoft Word"),
+    ("WhatsApp.exe", "WhatsApp"),
+    ("WhatsApp.Root.exe", "WhatsApp"),
 ];
 
 /// Editors whose AI chat takes @-mentions of files (DEV-01).
@@ -125,6 +148,14 @@ pub fn kind(app: Option<&AppIdentity>) -> AppKind {
 
 pub fn has_file_tagging(app: Option<&AppIdentity>) -> bool {
     app.is_some_and(|app| listed(app, FILE_TAGGING))
+}
+
+pub fn reads_clipboard_late(app: Option<&AppIdentity>) -> bool {
+    app.is_some_and(|app| {
+        LATE_CLIPBOARD_READERS
+            .iter()
+            .any(|(id, _)| app.bundle_id.eq_ignore_ascii_case(id))
+    })
 }
 
 #[cfg(test)]
@@ -186,5 +217,34 @@ mod tests {
             "com.microsoft.VSCode",
             "Code"
         ))));
+    }
+
+    #[test]
+    fn windows_editors_and_late_clipboard_readers() {
+        assert_eq!(
+            kind(Some(&app("Code.exe", "Visual Studio Code"))),
+            AppKind::CodeEditor
+        );
+        assert_eq!(
+            kind(Some(&app("idea64.exe", "IntelliJ IDEA"))),
+            AppKind::CodeEditor
+        );
+        assert_eq!(
+            kind(Some(&app("WindowsTerminal.exe", "Windows Terminal"))),
+            AppKind::Terminal
+        );
+        assert!(reads_clipboard_late(Some(&app(
+            "WINWORD.EXE",
+            "Microsoft Word"
+        ))));
+        assert!(reads_clipboard_late(Some(&app(
+            "outlook.exe",
+            "Microsoft Outlook"
+        ))));
+        assert!(!reads_clipboard_late(Some(&app("notepad.exe", "Notepad"))));
+        assert!(
+            !reads_clipboard_late(Some(&app("com.microsoft.Word", "Microsoft Word"))),
+            "macOS keeps its hold"
+        );
     }
 }

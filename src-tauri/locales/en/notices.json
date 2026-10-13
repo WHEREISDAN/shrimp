@@ -69,6 +69,7 @@
   "notice.milestone.discoverProfile": "Discover your Voice Profile",
   "notice.milestone.updateProfile": "Update your Voice Profile",
   "notice.milestone.words": "You've dictated {count} words with Shrimp.",
+  "notice.paste.elevated": "Run Shrimp as administrator to insert text everywhere. Your transcript is on the clipboard.",
   "notice.paste.failed": "Couldn't paste: {error}",
   "notice.paste.needAccessibility": "Shrimp needs Accessibility to paste. Your transcript is on the clipboard.",
   "notice.paste.noTextField": "No text field is focused. Your transcript is on the clipboard.",

@@ -69,6 +69,7 @@
   "notice.milestone.discoverProfile": "Descubre tu perfil de voz",
   "notice.milestone.updateProfile": "Actualiza tu perfil de voz",
   "notice.milestone.words": "Has dictado {count} palabras con Shrimp.",
+  "notice.paste.elevated": "Ejecuta Shrimp como administrador para insertar texto en todas partes. Tu transcripción está en el portapapeles.",
   "notice.paste.failed": "No se pudo pegar: {error}",
   "notice.paste.needAccessibility": "Shrimp necesita Accesibilidad para pegar. Tu transcripción está en el portapapeles.",
   "notice.paste.noTextField": "No hay ningún campo de texto activo. Tu transcripción está en el portapapeles.",

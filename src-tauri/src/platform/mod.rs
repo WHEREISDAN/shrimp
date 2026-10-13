@@ -4,6 +4,8 @@
 #[cfg(target_os = "macos")]
 mod macos;
 mod switchable;
+#[cfg(target_os = "windows")]
+mod windows;
 
 pub use switchable::SwitchablePermissions;
 
@@ -66,6 +68,8 @@ pub enum CopyReason {
     AccessibilityMissing,
     /// The selection or app changed before Command Mode could replace it.
     TargetChanged,
+    /// The app runs as administrator, so Windows drops Shrimp's keys (WIN-06).
+    Elevated,
 }
 
 /// Text to paste: plain always, HTML too when it has lists or formatting.
@@ -96,6 +100,7 @@ pub struct InsertOptions {
     pub require_field: bool,
     /// Paste long text in parts (INS-09).
     pub split: Option<PasteSplit>,
+    pub paste_key: PasteKey,
 }
 
 impl InsertOptions {
@@ -104,8 +109,20 @@ impl InsertOptions {
             hold,
             require_field: true,
             split: None,
+            paste_key: PasteKey::Default,
         }
     }
+}
+
+/// The keystroke that pastes.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum PasteKey {
+    /// Cmd+V on macOS, Ctrl+V on Windows.
+    #[default]
+    Default,
+    /// Shift+Insert, which code editors and their terminals on Windows
+    /// treat as a plain paste (WIN-04).
+    ShiftInsert,
 }
 
 /// Limits for each part of a split paste, and the pause between parts.
@@ -351,6 +368,8 @@ pub struct Platform {
     pub default_bindings: Vec<Binding>,
     /// Formats a binding for display, e.g. "fn Space" or "⌃⌘V".
     pub label: fn(&crate::hotkeys::Trigger) -> String,
+    /// The platform's own shortcuts, which can't be recorded (KEYS-05, WIN-03).
+    pub reserved: fn(&crate::hotkeys::Trigger) -> bool,
     /// The user's preferred language as a BCP 47 tag ("en-GB"), the first
     /// language to dictate in.
     pub language: Option<String>,
@@ -397,10 +416,40 @@ pub fn native(main_thread: MainThread) -> Platform {
     macos::platform(main_thread)
 }
 
+#[cfg(target_os = "windows")]
+pub fn native(main_thread: MainThread) -> Platform {
+    windows::platform(main_thread)
+}
+
 #[cfg(target_os = "macos")]
 pub use macos::{
     free_bytes, language_name, open_keyboard_settings, open_sound_settings, open_storage_settings,
     relaunch_after_exit, set_own_field_focused,
+};
+
+#[cfg(target_os = "windows")]
+pub use windows::{
+    free_bytes, language_name, open_keyboard_settings, open_sound_settings, open_storage_settings,
+    relaunch_after_exit, set_own_field_focused,
+};
+
+/// The shortcut hints of the tray menu: paste last, copy last and Quit.
+pub const TRAY_ACCELERATORS: [Option<&str>; 3] = if cfg!(target_os = "windows") {
+    [Some("Shift+Alt+Z"), Some("Shift+Alt+X"), None]
+} else {
+    [Some("Ctrl+Cmd+V"), Some("Ctrl+Cmd+C"), Some("CmdOrCtrl+Q")]
+};
+
+/// Whether "Mute while dictating" starts on: off on macOS, on on Windows
+/// (SND-03, WIN-08).
+pub const MUTE_BY_DEFAULT: bool = cfg!(target_os = "windows");
+
+/// Which interface texts replace the macOS wording ("this Mac", "System
+/// Settings"), if any.
+pub const TEXT_VARIANT: Option<&str> = if cfg!(target_os = "windows") {
+    Some("windows")
+} else {
+    None
 };
 
 /// Adds the Tauri plugins the platform backend relies on.
@@ -412,6 +461,9 @@ pub fn register_plugins<R: tauri::Runtime>(builder: tauri::Builder<R>) -> tauri:
 
 #[cfg(target_os = "macos")]
 pub use macos::flow_bar;
+
+#[cfg(target_os = "windows")]
+pub use windows::flow_bar;
 
 #[cfg(test)]
 mod tests {

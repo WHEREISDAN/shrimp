@@ -1,4 +1,5 @@
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 
 use tauri::image::Image;
 use tauri::menu::{CheckMenuItem, Menu, MenuItem, PredefinedMenuItem};
@@ -9,6 +10,7 @@ use super::events::NAVIGATE_EVENT;
 use super::window;
 use crate::dictation::{ControllerHandle, ControllerInput};
 use crate::hotkeys::Action;
+use crate::platform::TRAY_ACCELERATORS;
 use crate::settings::{Settings, SettingsStore};
 use crate::t;
 
@@ -20,6 +22,9 @@ const PASTE_LAST_ID: &str = "paste-last";
 const COPY_LAST_ID: &str = "copy-last";
 const PRIVACY_ID: &str = "privacy-mode";
 const QUIT_ID: &str = "quit";
+
+/// Paste last transcript is greyed out until there is one (WIN-09).
+static PASTE_LAST_AVAILABLE: AtomicBool = AtomicBool::new(false);
 
 pub fn create<R: Runtime>(app: &AppHandle<R>, settings: &Settings) -> tauri::Result<()> {
     let privacy = settings.privacy.privacy_mode;
@@ -60,13 +65,32 @@ pub fn refresh<R: Runtime>(app: &AppHandle<R>, settings: &Settings) {
     }
 }
 
+/// Enables or greys out Paste last transcript.
+pub fn set_paste_last_available<R: Runtime>(app: &AppHandle<R>, available: bool) {
+    if PASTE_LAST_AVAILABLE.swap(available, Ordering::Relaxed) == available {
+        return;
+    }
+    if let Some(settings) = app.try_state::<Arc<SettingsStore>>() {
+        let settings = settings.get();
+        let handle = app.clone();
+        let _ = app.run_on_main_thread(move || refresh(&handle, &settings));
+    }
+}
+
 fn menu<R: Runtime>(app: &AppHandle<R>, settings: &Settings) -> tauri::Result<Menu<R>> {
-    let item =
-        |id, text, accelerator: Option<&str>| MenuItem::with_id(app, id, text, true, accelerator);
-    let open = item(OPEN_ID, t!("tray.open"), None)?;
-    let shortcuts = item(SHORTCUTS_ID, t!("tray.shortcuts"), None)?;
-    let paste_last = item(PASTE_LAST_ID, t!("tray.pasteLast"), Some("Ctrl+Cmd+V"))?;
-    let copy_last = item(COPY_LAST_ID, t!("tray.copyLast"), Some("Ctrl+Cmd+C"))?;
+    let item = |id, text, enabled, accelerator: Option<&str>| {
+        MenuItem::with_id(app, id, text, enabled, accelerator)
+    };
+    let [paste_keys, copy_keys, quit_keys] = TRAY_ACCELERATORS;
+    let open = item(OPEN_ID, t!("tray.open"), true, None)?;
+    let shortcuts = item(SHORTCUTS_ID, t!("tray.shortcuts"), true, None)?;
+    let paste_last = item(
+        PASTE_LAST_ID,
+        t!("tray.pasteLast"),
+        PASTE_LAST_AVAILABLE.load(Ordering::Relaxed),
+        paste_keys,
+    )?;
+    let copy_last = item(COPY_LAST_ID, t!("tray.copyLast"), true, copy_keys)?;
     let privacy = CheckMenuItem::with_id(
         app,
         PRIVACY_ID,
@@ -75,7 +99,7 @@ fn menu<R: Runtime>(app: &AppHandle<R>, settings: &Settings) -> tauri::Result<Me
         settings.privacy.privacy_mode,
         None::<&str>,
     )?;
-    let quit = item(QUIT_ID, t!("tray.quit"), Some("CmdOrCtrl+Q"))?;
+    let quit = item(QUIT_ID, t!("tray.quit"), true, quit_keys)?;
     Menu::with_items(
         app,
         &[

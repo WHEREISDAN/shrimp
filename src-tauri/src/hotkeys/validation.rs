@@ -4,30 +4,13 @@
 //! of each modifier. Caps Lock alone is for push to talk or hands-free, and
 //! Esc alone for Cancel.
 
-use handy_keys::{Key, Modifiers};
+use handy_keys::Key;
 
-use super::trigger::{MODIFIER_GROUPS, Trigger};
+use super::trigger::Trigger;
 use super::{Action, Binding};
 use crate::t;
 
 const MAX_KEYS: usize = 3;
-
-/// Shortcuts macOS or every app relies on.
-fn reserved(trigger: &Trigger) -> bool {
-    let Trigger::Keys(hotkey) = trigger else {
-        return false;
-    };
-    let only = |modifiers: Modifiers| {
-        MODIFIER_GROUPS
-            .iter()
-            .all(|group| hotkey.modifiers.intersects(*group) == modifiers.intersects(*group))
-    };
-    matches!(
-        hotkey.key,
-        Some(Key::Delete | Key::ForwardDelete | Key::Space | Key::C | Key::V)
-    ) && only(Modifiers::CMD)
-        || hotkey.key == Some(Key::F) && only(Modifiers::CMD | Modifiers::CTRL)
-}
 
 /// Letters, digits and punctuation type text, so they never stand alone.
 fn types_text(key: Key) -> bool {
@@ -62,12 +45,14 @@ fn types_text(key: Key) -> bool {
 
 /// Checks `trigger` for `action`. `others` are every other binding in use,
 /// including the action's own other bindings. `label` formats a shortcut
-/// for the messages. The error is the message to show.
+/// for the messages, and `reserved` tells the platform's own shortcuts
+/// (KEYS-05, WIN-03). The error is the message to show.
 pub fn validate(
     trigger: &Trigger,
     action: Action,
     others: &[Binding],
     label: fn(&Trigger) -> String,
+    reserved: fn(&Trigger) -> bool,
 ) -> Result<(), String> {
     let not_allowed = || t!("error.hotkeys.notAllowed", shortcut = label(trigger));
     if trigger.key_count() > MAX_KEYS {
@@ -113,14 +98,58 @@ pub fn overlap_warning(bindings: &[Binding]) -> Option<String> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::hotkeys::{macos_defaults, macos_label};
+    use crate::hotkeys::{
+        macos_defaults, macos_label, macos_reserved, windows_defaults, windows_label,
+        windows_reserved,
+    };
 
     fn check(text: &str, action: Action) -> Result<(), String> {
         let others: Vec<Binding> = macos_defaults(true)
             .into_iter()
             .filter(|binding| binding.action != action)
             .collect();
-        validate(&text.parse().unwrap(), action, &others, macos_label)
+        validate(
+            &text.parse().unwrap(),
+            action,
+            &others,
+            macos_label,
+            macos_reserved,
+        )
+    }
+
+    fn check_windows(text: &str, action: Action) -> Result<(), String> {
+        let others: Vec<Binding> = windows_defaults()
+            .into_iter()
+            .filter(|binding| binding.action != action)
+            .collect();
+        validate(
+            &text.parse().unwrap(),
+            action,
+            &others,
+            windows_label,
+            windows_reserved,
+        )
+    }
+
+    #[test]
+    fn windows_rejects_its_reserved_shortcuts() {
+        assert_eq!(
+            check_windows("Ctrl", Action::PushToTalk).unwrap_err(),
+            "This shortcut is not allowed: Ctrl"
+        );
+        assert_eq!(
+            check_windows("Win+E", Action::PressEnter).unwrap_err(),
+            "This shortcut is not allowed: Win+E"
+        );
+        assert_eq!(
+            check_windows("Ctrl+V", Action::PressEnter).unwrap_err(),
+            "This shortcut is not allowed: Ctrl+V"
+        );
+        assert!(check_windows("Ctrl+Alt", Action::HandsFree).is_ok());
+        assert_eq!(
+            check_windows("Shift+Alt+Z", Action::PressEnter).unwrap_err(),
+            "This shortcut is already in use"
+        );
     }
 
     #[test]

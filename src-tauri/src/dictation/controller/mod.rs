@@ -49,6 +49,8 @@ pub struct Services {
     pub bindings: Vec<Binding>,
     /// Formats a shortcut for tips and the Shortcuts dialog.
     pub label: fn(&Trigger) -> String,
+    /// The platform's own shortcuts, which can't be recorded.
+    pub reserved: fn(&Trigger) -> bool,
     pub inserter: Arc<dyn TextInserter>,
     pub focus: Arc<dyn FocusInspector>,
     pub permissions: Arc<dyn Permissions>,
@@ -160,6 +162,7 @@ struct Controller {
     hotkeys: Box<dyn HotkeyBackend>,
     bindings: Vec<Binding>,
     label: fn(&Trigger) -> String,
+    reserved: fn(&Trigger) -> bool,
     inserter: Arc<dyn TextInserter>,
     focus: Arc<dyn FocusInspector>,
     permissions: Arc<dyn Permissions>,
@@ -220,6 +223,7 @@ impl Controller {
             hotkeys: services.hotkeys,
             bindings: services.bindings,
             label: services.label,
+            reserved: services.reserved,
             inserter: services.inserter,
             focus: services.focus,
             permissions: services.permissions,
@@ -338,6 +342,7 @@ impl Controller {
                     clip: Some(clip),
                     history_id: None,
                 });
+                self.ui.last_transcript(true);
             }
             ControllerInput::RetryHistory(id) => self.retry_history(id),
             ControllerInput::Processed(outcome) => self.processed(*outcome),
@@ -665,6 +670,7 @@ impl Controller {
         if let Some(mut last) = outcomes::report(processed.outcome, self.ui.as_ref()) {
             last.history_id = processed.history_id;
             self.last = Some(last);
+            self.ui.last_transcript(true);
         }
     }
 

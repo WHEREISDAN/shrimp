@@ -69,6 +69,7 @@
   "notice.milestone.discoverProfile": "Scopri il tuo profilo vocale",
   "notice.milestone.updateProfile": "Aggiorna il tuo profilo vocale",
   "notice.milestone.words": "Hai dettato {count} parole con Shrimp.",
+  "notice.paste.elevated": "Esegui Shrimp come amministratore per inserire testo ovunque. La trascrizione è negli appunti.",
   "notice.paste.failed": "Impossibile incollare: {error}",
   "notice.paste.needAccessibility": "Shrimp ha bisogno di Accessibilità per incollare. La trascrizione è negli appunti.",
   "notice.paste.noTextField": "Nessun campo di testo attivo. La trascrizione è negli appunti.",

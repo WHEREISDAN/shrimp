@@ -97,6 +97,8 @@ mod tests {
             )
             .unwrap();
         assert_eq!(tables, 1);
+        // Windows can't delete a file that is still open.
+        drop(copy);
         delete_all(&backups);
         assert!(copies(&backups).is_empty());
     }

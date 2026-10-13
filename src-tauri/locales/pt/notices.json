@@ -69,6 +69,7 @@
   "notice.milestone.discoverProfile": "Descubra seu perfil de voz",
   "notice.milestone.updateProfile": "Atualize seu perfil de voz",
   "notice.milestone.words": "Você já ditou {count} palavras com o Shrimp.",
+  "notice.paste.elevated": "Execute o Shrimp como administrador para inserir texto em qualquer lugar. Sua transcrição está na área de transferência.",
   "notice.paste.failed": "Não foi possível colar: {error}",
   "notice.paste.needAccessibility": "O Shrimp precisa de Acessibilidade para colar. Sua transcrição está na área de transferência.",
   "notice.paste.noTextField": "Nenhum campo de texto em foco. Sua transcrição está na área de transferência.",

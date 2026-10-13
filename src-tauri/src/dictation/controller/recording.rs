@@ -81,6 +81,7 @@ impl Controller {
                     index,
                     recorded.trigger,
                     self.label,
+                    self.reserved,
                 )
                 .and_then(|(patch, warning)| {
                     self.settings

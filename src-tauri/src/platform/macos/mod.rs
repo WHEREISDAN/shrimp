@@ -26,7 +26,7 @@ use std::sync::Arc;
 use objc2_foundation::{NSLocale, NSString};
 
 use super::{MainThread, Platform};
-use crate::hotkeys::{macos_defaults, macos_label};
+use crate::hotkeys::{macos_defaults, macos_label, macos_reserved};
 
 pub fn platform(main_thread: MainThread) -> Platform {
     Platform {
@@ -40,6 +40,7 @@ pub fn platform(main_thread: MainThread) -> Platform {
         media: Arc::new(media::MacMedia),
         default_bindings: macos_defaults(has_fn_key()),
         label: macos_label,
+        reserved: macos_reserved,
         language: preferred_language(),
         globe_key: globe::globe_key_action(),
         user_name: first_name(),

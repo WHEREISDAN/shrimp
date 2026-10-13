@@ -20,6 +20,10 @@ fn models_dir() -> PathBuf {
     std::env::var_os("SHRIMP_MODELS_DIR")
         .map(PathBuf::from)
         .unwrap_or_else(|| {
+            if cfg!(windows) {
+                let roaming = std::env::var_os("APPDATA").expect("APPDATA is set");
+                return PathBuf::from(roaming).join(r"com.shrimp.desktop.dev\models");
+            }
             let home = std::env::var_os("HOME").expect("HOME is set");
             PathBuf::from(home).join("Library/Application Support/com.shrimp.desktop.dev/models")
         })

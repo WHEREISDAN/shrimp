@@ -69,6 +69,7 @@
   "notice.milestone.discoverProfile": "Entdecke dein Stimmprofil",
   "notice.milestone.updateProfile": "Aktualisiere dein Stimmprofil",
   "notice.milestone.words": "Du hast {count} Wörter mit Shrimp diktiert.",
+  "notice.paste.elevated": "Führe Shrimp als Administrator aus, um überall Text einzufügen. Dein Transkript liegt in der Zwischenablage.",
   "notice.paste.failed": "Einfügen fehlgeschlagen: {error}",
   "notice.paste.needAccessibility": "Shrimp braucht die Bedienungshilfen zum Einfügen. Dein Transkript liegt in der Zwischenablage.",
   "notice.paste.noTextField": "Kein Textfeld ausgewählt. Dein Transkript liegt in der Zwischenablage.",

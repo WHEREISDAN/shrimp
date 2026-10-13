@@ -42,7 +42,7 @@ impl InputDevice {
 }
 
 /// Software inputs that often report a physical transport.
-const VIRTUAL_NAMES: [&str; 14] = [
+const VIRTUAL_NAMES: [&str; 18] = [
     "blackhole",
     "krisp",
     "loopback",
@@ -57,6 +57,10 @@ const VIRTUAL_NAMES: [&str; 14] = [
     "obs ",
     "aggregate device",
     "multi-output",
+    "virtual audio",
+    "steam streaming",
+    "nvidia broadcast",
+    "voicemod",
 ];
 
 /// The kind of a device from its transport and name.

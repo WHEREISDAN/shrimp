@@ -75,11 +75,7 @@ pub fn create<R: Runtime>(app: &AppHandle<R>, settings: Arc<SettingsStore>) -> t
     });
     app.manage(Arc::clone(&state));
     place(&window, &state)?;
-    // Tauri must know the window is visible, or WebKit keeps painting a stale
-    // snapshot of the first frame over later content. The panel cannot
-    // become key, so showing it does not take focus.
-    window.show()?;
-    platform::flow_bar::set_visible(app, FLOW_BAR_LABEL, true);
+    platform::flow_bar::show_first(app, &window)?;
     track_cursor(app.clone(), state);
     Ok(())
 }

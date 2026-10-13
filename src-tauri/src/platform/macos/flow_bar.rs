@@ -49,6 +49,15 @@ pub fn make_panel<R: Runtime>(window: &WebviewWindow<R>) -> Result<(), PlatformE
     Ok(())
 }
 
+/// Shows the panel for the first time. Tauri must know the window is
+/// visible, or WebKit keeps painting a stale snapshot of the first frame over
+/// later content. The panel cannot become key, so showing it does not take focus.
+pub fn show_first<R: Runtime>(app: &AppHandle<R>, window: &WebviewWindow<R>) -> tauri::Result<()> {
+    window.show()?;
+    set_visible(app, window.label(), true);
+    Ok(())
+}
+
 /// Shows (without activating Shrimp) or hides the panel. Call on the main thread.
 pub fn set_visible<R: Runtime>(app: &AppHandle<R>, label: &str, visible: bool) {
     match app.get_webview_panel(label) {

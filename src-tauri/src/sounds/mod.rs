@@ -153,6 +153,10 @@ impl DictationUi for SoundingNotices {
     fn shortcut_recording(&self, status: RecordingStatus) {
         self.inner.shortcut_recording(status);
     }
+
+    fn last_transcript(&self, available: bool) {
+        self.inner.last_transcript(available);
+    }
 }
 
 /// The cue as a 16-bit PCM WAV file in memory.

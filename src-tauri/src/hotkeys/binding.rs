@@ -182,9 +182,13 @@ pub fn blocked_buttons(bindings: &[Binding]) -> HashSet<MouseButton> {
         .collect()
 }
 
-/// Backspace cancels Command Mode as well as Esc (CMD-04).
+/// Backspace cancels Command Mode as well as Esc (CMD-04), also while the
+/// command's modifiers are held.
 pub fn backspace_cancel() -> Binding {
-    Binding::of(Action::Cancel, Modifiers::empty(), Some(Key::Delete))
+    Binding::with_passthrough(
+        Action::Cancel,
+        Trigger::keys(Modifiers::empty(), Some(Key::Delete)),
+    )
 }
 
 /// The macOS defaults from Wispr Flow: Fn to talk, Fn+Space hands-free,
@@ -214,6 +218,29 @@ pub fn macos_defaults(fn_key: bool) -> Vec<Binding> {
             Some(Key::C),
         ),
         Binding::of(Action::CommandMode, command, None),
+        Binding::of(Action::Polish, Modifiers::OPT, Some(Key::Num1)),
+        Binding::of(Action::PromptEngineer, Modifiers::OPT, Some(Key::Num2)),
+        Binding::of(Action::ViewChanges, Modifiers::OPT, Some(Key::O)),
+    ]
+}
+
+/// The Windows defaults from Wispr Flow (WIN-02): Ctrl+Win to talk,
+/// Ctrl+Win+Space hands-free, Ctrl+Win+Alt for Command Mode, Shift+Alt+Z /
+/// Shift+Alt+X for the last transcript and Win+Alt for the transforms.
+pub fn windows_defaults() -> Vec<Binding> {
+    let talk = Modifiers::CTRL | Modifiers::CMD;
+    let last = Modifiers::SHIFT | Modifiers::OPT;
+    let transforms = Modifiers::CMD | Modifiers::OPT;
+    vec![
+        Binding::of(Action::PushToTalk, talk, None),
+        Binding::of(Action::HandsFree, talk, Some(Key::Space)),
+        Binding::of(Action::Cancel, Modifiers::empty(), Some(Key::Escape)),
+        Binding::of(Action::PasteLast, last, Some(Key::Z)),
+        Binding::of(Action::CopyLast, last, Some(Key::X)),
+        Binding::of(Action::CommandMode, talk | Modifiers::OPT, None),
+        Binding::of(Action::Polish, transforms, Some(Key::Num1)),
+        Binding::of(Action::PromptEngineer, transforms, Some(Key::Num2)),
+        Binding::of(Action::ViewChanges, transforms, Some(Key::O)),
     ]
 }
 
@@ -256,6 +283,86 @@ pub fn macos_label(trigger: &Trigger) -> String {
         }
     }
     label
+}
+
+/// Human-readable shortcut in Windows notation, e.g. "Ctrl+Win",
+/// "Shift+Alt+Z", "Ctrl+Mouse 4".
+pub fn windows_label(trigger: &Trigger) -> String {
+    const NAMES: [(Modifiers, &str); 4] = [
+        (Modifiers::CTRL, "Ctrl"),
+        (Modifiers::CMD, "Win"),
+        (Modifiers::SHIFT, "Shift"),
+        (Modifiers::OPT, "Alt"),
+    ];
+    let modifiers = trigger.modifiers();
+    let mut parts: Vec<String> = NAMES
+        .iter()
+        .filter(|(modifier, _)| modifiers.intersects(*modifier))
+        .map(|(_, name)| (*name).to_owned())
+        .collect();
+    match trigger {
+        Trigger::Keys(hotkey) => match hotkey.key {
+            Some(Key::Escape) => parts.push("Esc".into()),
+            Some(Key::Return) => parts.push("Enter".into()),
+            Some(Key::Delete) => parts.push("Backspace".into()),
+            Some(Key::ForwardDelete) => parts.push("Delete".into()),
+            Some(Key::CapsLock) => parts.push(t!("name.key.capsLock")),
+            Some(Key::Space) => parts.push(t!("name.key.space")),
+            Some(key) => parts.push(key.to_string()),
+            None => {}
+        },
+        Trigger::Mouse { button, .. } => parts.push(button.label()),
+    }
+    parts.join("+")
+}
+
+/// Shortcuts macOS or every app relies on (KEYS-05).
+pub fn macos_reserved(trigger: &Trigger) -> bool {
+    let Trigger::Keys(hotkey) = trigger else {
+        return false;
+    };
+    let only = |wanted: Modifiers| only_modifiers(hotkey.modifiers, wanted);
+    matches!(
+        hotkey.key,
+        Some(Key::Delete | Key::ForwardDelete | Key::Space | Key::C | Key::V)
+    ) && only(Modifiers::CMD)
+        || hotkey.key == Some(Key::F) && only(Modifiers::CMD | Modifiers::CTRL)
+}
+
+/// Shortcuts Windows or every app relies on (WIN-03): Ctrl alone, Win with
+/// the shell's letters and arrows, Ctrl+C and Ctrl+V.
+pub fn windows_reserved(trigger: &Trigger) -> bool {
+    let Trigger::Keys(hotkey) = trigger else {
+        return false;
+    };
+    let only = |wanted: Modifiers| only_modifiers(hotkey.modifiers, wanted);
+    let shell_keys = [
+        Key::E,
+        Key::R,
+        Key::L,
+        Key::D,
+        Key::Tab,
+        Key::I,
+        Key::S,
+        Key::X,
+        Key::P,
+        Key::UpArrow,
+        Key::DownArrow,
+        Key::Q,
+    ];
+    match hotkey.key {
+        None => only(Modifiers::CTRL),
+        Some(key) if shell_keys.contains(&key) && only(Modifiers::CMD) => true,
+        Some(Key::C | Key::V) => only(Modifiers::CTRL),
+        _ => false,
+    }
+}
+
+/// Exactly the modifier groups of `wanted`, either side.
+fn only_modifiers(modifiers: Modifiers, wanted: Modifiers) -> bool {
+    super::trigger::MODIFIER_GROUPS
+        .iter()
+        .all(|group| modifiers.intersects(*group) == wanted.intersects(*group))
 }
 
 #[cfg(test)]
@@ -351,16 +458,66 @@ mod tests {
 
     #[test]
     fn every_action_has_exactly_one_default() {
-        let defaults = macos_defaults(true);
-        for action in [
-            Action::PushToTalk,
-            Action::HandsFree,
-            Action::Cancel,
-            Action::PasteLast,
-            Action::CopyLast,
-            Action::CommandMode,
-        ] {
-            assert_eq!(defaults.iter().filter(|b| b.action == action).count(), 1);
+        for defaults in [macos_defaults(true), windows_defaults()] {
+            for action in [
+                Action::PushToTalk,
+                Action::HandsFree,
+                Action::Cancel,
+                Action::PasteLast,
+                Action::CopyLast,
+                Action::CommandMode,
+                Action::Polish,
+                Action::PromptEngineer,
+                Action::ViewChanges,
+            ] {
+                assert_eq!(defaults.iter().filter(|b| b.action == action).count(), 1);
+            }
         }
+    }
+
+    #[test]
+    fn labels_the_windows_defaults() {
+        let label = |action| {
+            let binding = windows_defaults()
+                .into_iter()
+                .find(|binding: &Binding| binding.action == action)
+                .unwrap();
+            windows_label(&binding.trigger)
+        };
+        assert_eq!(label(Action::PushToTalk), "Ctrl+Win");
+        assert_eq!(label(Action::HandsFree), "Ctrl+Win+Space");
+        assert_eq!(label(Action::CommandMode), "Ctrl+Win+Alt");
+        assert_eq!(label(Action::PasteLast), "Shift+Alt+Z");
+        assert_eq!(label(Action::CopyLast), "Shift+Alt+X");
+        assert_eq!(label(Action::Polish), "Win+Alt+1");
+        assert_eq!(label(Action::PromptEngineer), "Win+Alt+2");
+        assert_eq!(label(Action::ViewChanges), "Win+Alt+O");
+        assert_eq!(label(Action::Cancel), "Esc");
+        let label = |text: &str| windows_label(&text.parse::<Trigger>().unwrap());
+        assert_eq!(label("Ctrl+Mouse4"), "Ctrl+Mouse 4");
+        assert_eq!(label("MouseMiddle"), "Middle Click");
+        assert_eq!(label("CapsLock"), "Caps Lock");
+        assert_eq!(label("Opt+Return"), "Alt+Enter");
+    }
+
+    #[test]
+    fn windows_reserves_its_shell_shortcuts() {
+        let reserved = |text: &str| windows_reserved(&text.parse::<Trigger>().unwrap());
+        for text in [
+            "Ctrl", "Win+E", "Win+R", "Win+L", "Win+D", "Win+Tab", "Win+I", "Win+S", "Win+X",
+            "Win+P", "Win+Up", "Win+Down", "Win+Q", "Ctrl+C", "Ctrl+V",
+        ] {
+            assert!(reserved(text), "{text}");
+        }
+        for text in [
+            "Ctrl+Win",
+            "Win+Alt+E",
+            "Ctrl+Shift+V",
+            "Shift+Alt+Z",
+            "Win+Alt+1",
+        ] {
+            assert!(!reserved(text), "{text}");
+        }
+        assert!(!macos_reserved(&"Cmd+E".parse::<Trigger>().unwrap()));
     }
 }

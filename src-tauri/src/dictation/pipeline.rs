@@ -8,7 +8,7 @@ use handy_keys::Modifiers;
 use super::learn::LearnTarget;
 use super::state::{Delivered, Outcome, Processed};
 use crate::audio::{AudioClip, level};
-use crate::context::{AppKind, DictationContext, PendingContext};
+use crate::context::{AppKind, DictationContext, PendingContext, apps};
 use crate::edit::tips::{self, Formatting};
 use crate::edit::{CleanupLevel, Editor};
 use crate::history::{Dictation, History};
@@ -20,13 +20,15 @@ use crate::storage::{HistoryStatus, now_ms};
 use crate::t;
 
 use crate::platform::{
-    AppIdentity, FieldKind, InsertOptions, InsertOutcome, InsertText, PasteSplit, SyntheticKey,
-    TextInserter,
+    AppIdentity, FieldKind, InsertOptions, InsertOutcome, InsertText, PasteKey, PasteSplit,
+    SyntheticKey, TextInserter,
 };
 use crate::stt::{SttEngine, SttEngineId, SttError, SttOptions, Transcript};
 
 /// Lets the app take the paste before Enter arrives (CORE-16).
 const ENTER_AFTER_PASTE: Duration = Duration::from_millis(120);
+/// Outlook, Word and WhatsApp on Windows read the clipboard late (WIN-04).
+const LATE_READER_HOLD: Duration = Duration::from_secs(3);
 
 /// Parts small enough that AI coding CLIs show them inline: Claude Code
 /// collapses a paste over 800 characters or 2 line breaks, Codex over 1,000
@@ -343,9 +345,16 @@ impl Pipeline {
     }
 
     /// Terminals paste without a field check and in parts; remote desktops
-    /// hold the clipboard longer (INS-09..11).
+    /// hold the clipboard longer (INS-09..11). On Windows, code editors take
+    /// Shift+Insert and a few apps read the clipboard late (WIN-04).
     pub fn insert_options(&self, context: &DictationContext) -> InsertOptions {
         let mut options = InsertOptions::new(self.clipboard_hold);
+        if apps::reads_clipboard_late(context.app.as_ref()) {
+            options.hold = options.hold.max(LATE_READER_HOLD);
+        }
+        if context.app_kind() == AppKind::CodeEditor {
+            options.paste_key = PasteKey::ShiftInsert;
+        }
         match context.app_kind() {
             AppKind::RemoteDesktop => {
                 options.hold = self.remote_clipboard_hold;

@@ -57,4 +57,8 @@ impl DictationUi for MutedNotices {
     fn shortcut_recording(&self, status: RecordingStatus) {
         self.inner.shortcut_recording(status);
     }
+
+    fn last_transcript(&self, available: bool) {
+        self.inner.last_transcript(available);
+    }
 }

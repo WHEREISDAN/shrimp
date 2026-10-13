@@ -22,7 +22,7 @@ pub use shrimp_lib::edit::{CleanupLevel, EditTimeout, Editor, FixedLibrary, Snap
 pub use shrimp_lib::history::{History, HistoryList, RetryKind};
 pub use shrimp_lib::hotkeys::{
     Action, Binding, HotkeyEvent, RecordUpdate, Recorded, Recording, ShortcutEvent, Trigger,
-    macos_defaults, macos_label,
+    macos_defaults, macos_label, macos_reserved,
 };
 pub use shrimp_lib::llm::{
     LlmError, LlmProvider, LlmProviderId, LlmRequest, LlmResponse, LlmSource,
@@ -541,6 +541,7 @@ impl Harness {
             hotkeys: Box::new(FakeHotkeys(Arc::clone(&fakes))),
             bindings: macos_defaults(true),
             label: macos_label,
+            reserved: macos_reserved,
             inserter: Arc::new(FakeInserter(Arc::clone(&fakes))),
             focus: Arc::new(FakeFocus(Arc::clone(&fakes))),
             permissions: Arc::new(Granted),

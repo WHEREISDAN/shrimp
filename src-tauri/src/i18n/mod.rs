@@ -2,7 +2,8 @@
 //! messages and names in pickers, in the interface language. English
 //! (`locales/en/*.json`) is the source; a key missing elsewhere falls back
 //! to it. Placeholders are `{name}`, filled by [`t!`](crate::t); counted
-//! text has `.one` and `.other` keys, chosen by [`tn!`](crate::tn).
+//! text has `.one` and `.other` keys, chosen by [`tn!`](crate::tn). On
+//! Windows, `windows.json` replaces texts that name the Mac.
 
 use std::collections::HashMap;
 use std::fmt::Display;
@@ -22,8 +23,14 @@ macro_rules! catalog {
                 include_str!(concat!("../../locales/", $language, "/errors.json")),
                 include_str!(concat!("../../locales/", $language, "/names.json")),
             ],
+            include_str!(concat!("../../locales/", $language, "/windows.json")),
         )
     };
+}
+
+fn parse(language: &str, json: &str) -> Catalog {
+    serde_json::from_str::<Catalog>(json)
+        .unwrap_or_else(|error| panic!("locales/{language} is invalid: {error}"))
 }
 
 static CATALOGS: LazyLock<HashMap<&'static str, Catalog>> = LazyLock::new(|| {
@@ -35,14 +42,14 @@ static CATALOGS: LazyLock<HashMap<&'static str, Catalog>> = LazyLock::new(|| {
         catalog!("pt"),
     ]
     .into_iter()
-    .map(|(language, parts)| {
-        let catalog = parts
+    .map(|(language, parts, windows)| {
+        let mut catalog: Catalog = parts
             .into_iter()
-            .flat_map(|json| {
-                serde_json::from_str::<Catalog>(json)
-                    .unwrap_or_else(|error| panic!("locales/{language} is invalid: {error}"))
-            })
+            .flat_map(|json| parse(language, json))
             .collect();
+        if crate::platform::TEXT_VARIANT == Some("windows") {
+            catalog.extend(parse(language, windows));
+        }
         (language, catalog)
     })
     .collect()
@@ -294,7 +301,30 @@ mod tests {
         assert_eq!(text_in("de", "no.such.key", &[]), "no.such.key");
     }
 
-    #[cfg(target_os = "macos")]
+    /// Every Windows text replaces an existing one, in every language.
+    #[test]
+    fn windows_texts_replace_existing_ones() {
+        let english = parse("en", include_str!("../../locales/en/windows.json"));
+        for (language, _, windows) in [
+            catalog!("en"),
+            catalog!("de"),
+            catalog!("es"),
+            catalog!("it"),
+            catalog!("pt"),
+        ] {
+            let windows = parse(language, windows);
+            let mut keys: Vec<&String> = windows.keys().collect();
+            keys.sort();
+            let mut expected: Vec<&String> = english.keys().collect();
+            expected.sort();
+            assert_eq!(keys, expected, "{language}");
+            for key in keys {
+                assert!(CATALOGS["en"].contains_key(key), "{key} replaces nothing");
+            }
+        }
+    }
+
+    #[cfg(any(target_os = "macos", target_os = "windows"))]
     #[test]
     fn names_languages_like_the_interface() {
         assert_eq!(

@@ -1,0 +1,5 @@
+{
+  "name.sttEngine.localWhisper": "Whisper neste PC",
+  "notice.stt.failedFellBack": "A transcrição na nuvem falhou ({error}). Usamos o Whisper neste PC.",
+  "notice.stt.unavailableFellBack": "{message} Usamos o Whisper neste PC."
+}

@@ -120,6 +120,10 @@ mod tests {
         session.end();
         std::thread::sleep(Duration::from_millis(200));
         assert_eq!(counting.muted.load(Ordering::SeqCst), 0);
-        assert!(MediaSession::begin(&media, MediaSettings::default(), Duration::ZERO).is_none());
+        let off = MediaSettings {
+            mute: false,
+            pause: false,
+        };
+        assert!(MediaSession::begin(&media, off, Duration::ZERO).is_none());
     }
 }

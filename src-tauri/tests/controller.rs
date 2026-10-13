@@ -360,10 +360,10 @@ fn a_failed_cloud_engine_falls_back_to_whisper() {
     );
     dictate(&h);
     wait_until("insertion", || h.fakes.inserted() == [TEXT]);
-    assert!(
-        h.fakes
-            .has_notice("Groq rate limit reached. Used Whisper on this Mac instead.")
-    );
+    let device = if cfg!(windows) { "PC" } else { "Mac" };
+    assert!(h.fakes.has_notice(&format!(
+        "Groq rate limit reached. Used Whisper on this {device} instead."
+    )));
 }
 
 fn entry(id: i64, term: &str, misspelling: Option<&str>) -> DictionaryEntry {

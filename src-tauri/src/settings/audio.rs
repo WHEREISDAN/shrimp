@@ -45,13 +45,23 @@ impl Default for SoundSettings {
 
 /// What happens to playing audio while dictating (SND-03, SND-04). At most
 /// one is on.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", default)]
 pub struct MediaSettings {
-    /// Mute the output while dictating; off by default on macOS.
+    /// Mute the output while dictating; off by default on macOS, on by
+    /// default on Windows (WIN-08).
     pub mute: bool,
     /// Pause music and video players while dictating.
     pub pause: bool,
+}
+
+impl Default for MediaSettings {
+    fn default() -> Self {
+        Self {
+            mute: crate::platform::MUTE_BY_DEFAULT,
+            pause: false,
+        }
+    }
 }
 
 impl MediaSettings {
@@ -83,12 +93,13 @@ mod tests {
     use super::*;
 
     #[test]
-    fn defaults_are_auto_detect_with_sounds_and_nothing_muted() {
+    fn defaults_are_auto_detect_with_sounds_and_mute_per_platform() {
         let microphone = MicrophoneSettings::default();
         assert_eq!(microphone.selected, None);
         assert!(SoundSettings::default().dictation && SoundSettings::default().notifications);
         let media = MediaSettings::default();
-        assert!(!media.mute && !media.pause);
+        assert_eq!(media.mute, crate::platform::MUTE_BY_DEFAULT);
+        assert!(!media.pause);
     }
 
     #[test]

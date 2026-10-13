@@ -8,7 +8,7 @@ pub mod validation;
 
 pub use binding::{
     Action, Binding, backspace_cancel, blocked_buttons, blocked_hotkeys, macos_defaults,
-    macos_label,
+    macos_label, macos_reserved, windows_defaults, windows_label, windows_reserved,
 };
 pub use matcher::{Matched, Matcher, MouseEvent, ShortcutEvent};
 pub use recording::{RecordInput, RecordUpdate, Recorded, Recording};

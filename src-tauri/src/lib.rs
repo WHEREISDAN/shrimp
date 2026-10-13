@@ -25,8 +25,14 @@ pub mod stt;
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     // Must be the first plugin: a second launch focuses this instance and exits.
+    // In debug builds, `--quit` asks the running instance to quit cleanly
+    // (the Windows dev script uses it; scripts/macos/dev-app.sh quits through AppleScript).
     let builder =
-        tauri::Builder::default().plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
+        tauri::Builder::default().plugin(tauri_plugin_single_instance::init(|app, args, _cwd| {
+            if cfg!(debug_assertions) && args.iter().any(|arg| arg == "--quit") {
+                app.exit(0);
+                return;
+            }
             app::window::show_main(app)
         }));
 

@@ -5341,6 +5341,7 @@ dependencies = [
  "objc2-foundation",
  "objc2-io-kit",
  "objc2-service-management",
+ "png 0.18.1",
  "reqwest",
  "rubato",
  "rusqlite",
@@ -5357,6 +5358,7 @@ dependencies = [
  "thiserror 2.0.21",
  "tokio",
  "whisper-rs",
+ "windows 0.62.2",
 ]
 
 [[package]]

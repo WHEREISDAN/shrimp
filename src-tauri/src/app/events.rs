@@ -95,6 +95,10 @@ impl DictationUi for TauriUi {
         let _ = self.app.emit(DISMISS_EVENT, id);
     }
 
+    fn last_transcript(&self, available: bool) {
+        super::tray::set_paste_last_available(&self.app, available);
+    }
+
     fn notice(&self, notice: Notice) {
         log::info!("notice ({:?}): {}", notice.level, notice.message);
         if self.flow_bar_ready.load(Ordering::SeqCst) {
