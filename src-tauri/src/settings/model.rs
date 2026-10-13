@@ -4,6 +4,7 @@
 use serde::{Deserialize, Serialize};
 
 use super::audio::{MediaSettings, MicrophoneSettings, SoundSettings};
+use super::flow_bar::FlowBarSettings;
 use super::languages::LanguageSettings;
 use super::shortcuts::ShortcutSettings;
 use super::transforms::TransformSettings;
@@ -33,6 +34,7 @@ pub struct Settings {
     pub sounds: SoundSettings,
     pub media: MediaSettings,
     pub languages: LanguageSettings,
+    pub flow_bar: FlowBarSettings,
 }
 
 impl Default for Settings {
@@ -53,6 +55,7 @@ impl Default for Settings {
             sounds: SoundSettings::default(),
             media: MediaSettings::default(),
             languages: LanguageSettings::default(),
+            flow_bar: FlowBarSettings::default(),
         }
     }
 }
@@ -265,6 +268,7 @@ impl Settings {
         self.microphone.validate()?;
         self.media.validate()?;
         self.languages.validate()?;
+        self.flow_bar.validate()?;
         self.transforms.validate()?;
         let url = self.ai.ollama_url.trim();
         if !(url.starts_with("http://") || url.starts_with("https://")) || url.len() > 200 {

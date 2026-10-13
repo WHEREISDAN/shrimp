@@ -39,7 +39,8 @@ export type NoticeAction =
   | "troubleshootMicrophone"
   | "openLanguageSettings"
   | "addDetectedLanguage"
-  | "dismissLanguageCard";
+  | "dismissLanguageCard"
+  | "showFlowBar";
 
 /** Mirrors `notify::Notice`. */
 export interface Notice {
@@ -281,6 +282,14 @@ export interface Settings {
   /** At most one is on. */
   media: { mute: boolean; pause: boolean };
   languages: LanguageChoice;
+  flowBar: {
+    alwaysShow: boolean;
+    /** Seconds since 1970; the resting bar is hidden until then. */
+    hiddenUntil: number;
+    edge: "bottom" | "left" | "right";
+    /** From 0 (left or top) to 1 along the edge. */
+    position: number;
+  };
 }
 
 /** A JSON merge patch for `update_settings`: any subset of the settings. */
@@ -294,6 +303,7 @@ export interface SettingsPatch {
   dictionary?: Partial<Settings["dictionary"]>;
   sounds?: Partial<Settings["sounds"]>;
   media?: Partial<Settings["media"]>;
+  flowBar?: Partial<Settings["flowBar"]>;
   /** `null` restores a default (a whole section, or Polish's rules). */
   transforms?: {
     enabled?: boolean;
@@ -435,6 +445,15 @@ export const flowBarReady = (): Promise<void> => invoke("flow_bar_ready");
 export const flowBarLayout = (width: number, height: number): Promise<void> =>
   invoke("flow_bar_layout", { width, height });
 
+/** The resting bar follows the cursor while dragged, and docks to the nearest edge when `ended`. */
+export const flowBarDrag = (ended: boolean): Promise<void> => invoke("flow_bar_drag", { ended });
+
+/** Mirrors `commands::dictation::FlowBarAction`: the Flow Bar's right-click menu. */
+export type FlowBarAction = "pasteLast" | "history" | "settings" | "hide";
+
+export const flowBarAction = (action: FlowBarAction): Promise<void> =>
+  invoke("flow_bar_action", { action });
+
 export const runNoticeAction = (action: NoticeAction): Promise<void> =>
   invoke("run_notice_action", { action });
 
@@ -571,6 +590,7 @@ export const EVENTS = {
   dismiss: "notify://dismiss",
   micLevel: "mic://level",
   microphones: "mic://devices",
+  flowBarHover: "flow-bar://hover",
 } as const;
 
 export function onEvent<T>(name: string, handler: (payload: T) => void): Promise<UnlistenFn> {

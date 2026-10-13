@@ -50,6 +50,7 @@ function backend(
         vibeCoding: { ...settings.vibeCoding, ...patch.vibeCoding },
         sounds: { ...settings.sounds, ...patch.sounds },
         media: { ...settings.media, ...patch.media },
+        flowBar: { ...settings.flowBar, ...patch.flowBar },
       };
       return settings;
     },
@@ -478,6 +479,17 @@ describe("SettingsPage languages", () => {
     fireEvent.click(within(dialog).getByRole("button", { name: "Save" }));
     await waitFor(() =>
       expect(argsOf("set_languages")).toEqual([{ autoDetect: true, selected: [] }]),
+    );
+  });
+});
+
+describe("SettingsPage Flow Bar", () => {
+  it("turns off showing the bar at all times", async () => {
+    const { argsOf } = backend();
+    render(<SettingsPage />);
+    fireEvent.click(await screen.findByRole("switch", { name: "Show Flow Bar at all times" }));
+    await waitFor(() =>
+      expect(argsOf("update_settings")).toEqual([{ patch: { flowBar: { alwaysShow: false } } }]),
     );
   });
 });

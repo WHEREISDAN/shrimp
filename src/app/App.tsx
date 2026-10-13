@@ -23,6 +23,9 @@ export function App() {
       setShortcutsOpen(true);
     } else if (section === "settings") {
       setPage("settings");
+    } else if (section === "history") {
+      // Home lists recent dictations (HIS-01).
+      setPage("home");
     } else if (section === "dictionary") {
       setPage("dictionary");
     } else if (section === "languages") {

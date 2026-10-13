@@ -4,6 +4,7 @@
 pub mod dev_bridge;
 pub mod events;
 pub mod flow_bar;
+mod flow_bar_place;
 pub mod setup;
 pub mod tray;
 pub mod window;

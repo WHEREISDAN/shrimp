@@ -25,16 +25,16 @@ phase that adds it (phases are defined in [PARITY.md](PARITY.md)).
 
 ## Processes, windows and threads
 
-| Piece         | What it is                                                                                                                                               |
-| ------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Main window   | `main` webview: Home, Insights, Dictionary, Snippets, Style, Transforms, Settings, onboarding. Closing hides it **(built)**.                             |
-| Flow Bar      | `flow-bar` webview in a transparent, always-on-top window that never takes focus. On macOS it is a non-activating `NSPanel` (tauri-nspanel) **(built)**. |
-| Tray          | Menu-bar / notification-area icon and menu: Open Shrimp, Shortcuts…, Paste last transcript, Copy last transcript, Quit **(built)**.                      |
-| Hotkey thread | Owns the OS keyboard hook (a CGEventTap run loop on macOS, `WH_KEYBOARD_LL` on Windows) **(built)**.                                                     |
-| Audio thread  | The cpal input stream callback, which only converts samples to f32 and sends them **(built)**.                                                           |
-| Async runtime | Tauri's tokio runtime: the dictation controller task, IPC commands, HTTP calls.                                                                          |
-| Blocking pool | `spawn_blocking` for Whisper inference, SQLite and accessibility calls.                                                                                  |
-| Main thread   | AppKit/Win32 work that must run there (windows, panels, pasteboard and key posting where required), reached with `AppHandle::run_on_main_thread`.        |
+| Piece         | What it is                                                                                                                                                                                                                  |
+| ------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Main window   | `main` webview: Home, Insights, Dictionary, Snippets, Style, Transforms, Settings, onboarding. Closing hides it **(built)**.                                                                                                |
+| Flow Bar      | `flow-bar` webview in a transparent, always-on-top window that never takes focus, on the bottom, left or right edge of the display under the cursor. On macOS it is a non-activating `NSPanel` (tauri-nspanel) **(built)**. |
+| Tray          | Menu-bar / notification-area icon and menu: Open Shrimp, Shortcuts…, Paste last transcript, Copy last transcript, Quit **(built)**.                                                                                         |
+| Hotkey thread | Owns the OS keyboard hook (a CGEventTap run loop on macOS, `WH_KEYBOARD_LL` on Windows) **(built)**.                                                                                                                        |
+| Audio thread  | The cpal input stream callback, which only converts samples to f32 and sends them **(built)**.                                                                                                                              |
+| Async runtime | Tauri's tokio runtime: the dictation controller task, IPC commands, HTTP calls.                                                                                                                                             |
+| Blocking pool | `spawn_blocking` for Whisper inference, SQLite and accessibility calls.                                                                                                                                                     |
+| Main thread   | AppKit/Win32 work that must run there (windows, panels, pasteboard and key posting where required), reached with `AppHandle::run_on_main_thread`.                                                                           |
 
 ## Rust module layout
 
@@ -48,7 +48,9 @@ app/                    shell                                                   
   setup.rs              builds the services at startup, managed state                  (built)
   window.rs             main window show/hide, close-to-tray                           (built)
   tray.rs               tray icon and menu                                             (built)
-  flow_bar.rs           Flow Bar window creation, sizing, bottom-centre placement      (built)
+  flow_bar.rs           Flow Bar window: sizing, hiding when empty, edge placement on
+                        the cursor's display, dragging (BAR-04, BAR-05)                (built)
+  flow_bar_place.rs     where on a display's work area the bar goes, nearest edge      (built)
   events.rs             DictationUi over Tauri events; notices queued until ready      (built)
   dev_bridge.rs         tauri-plugin-mcp, debug builds only                            (built)
 context/                context awareness: what surrounds the cursor (CTX-01..04)      (built)
@@ -201,14 +203,28 @@ IPC conventions:
 
 Built so far:
 
-| Kind     | Names                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
-| -------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Commands | `app_info`, `get_dictation_state`, `flow_bar_control`, `flow_bar_ready`, `flow_bar_layout`, `run_notice_action`, `get_models`, `get_permissions`, `open_permission_settings`                                                                                                                                                                                                                                                                                                             |
-| Phase 3  | `transform_action` (the changes view's Copy, Retry and Undo)                                                                                                                                                                                                                                                                                                                                                                                                                             |
-| Phase 4  | `get_shortcuts` (every action's bindings, the overlap warning, Secure Keyboard Entry), `record_shortcut` (records through the hooks; progress as `shortcuts://recording`), `cancel_shortcut_recording`, `remove_shortcut`, `reset_shortcuts`; `retry_model`, `download_model`, `delete_model`; `get_microphones`, `select_microphone`, `rank_microphone`, `forget_microphone`, `start_mic_preview`, `stop_mic_preview`; `get_languages`, `set_languages`, `set_active_language`          |
-| Phase 2  | `get_settings`, `update_settings`, `get_ai_options`, `get_api_keys`, `set_api_key`, `delete_api_key`, `list_ollama_models`, `test_ai_provider`; dictionary and snippet CRUD and imports (`list_dictionary`, `add_dictionary_entry`, `update_dictionary_entry`, `set_dictionary_pinned`, `delete_dictionary_entries`, `preview_dictionary_import`, `import_dictionary`, `list_snippets`, `add_snippet`, `update_snippet`, `delete_snippets`, `preview_snippet_import`, `import_snippets`) |
-| Dev only | `dev_get_audio_source`, `dev_set_audio_source`, `dev_set_app_category`, `dev_edit_text`, `dev_read_context`, `dev_set_microphones` (debug builds; see DEVELOPMENT.md)                                                                                                                                                                                                                                                                                                                    |
-| Events   | `dictation://state`, `dictation://level` (Flow Bar only), `notify://notice`, `command://answer` and `transform://changes` (Flow Bar only), `models://status`, `app://navigate`, `settings://changed`, `shortcuts://recording`, `notify://dismiss` (a notice whose cause went away), `mic://devices`, `mic://level`                                                                                                                                                                       |
+| Kind     | Names                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Commands | `app_info`, `get_dictation_state`, `flow_bar_control`, `flow_bar_ready`, `flow_bar_layout`, `run_notice_action`, `get_models`, `get_permissions`, `open_permission_settings`                                                                                                                                                                                                                                                                                                                                                               |
+| Phase 3  | `transform_action` (the changes view's Copy, Retry and Undo)                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| Phase 4  | `get_shortcuts` (every action's bindings, the overlap warning, Secure Keyboard Entry), `record_shortcut` (records through the hooks; progress as `shortcuts://recording`), `cancel_shortcut_recording`, `remove_shortcut`, `reset_shortcuts`; `retry_model`, `download_model`, `delete_model`; `get_microphones`, `select_microphone`, `rank_microphone`, `forget_microphone`, `start_mic_preview`, `stop_mic_preview`; `get_languages`, `set_languages`, `set_active_language`; `flow_bar_drag`, `flow_bar_action` (the right-click menu) |
+| Phase 2  | `get_settings`, `update_settings`, `get_ai_options`, `get_api_keys`, `set_api_key`, `delete_api_key`, `list_ollama_models`, `test_ai_provider`; dictionary and snippet CRUD and imports (`list_dictionary`, `add_dictionary_entry`, `update_dictionary_entry`, `set_dictionary_pinned`, `delete_dictionary_entries`, `preview_dictionary_import`, `import_dictionary`, `list_snippets`, `add_snippet`, `update_snippet`, `delete_snippets`, `preview_snippet_import`, `import_snippets`)                                                   |
+| Dev only | `dev_get_audio_source`, `dev_set_audio_source`, `dev_set_app_category`, `dev_edit_text`, `dev_read_context`, `dev_set_microphones` (debug builds; see DEVELOPMENT.md)                                                                                                                                                                                                                                                                                                                                                                      |
+| Events   | `dictation://state`, `dictation://level` (Flow Bar only), `notify://notice`, `command://answer` and `transform://changes` (Flow Bar only), `models://status`, `app://navigate`, `settings://changed`, `shortcuts://recording`, `notify://dismiss` (a notice whose cause went away), `mic://devices`, `mic://level`, `flow-bar://hover` (Flow Bar only)                                                                                                                                                                                     |
+
+The Flow Bar shows the resting pill only when "Show Flow Bar at all times" is on and it
+isn't hidden for an hour (BAR-04); with nothing to show it reports 0 × 0 and Rust hides
+the panel. A hidden panel gets no rendering updates (so no `ResizeObserver` callbacks),
+so the webview also measures itself after every render. Dragging the resting pill moves
+the window with the cursor (`flow_bar_drag`); on release it docks to the nearest bottom,
+left or right edge of that display's work area (so never under the menu bar or the Dock)
+and the edge and position along it are saved (BAR-05). The pill keeps 200 points from
+the ends of its edge, so what hovering shows (language chips, the menu) grows the bar
+without moving the pill. Every 0.1 s Rust checks where the cursor is: on another display,
+the bar moves there; over the bar, it emits `flow-bar://hover`, because the panel never
+becomes key and WebKit sends it no hover events. Right-click opens an HTML menu inside
+the bar with the microphone list, Paste last transcript, Transcript history (Home),
+Settings and Hide for 1 hour (BAR-06).
 
 The Flow Bar calls `flow_bar_ready` once its notice listener is registered; notices raised
 before that (for example a missing permission at startup) are queued and delivered then. It
@@ -774,7 +790,8 @@ gives "Please select at least one language or turn on auto-detect". After a dict
 fixed languages, Whisper checks the clip's language in the background; a confident
 (≥ 0.75) language that isn't the user's shows "Speaking a different language? That
 sounded like French." at most once a day, with Open language settings, Add language and
-Don't show again.
+Don't show again. Hovering the Flow Bar with two or more languages shows Auto and one
+chip per language.
 
 ### Command Mode
 
@@ -1006,8 +1023,9 @@ by default). Every change is announced to listeners: the webview's `settings://c
 the controller, which rebinds shortcuts, and the model manager, which loads a newly chosen
 Whisper model. `microphone` (selection and ranking), `sounds` (dictation and notification
 sounds) and `media` (mute or pause while dictating, at most one) hold Settings ›
-Microphone and Sound. `languages` (above) holds Languages. Later phases add privacy,
-system, notifications and onboarding.
+Microphone and Sound. `languages` (above) and `flowBar` (`alwaysShow`, `hiddenUntil`,
+`edge`, `position`) hold Languages and the Flow Bar. Later phases add privacy, system,
+notifications and onboarding.
 
 ### Secrets (built)
 

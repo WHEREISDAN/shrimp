@@ -145,7 +145,9 @@ pub fn setup(app: &mut App) -> Result<(), Box<dyn std::error::Error>> {
     app.manage(AppPermissions(platform.permissions));
 
     tray::create(&handle)?;
-    flow_bar::create(&handle)?;
+    flow_bar::create(&handle, Arc::clone(&settings))?;
+    let placement = handle.clone();
+    settings.on_change(Box::new(move |_| flow_bar::settings_changed(&placement)));
     tauri::async_runtime::spawn(Arc::clone(&models).prepare(settings.get().stt.local_model));
     let chosen_model = Arc::clone(&models);
     settings.on_change(Box::new(move |settings| {

@@ -6,18 +6,41 @@ import {
   EVENTS,
   type Answer,
   type DictationState,
+  type Languages,
   type Notice,
+  type Settings,
   type TransformView,
 } from "../lib/ipc";
+import { MICROPHONES, SETTINGS } from "../app/testBackend";
 import { FlowBar } from "./FlowBar";
 
-function backend() {
+const LANGUAGES: Languages = {
+  options: [
+    { id: "en-GB", name: "English (UK)", group: "en" },
+    { id: "fr", name: "French", group: null },
+  ],
+  chosen: { autoDetect: false, selected: ["en-GB", "fr"], active: null },
+};
+
+function backend(languages: Languages = LANGUAGES, flowBar: Partial<Settings["flowBar"]> = {}) {
   const calls: { cmd: string; args: unknown }[] = [];
   mockIPC(
     (cmd, args) => {
       calls.push({ cmd, args });
       if (cmd === "get_dictation_state") {
         return { phase: "idle" };
+      }
+      if (cmd === "get_languages") {
+        return languages;
+      }
+      if (cmd === "get_settings") {
+        return { ...SETTINGS, flowBar: { ...SETTINGS.flowBar, ...flowBar } };
+      }
+      if (cmd === "get_microphones") {
+        return MICROPHONES;
+      }
+      if (cmd === "set_active_language") {
+        return { ...languages.chosen, active: (args as { id: string | null }).id };
       }
       return null;
     },
@@ -152,5 +175,102 @@ describe("FlowBar", () => {
     await act(async () => emit(EVENTS.changes, view));
     fireEvent.click(screen.getByRole("button", { name: "Accept edits" }));
     expect(screen.queryByRole("region", { name: "Polish changes" })).toBeNull();
+  });
+
+  it("offers one-click language switching on hover when there are several languages", async () => {
+    const calls = backend();
+    render(<FlowBar />);
+    await screen.findByRole("button", { name: "Start dictation" });
+    expect(screen.queryByRole("group", { name: "Dictation language" })).toBeNull();
+    await act(async () => emit(EVENTS.flowBarHover, true));
+    const french = await screen.findByRole("button", { name: "French" });
+    expect(screen.getByRole("button", { name: "Auto" })).toHaveAttribute("aria-pressed", "true");
+    fireEvent.click(french);
+    await waitFor(() =>
+      expect(calls).toContainEqual({ cmd: "set_active_language", args: { id: "fr" } }),
+    );
+    await waitFor(() => expect(french).toHaveAttribute("aria-pressed", "true"));
+    await act(async () => emit(EVENTS.flowBarHover, false));
+    expect(screen.queryByRole("group", { name: "Dictation language" })).toBeNull();
+  });
+
+  it("shows no language switch with one language", async () => {
+    backend({ ...LANGUAGES, chosen: { autoDetect: false, selected: ["fr"], active: null } });
+    const { container } = render(<FlowBar />);
+    await screen.findByRole("button", { name: "Start dictation" });
+    fireEvent.mouseEnter(container.querySelector(".flow-bar") as Element);
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(screen.queryByRole("group", { name: "Dictation language" })).toBeNull();
+  });
+
+  it("drops a notice its cause no longer applies to", async () => {
+    backend();
+    render(<FlowBar />);
+    await screen.findByRole("button", { name: "Start dictation" });
+    const notice: Notice = { id: 9, level: "warning", message: "No audio", actions: [] };
+    await act(async () => emit(EVENTS.notice, notice));
+    expect(screen.getByText("No audio")).toBeInTheDocument();
+    await act(async () => emit(EVENTS.dismiss, 9));
+    expect(screen.queryByText("No audio")).toBeNull();
+  });
+
+  it("hides the resting bar when it shouldn't show at all times, but not while dictating", async () => {
+    backend(LANGUAGES, { alwaysShow: false });
+    render(<FlowBar />);
+    await waitFor(() =>
+      expect(screen.queryByRole("button", { name: "Start dictation" })).toBeNull(),
+    );
+    await setState({ phase: "recording", mode: "hold", command: false });
+    expect(screen.getByRole("group", { name: "Recording" })).toBeInTheDocument();
+  });
+
+  it("stays hidden for the hour after Hide for 1 hour", async () => {
+    backend(LANGUAGES, { hiddenUntil: Math.floor(Date.now() / 1000) + 3600 });
+    render(<FlowBar />);
+    await waitFor(() =>
+      expect(screen.queryByRole("button", { name: "Start dictation" })).toBeNull(),
+    );
+  });
+
+  it("opens its menu on right-click", async () => {
+    const calls = backend();
+    const { container } = render(<FlowBar />);
+    await screen.findByRole("button", { name: "Start dictation" });
+    fireEvent.contextMenu(container.querySelector(".flow-bar") as Element);
+    const menu = screen.getByRole("menu", { name: "Flow Bar menu" });
+    for (const item of [
+      "Paste last transcript",
+      "Transcript history",
+      "Settings",
+      "Hide for 1 hour",
+    ]) {
+      expect(screen.getByRole("menuitem", { name: item })).toBeInTheDocument();
+    }
+    fireEvent.click(screen.getByRole("menuitem", { name: "Microphone ›" }));
+    fireEvent.click(await screen.findByRole("menuitemradio", { name: "Yeti" }));
+    await waitFor(() =>
+      expect(calls).toContainEqual({ cmd: "select_microphone", args: { id: "usb" } }),
+    );
+    expect(menu).not.toBeInTheDocument();
+    fireEvent.contextMenu(container.querySelector(".flow-bar") as Element);
+    fireEvent.click(screen.getByRole("menuitem", { name: "Hide for 1 hour" }));
+    await waitFor(() =>
+      expect(calls).toContainEqual({ cmd: "flow_bar_action", args: { action: "hide" } }),
+    );
+  });
+
+  it("drags the resting bar instead of starting a dictation", async () => {
+    const calls = backend();
+    render(<FlowBar />);
+    const bar = await screen.findByRole("button", { name: "Start dictation" });
+    bar.setPointerCapture = () => undefined;
+    fireEvent.pointerDown(bar, { button: 0, pointerId: 1, screenX: 100, screenY: 100 });
+    fireEvent.pointerMove(bar, { pointerId: 1, screenX: 160, screenY: 40 });
+    fireEvent.pointerUp(bar, { pointerId: 1, screenX: 160, screenY: 40 });
+    fireEvent.click(bar);
+    await waitFor(() =>
+      expect(calls).toContainEqual({ cmd: "flow_bar_drag", args: { ended: true } }),
+    );
+    expect(calls.some((call) => call.cmd === "flow_bar_control")).toBe(false);
   });
 });

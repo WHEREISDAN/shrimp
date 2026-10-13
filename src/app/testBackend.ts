@@ -135,6 +135,7 @@ export const SETTINGS: Settings = {
   sounds: { dictation: true, notifications: true },
   media: { mute: false, pause: false },
   languages: { autoDetect: false, selected: ["en-US"], active: null },
+  flowBar: { alwaysShow: true, hiddenUntil: 0, edge: "bottom", position: 0.5 },
 };
 
 export const MODELS: ModelStatus[] = [

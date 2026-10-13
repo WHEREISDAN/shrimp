@@ -38,6 +38,8 @@ pub fn run() {
                 commands::dictation::flow_bar_control,
                 commands::dictation::flow_bar_ready,
                 commands::dictation::flow_bar_layout,
+                commands::dictation::flow_bar_drag,
+                commands::dictation::flow_bar_action,
                 commands::dictation::run_notice_action,
                 commands::dictation::transform_action,
                 commands::shortcuts::get_shortcuts,

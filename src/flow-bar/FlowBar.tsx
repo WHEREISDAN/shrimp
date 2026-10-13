@@ -3,6 +3,8 @@ import {
   EVENTS,
   flowBarReady,
   getDictationState,
+  getSettings,
+  type Settings,
   type Answer,
   type DictationState,
   type Notice,
@@ -11,6 +13,8 @@ import {
 import { useTauriEvent } from "../lib/useTauriEvent";
 import { AnswerCard } from "./AnswerCard";
 import { ChangesCard } from "./ChangesCard";
+import { FlowBarMenu } from "./FlowBarMenu";
+import { LanguageSwitch } from "./LanguageSwitch";
 import { NoticeCard } from "./NoticeCard";
 import { Pill } from "./Pill";
 import { useContentSize } from "./useContentSize";
@@ -34,6 +38,10 @@ export function FlowBar() {
   const [notice, setNotice] = useState<Notice | null>(null);
   const [answer, setAnswer] = useState<Answer | null>(null);
   const [changes, setChanges] = useState<TransformView | null>(null);
+  const [hovered, setHovered] = useState(false);
+  const [menu, setMenu] = useState(false);
+  const [placement, setPlacement] = useState<Settings["flowBar"] | null>(null);
+  const [now, setNow] = useState(() => Date.now() / 1000);
   const rootRef = useRef<HTMLDivElement>(null);
   useContentSize(rootRef);
 
@@ -46,6 +54,31 @@ export function FlowBar() {
       cancelled = true;
     };
   }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    getSettings()
+      .then((settings) => !cancelled && setPlacement(settings.flowBar))
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+  useTauriEvent<Settings>(EVENTS.settings, (settings) => {
+    setPlacement(settings.flowBar);
+    setNow(Date.now() / 1000);
+  });
+
+  // Hidden for an hour: show the resting bar again when the hour is up (BAR-04).
+  const hiddenUntil = placement?.hiddenUntil ?? 0;
+  useEffect(() => {
+    const wait = hiddenUntil - Date.now() / 1000;
+    if (wait <= 0) {
+      return;
+    }
+    const timer = setTimeout(() => setNow(Date.now() / 1000), wait * 1000 + 50);
+    return () => clearTimeout(timer);
+  }, [hiddenUntil]);
 
   useTauriEvent<DictationState>(EVENTS.state, (next) => {
     setState((previous) => {
@@ -66,6 +99,14 @@ export function FlowBar() {
   );
   useTauriEvent<Answer>(EVENTS.answer, setAnswer);
   useTauriEvent<TransformView>(EVENTS.changes, setChanges);
+  // The panel never becomes key, so WebKit sends no hover events; Rust tracks the cursor.
+  const hover = (inside: boolean) => {
+    setHovered(inside);
+    if (!inside) {
+      setMenu(false);
+    }
+  };
+  useTauriEvent<boolean>(EVENTS.flowBarHover, hover);
 
   useEffect(() => {
     if (!answer) {
@@ -89,12 +130,27 @@ export function FlowBar() {
     return () => clearTimeout(timer);
   }, [notice]);
 
+  const resting = (placement?.alwaysShow ?? true) && now >= hiddenUntil;
+  const edge = placement?.edge ?? "bottom";
   return (
-    <div className="flow-bar" ref={rootRef}>
+    <div
+      className={`flow-bar edge-${edge}`}
+      ref={rootRef}
+      onMouseEnter={() => hover(true)}
+      onMouseLeave={() => hover(false)}
+      onContextMenu={(event) => {
+        event.preventDefault();
+        setMenu(true);
+      }}
+    >
+      {menu && <FlowBarMenu onClose={() => setMenu(false)} />}
       {changes && <ChangesCard view={changes} onClose={() => setChanges(null)} />}
       {answer && <AnswerCard answer={answer} onDismiss={() => setAnswer(null)} />}
       {notice && <NoticeCard notice={notice} onDismiss={() => setNotice(null)} />}
-      <Pill state={state} levels={levels} error={notice?.level === "error"} />
+      {hovered && <LanguageSwitch />}
+      {(state.phase !== "idle" || resting) && (
+        <Pill state={state} levels={levels} error={notice?.level === "error"} />
+      )}
     </div>
   );
 }

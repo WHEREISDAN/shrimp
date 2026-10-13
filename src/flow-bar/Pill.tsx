@@ -1,5 +1,5 @@
-import type { ReactNode } from "react";
-import { flowBarControl, type BarControl, type DictationState } from "../lib/ipc";
+import { useRef, type PointerEvent, type ReactNode } from "react";
+import { flowBarControl, flowBarDrag, type BarControl, type DictationState } from "../lib/ipc";
 
 interface PillProps {
   state: DictationState;
@@ -9,7 +9,54 @@ interface PillProps {
 
 const send = (control: BarControl) => () => void flowBarControl(control).catch(() => undefined);
 
+/** Movement that turns a press on the resting bar into a drag, in pixels. */
+const DRAG_THRESHOLD = 4;
+
+/** Dragging the resting bar moves it; on release it docks to the nearest edge (BAR-05). */
+function useDrag() {
+  const start = useRef<{ x: number; y: number } | null>(null);
+  const moved = useRef(false);
+  const frame = useRef(0);
+  return {
+    onPointerDown: (event: PointerEvent<HTMLButtonElement>) => {
+      if (event.button !== 0) {
+        return;
+      }
+      event.currentTarget.setPointerCapture(event.pointerId);
+      start.current = { x: event.screenX, y: event.screenY };
+      moved.current = false;
+    },
+    onPointerMove: (event: PointerEvent<HTMLButtonElement>) => {
+      const from = start.current;
+      if (!from) {
+        return;
+      }
+      const distance = Math.hypot(event.screenX - from.x, event.screenY - from.y);
+      if (!moved.current && distance < DRAG_THRESHOLD) {
+        return;
+      }
+      moved.current = true;
+      cancelAnimationFrame(frame.current);
+      frame.current = requestAnimationFrame(() => void flowBarDrag(false).catch(() => undefined));
+    },
+    onPointerUp: () => {
+      start.current = null;
+      if (moved.current) {
+        cancelAnimationFrame(frame.current);
+        void flowBarDrag(true).catch(() => undefined);
+      }
+    },
+    /** A press that became a drag is no click. */
+    wasDrag: () => {
+      const dragged = moved.current;
+      moved.current = false;
+      return dragged;
+    },
+  };
+}
+
 export function Pill({ state, levels, error }: PillProps) {
+  const drag = useDrag();
   switch (state.phase) {
     case "idle":
       return (
@@ -17,8 +64,15 @@ export function Pill({ state, levels, error }: PillProps) {
           type="button"
           className={error ? "pill pill-idle pill-error" : "pill pill-idle"}
           aria-label="Start dictation"
-          title="Click to dictate"
-          onClick={send("start")}
+          title="Click to dictate, or drag to move"
+          onPointerDown={drag.onPointerDown}
+          onPointerMove={drag.onPointerMove}
+          onPointerUp={drag.onPointerUp}
+          onClick={() => {
+            if (!drag.wasDrag()) {
+              send("start")();
+            }
+          }}
         />
       );
     case "recording":

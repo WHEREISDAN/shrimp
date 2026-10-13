@@ -10,6 +10,7 @@ import {
 import { AiProviderSection } from "./AiProviderSection";
 import { CommandModeIntro } from "./CommandModeIntro";
 import { ExperimentalSection } from "./ExperimentalSection";
+import { FlowBarSection } from "./FlowBarSection";
 import { LanguagesSection } from "./LanguagesSection";
 import { MicrophoneSection } from "./MicrophoneSection";
 import { Page } from "./Page";
@@ -115,6 +116,7 @@ export function SettingsPage({
           <MicrophoneSection reveal={revealMicrophone} />
           <LanguagesSection reveal={revealLanguages} />
           <SoundSection settings={settings} update={update} />
+          <FlowBarSection settings={settings} update={update} />
           <PrivacySection settings={settings} update={update} />
           <VibeCodingSection settings={settings} update={update} />
           <ExperimentalSection

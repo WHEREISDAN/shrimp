@@ -22,6 +22,7 @@ pub const RECORDING_EVENT: &str = "shortcuts://recording";
 pub const DISMISS_EVENT: &str = "notify://dismiss";
 pub const MIC_LEVEL_EVENT: &str = "mic://level";
 pub const MICROPHONES_EVENT: &str = "mic://devices";
+pub const FLOW_BAR_HOVER_EVENT: &str = "flow-bar://hover";
 
 pub struct TauriUi {
     app: AppHandle,

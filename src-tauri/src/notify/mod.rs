@@ -66,6 +66,8 @@ pub enum NoticeAction {
     AddDetectedLanguage,
     /// Stops the different-language card.
     DismissLanguageCard,
+    /// Shows the Flow Bar again after Hide for 1 hour (BAR-04).
+    ShowFlowBar,
 }
 
 impl NoticeAction {
@@ -91,6 +93,7 @@ impl NoticeAction {
             Self::OpenLanguageSettings => "Open language settings",
             Self::AddDetectedLanguage => "Add language",
             Self::DismissLanguageCard => "Don't show again",
+            Self::ShowFlowBar => "Undo",
         }
     }
 }
