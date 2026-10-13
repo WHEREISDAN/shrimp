@@ -113,7 +113,8 @@ export function SettingsPage({
     document.getElementById(`settings-tab-${next}`)?.focus();
   };
 
-  // Option+↑/↓ moves between settings pages from anywhere on the page (APP-04).
+  // Option+↑/↓ moves between settings pages from anywhere on the page (APP-04). It listens
+  // in the capture phase so it runs before the sidebar's Option+↑/↓, which then skips it.
   useEffect(() => {
     const onKeyDown = (event: globalThis.KeyboardEvent) => {
       const step = STEP[event.key];
@@ -122,8 +123,8 @@ export function SettingsPage({
         setSection(neighbour(section, step));
       }
     };
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
+    window.addEventListener("keydown", onKeyDown, true);
+    return () => window.removeEventListener("keydown", onKeyDown, true);
   }, [section]);
 
   // ↑/↓ within the list of pages, as with any tab list.

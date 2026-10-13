@@ -149,6 +149,22 @@ describe("Settings pages", () => {
     );
   });
 
+  it("handles ⌥↑/⌥↓ before the sidebar's listener, even one added earlier", async () => {
+    backend();
+    const handled: boolean[] = [];
+    const sidebar = (event: KeyboardEvent) => handled.push(event.defaultPrevented);
+    window.addEventListener("keydown", sidebar);
+    try {
+      render(<SettingsPage />);
+      await screen.findByRole("tab", { name: "General" });
+      fireEvent.keyDown(window, { key: "ArrowUp", altKey: true });
+    } finally {
+      window.removeEventListener("keydown", sidebar);
+    }
+    expect(handled).toEqual([true]);
+    expect(screen.getByRole("tab", { selected: true })).toHaveTextContent("Vibe coding");
+  });
+
   it("turns launch at login on, hides the Dock icon and resets after confirming", async () => {
     const { argsOf } = backend();
     render(<SettingsPage target={{ section: "system", count: 0 }} />);
