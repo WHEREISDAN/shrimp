@@ -1,0 +1,97 @@
+//! Notices shown next to the Flow Bar (BAR-03). They never take focus and
+//! never appear as modal dialogs.
+
+use std::sync::atomic::{AtomicU64, Ordering};
+
+use serde::{Deserialize, Serialize};
+
+/// Mirrors `Notice` in src/lib/ipc.ts.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Notice {
+    pub id: u64,
+    pub level: NoticeLevel,
+    pub message: String,
+    pub action: Option<NoticeAction>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub enum NoticeLevel {
+    Info,
+    Warning,
+    Error,
+}
+
+/// A button on a notice; the Flow Bar sends it back through `run_notice_action`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum NoticeAction {
+    CopyLastTranscript,
+    OpenAccessibilitySettings,
+    OpenMicrophoneSettings,
+    OpenKeyboardSettings,
+    RetryModelDownload,
+}
+
+impl NoticeAction {
+    pub fn label(self) -> &'static str {
+        match self {
+            Self::CopyLastTranscript => "Copy",
+            Self::OpenAccessibilitySettings
+            | Self::OpenMicrophoneSettings
+            | Self::OpenKeyboardSettings => "Open Settings",
+            Self::RetryModelDownload => "Retry",
+        }
+    }
+}
+
+static NEXT_ID: AtomicU64 = AtomicU64::new(1);
+
+impl Notice {
+    pub fn new(level: NoticeLevel, message: impl Into<String>) -> Self {
+        Self {
+            id: NEXT_ID.fetch_add(1, Ordering::Relaxed),
+            level,
+            message: message.into(),
+            action: None,
+        }
+    }
+
+    pub fn info(message: impl Into<String>) -> Self {
+        Self::new(NoticeLevel::Info, message)
+    }
+
+    pub fn warning(message: impl Into<String>) -> Self {
+        Self::new(NoticeLevel::Warning, message)
+    }
+
+    pub fn error(message: impl Into<String>) -> Self {
+        Self::new(NoticeLevel::Error, message)
+    }
+
+    pub fn with_action(mut self, action: NoticeAction) -> Self {
+        self.action = Some(action);
+        self
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn serializes_for_the_flow_bar() {
+        let notice = Notice::warning("No text field").with_action(NoticeAction::CopyLastTranscript);
+        let json = serde_json::to_value(&notice).unwrap();
+        assert_eq!(json["level"], "warning");
+        assert_eq!(json["message"], "No text field");
+        assert_eq!(json["action"], "copyLastTranscript");
+        assert!(json["id"].as_u64().unwrap() > 0);
+    }
+
+    #[test]
+    fn ids_are_unique() {
+        assert_ne!(Notice::info("a").id, Notice::info("b").id);
+    }
+}

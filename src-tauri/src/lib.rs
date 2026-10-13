@@ -3,7 +3,12 @@
 mod app;
 pub mod audio;
 mod commands;
+pub mod dictation;
+pub mod hotkeys;
 pub mod llm;
+pub mod notify;
+pub mod platform;
+pub mod sounds;
 pub mod stt;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
