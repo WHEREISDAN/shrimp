@@ -8,6 +8,7 @@ pub mod dictation;
 pub mod edit;
 pub mod hotkeys;
 pub mod llm;
+pub mod mic;
 pub mod notify;
 pub mod platform;
 pub mod secrets;
@@ -43,6 +44,12 @@ pub fn run() {
                 commands::shortcuts::cancel_shortcut_recording,
                 commands::shortcuts::remove_shortcut,
                 commands::shortcuts::reset_shortcuts,
+                commands::microphones::get_microphones,
+                commands::microphones::select_microphone,
+                commands::microphones::rank_microphone,
+                commands::microphones::forget_microphone,
+                commands::microphones::start_mic_preview,
+                commands::microphones::stop_mic_preview,
                 commands::models::get_models,
                 commands::models::retry_model,
                 commands::models::download_model,
@@ -80,7 +87,8 @@ pub fn run() {
         commands::dev::dev_set_audio_source,
         commands::dev::dev_set_app_category,
         commands::dev::dev_edit_text,
-        commands::dev::dev_read_context
+        commands::dev::dev_read_context,
+        commands::dev::dev_set_microphones
     );
     #[cfg(not(debug_assertions))]
     let handler: fn(tauri::ipc::Invoke) -> bool = handler!();

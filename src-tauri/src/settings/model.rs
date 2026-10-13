@@ -3,6 +3,7 @@
 
 use serde::{Deserialize, Serialize};
 
+use super::audio::{MediaSettings, MicrophoneSettings, SoundSettings};
 use super::shortcuts::ShortcutSettings;
 use super::transforms::TransformSettings;
 use crate::edit::{AppCategory, CleanupLevel, Style};
@@ -27,6 +28,9 @@ pub struct Settings {
     pub transforms: TransformSettings,
     pub vibe_coding: VibeCodingSettings,
     pub dictionary: DictionarySettings,
+    pub microphone: MicrophoneSettings,
+    pub sounds: SoundSettings,
+    pub media: MediaSettings,
 }
 
 impl Default for Settings {
@@ -43,6 +47,9 @@ impl Default for Settings {
             transforms: TransformSettings::default(),
             vibe_coding: VibeCodingSettings::default(),
             dictionary: DictionarySettings::default(),
+            microphone: MicrophoneSettings::default(),
+            sounds: SoundSettings::default(),
+            media: MediaSettings::default(),
         }
     }
 }
@@ -95,6 +102,12 @@ pub struct NoticeSettings {
     pub command_mode_off_count: u32,
     /// The local date it was last shown, YYYY-MM-DD.
     pub command_mode_off_day: String,
+    /// Bluetooth microphone advice: at most 3 times, at most weekly (MIC-08).
+    pub bluetooth_advice_count: u32,
+    /// When it was last shown, in seconds since 1970.
+    pub bluetooth_advice_at: u64,
+    /// "Don't show again".
+    pub bluetooth_advice_off: bool,
 }
 
 /// Data and privacy.
@@ -243,6 +256,8 @@ impl Settings {
             return Err(format!("{} is not a Whisper model.", self.stt.local_model));
         }
         self.shortcuts.validate(&self.transforms)?;
+        self.microphone.validate()?;
+        self.media.validate()?;
         self.transforms.validate()?;
         let url = self.ai.ollama_url.trim();
         if !(url.starts_with("http://") || url.starts_with("https://")) || url.len() > 200 {

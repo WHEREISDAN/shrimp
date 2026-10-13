@@ -15,6 +15,15 @@ pub fn globe_key_action() -> GlobeKeyAction {
     GlobeKeyAction::from_usage_type((exists != 0).then_some(value))
 }
 
+/// System Settings › Sound, input side (MIC-07).
+pub fn open_sound_settings() -> Result<(), PlatformError> {
+    Command::new("open")
+        .arg("x-apple.systempreferences:com.apple.Sound-Settings.extension?input")
+        .spawn()
+        .map(|_| ())
+        .map_err(|err| PlatformError::Failed(format!("could not open System Settings: {err}")))
+}
+
 pub fn open_keyboard_settings() -> Result<(), PlatformError> {
     Command::new("open")
         .arg("x-apple.systempreferences:com.apple.Keyboard-Settings.extension")

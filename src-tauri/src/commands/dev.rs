@@ -6,10 +6,11 @@ use serde::{Deserialize, Serialize};
 use tauri::State;
 
 use super::CommandError;
-use crate::audio::AudioSourceSpec;
+use crate::audio::{AudioSourceSpec, FakeDevice, SwitchableDevices};
 use crate::context::DictationContext;
 use crate::dictation::ControllerHandle;
 use crate::edit::{AppCategory, Editor, Target, style};
+use crate::mic::Microphones;
 use crate::platform::{AppIdentity, FocusInspector};
 
 /// The current audio source, as `mic`, `mic:<device>` or `wav:<path>`.
@@ -202,4 +203,19 @@ pub async fn dev_read_context(
         screen_texts: field.map_or(0, |field| field.screen_text.len()),
         read_ms,
     })
+}
+
+/// Replaces the microphones with fake ones (hot-plug, silence, slow opening,
+/// unplugging by leaving one out), or the OS's again with `devices: null`.
+#[tauri::command]
+pub fn dev_set_microphones(
+    devices: Option<Vec<FakeDevice>>,
+    default: Option<String>,
+    lid_closed: Option<bool>,
+    switchable: State<'_, Arc<SwitchableDevices>>,
+    microphones: State<'_, Arc<Microphones>>,
+) -> crate::mic::MicrophoneList {
+    switchable.use_fake(devices, default.as_deref(), lid_closed.unwrap_or(false));
+    microphones.poll();
+    microphones.list()
 }

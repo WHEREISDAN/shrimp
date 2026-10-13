@@ -14,6 +14,7 @@ export function App() {
   const [page, setPage] = useState<PageId>("home");
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const [revealExperimental, setRevealExperimental] = useState(0);
+  const [revealMicrophone, setRevealMicrophone] = useState(0);
   const openShortcuts = () => setShortcutsOpen(true);
 
   useTauriEvent<string>(EVENTS.navigate, (section) => {
@@ -23,6 +24,9 @@ export function App() {
       setPage("settings");
     } else if (section === "dictionary") {
       setPage("dictionary");
+    } else if (section === "microphone") {
+      setPage("settings");
+      setRevealMicrophone((count) => count + 1);
     } else if (section === "experimental") {
       setPage("settings");
       setRevealExperimental((count) => count + 1);
@@ -37,6 +41,7 @@ export function App() {
           page={page}
           onOpenShortcuts={openShortcuts}
           revealExperimental={revealExperimental}
+          revealMicrophone={revealMicrophone}
         />
       </main>
       {shortcutsOpen && <ShortcutsDialog onClose={() => setShortcutsOpen(false)} />}
@@ -48,9 +53,15 @@ interface CurrentPageProps {
   page: PageId;
   onOpenShortcuts: () => void;
   revealExperimental: number;
+  revealMicrophone: number;
 }
 
-function CurrentPage({ page, onOpenShortcuts, revealExperimental }: CurrentPageProps) {
+function CurrentPage({
+  page,
+  onOpenShortcuts,
+  revealExperimental,
+  revealMicrophone,
+}: CurrentPageProps) {
   switch (page) {
     case "home":
       return <HomePage onOpenShortcuts={onOpenShortcuts} />;
@@ -64,7 +75,11 @@ function CurrentPage({ page, onOpenShortcuts, revealExperimental }: CurrentPageP
       return <TransformsPage />;
     case "settings":
       return (
-        <SettingsPage revealExperimental={revealExperimental} onOpenShortcuts={onOpenShortcuts} />
+        <SettingsPage
+          revealExperimental={revealExperimental}
+          revealMicrophone={revealMicrophone}
+          onOpenShortcuts={onOpenShortcuts}
+        />
       );
   }
 }

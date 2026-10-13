@@ -19,6 +19,9 @@ pub const SETTINGS_EVENT: &str = "settings://changed";
 pub const ANSWER_EVENT: &str = "command://answer";
 pub const CHANGES_EVENT: &str = "transform://changes";
 pub const RECORDING_EVENT: &str = "shortcuts://recording";
+pub const DISMISS_EVENT: &str = "notify://dismiss";
+pub const MIC_LEVEL_EVENT: &str = "mic://level";
+pub const MICROPHONES_EVENT: &str = "mic://devices";
 
 pub struct TauriUi {
     app: AppHandle,
@@ -83,6 +86,10 @@ impl DictationUi for TauriUi {
         if let Err(error) = self.app.emit(RECORDING_EVENT, status) {
             log::warn!("could not report the shortcut recording: {error}");
         }
+    }
+
+    fn dismiss(&self, id: u64) {
+        let _ = self.app.emit(DISMISS_EVENT, id);
     }
 
     fn notice(&self, notice: Notice) {

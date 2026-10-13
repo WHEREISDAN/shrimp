@@ -2,7 +2,15 @@ import { fireEvent, render, screen, waitFor, within } from "@testing-library/rea
 import { describe, expect, it } from "vitest";
 import type { ApiKeys, Settings, SettingsPatch } from "../lib/ipc";
 import { SettingsPage } from "./SettingsPage";
-import { AI_OPTIONS, MODELS, mockBackend, SETTINGS, SHORTCUTS, type Args } from "./testBackend";
+import {
+  AI_OPTIONS,
+  MICROPHONES,
+  MODELS,
+  mockBackend,
+  SETTINGS,
+  SHORTCUTS,
+  type Args,
+} from "./testBackend";
 
 function backend(
   extra: Record<string, (args: Args) => unknown> = {},
@@ -16,6 +24,12 @@ function backend(
     get_api_keys: () => keys,
     get_shortcuts: () => SHORTCUTS,
     get_models: () => MODELS,
+    get_microphones: () => MICROPHONES,
+    select_microphone: () => MICROPHONES,
+    rank_microphone: () => MICROPHONES,
+    forget_microphone: () => MICROPHONES,
+    start_mic_preview: () => null,
+    stop_mic_preview: () => null,
     download_model: () => null,
     delete_model: () => null,
     update_settings: (args) => {
@@ -27,6 +41,8 @@ function backend(
         privacy: { ...settings.privacy, ...patch.privacy },
         experimental: { ...settings.experimental, ...patch.experimental },
         vibeCoding: { ...settings.vibeCoding, ...patch.vibeCoding },
+        sounds: { ...settings.sounds, ...patch.sounds },
+        media: { ...settings.media, ...patch.media },
       };
       return settings;
     },
@@ -353,5 +369,64 @@ describe("SettingsPage vibe coding", () => {
       ]),
     );
     expect(screen.getByText(/Toggle Screen Reader Accessibility Mode/)).toBeInTheDocument();
+  });
+});
+
+describe("SettingsPage microphone", () => {
+  it("lists Auto-detect and the microphones with their state, and ranks and forgets them", async () => {
+    const { argsOf } = backend();
+    render(<SettingsPage />);
+    const list = await screen.findByRole("list", { name: "Microphones" });
+    expect(within(list).getByText("Yeti")).toBeInTheDocument();
+    expect(within(list).getByText(/In use/)).toBeInTheDocument();
+    expect(within(list).getByText("Laptop lid is closed")).toBeInTheDocument();
+    expect(within(list).getByText(/Not connected/)).toBeInTheDocument();
+    expect(within(list).queryByText("BlackHole 2ch"), "virtual devices are hidden").toBeNull();
+    expect(screen.getByRole("radio", { name: /Auto-detect/ })).toBeChecked();
+    expect(
+      screen.getByRole("radio", { name: /MacBook Pro Microphone/ }),
+      "unavailable devices can't be chosen",
+    ).toBeDisabled();
+
+    fireEvent.click(screen.getByRole("checkbox", { name: /Show other devices/ }));
+    expect(within(list).getByText("BlackHole 2ch")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("radio", { name: /Yeti/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Move MacBook Pro Microphone up" }));
+    fireEvent.click(screen.getByRole("button", { name: "Forget Dan's AirPods" }));
+    await waitFor(() => {
+      expect(argsOf("select_microphone")).toEqual([{ id: "usb" }]);
+      expect(argsOf("rank_microphone")).toEqual([{ id: "builtin", up: true }]);
+      expect(argsOf("forget_microphone")).toEqual([{ id: "pods" }]);
+    });
+    expect(argsOf("start_mic_preview")).toHaveLength(1);
+    expect(screen.getByRole("meter", { name: "Microphone level" })).toBeInTheDocument();
+  });
+
+  it("walks through Find the right mic for you", async () => {
+    backend();
+    render(<SettingsPage />);
+    fireEvent.click(await screen.findByRole("button", { name: "Find the right mic for you" }));
+    fireEvent.click(screen.getByRole("button", { name: "A quiet room" }));
+    fireEvent.click(screen.getByRole("button", { name: "A desktop Mac (mini, iMac, Studio)" }));
+    fireEvent.click(screen.getByRole("button", { name: "No" }));
+    expect(screen.getByText("A USB microphone on your desk")).toBeInTheDocument();
+  });
+});
+
+describe("SettingsPage sound", () => {
+  it("turns sounds off and keeps muting and pausing exclusive", async () => {
+    const { argsOf } = backend();
+    render(<SettingsPage />);
+    fireEvent.click(await screen.findByRole("switch", { name: "Notification sounds" }));
+    fireEvent.click(screen.getByRole("switch", { name: "Mute audio while dictating" }));
+    await waitFor(() => expect(argsOf("update_settings")).toHaveLength(2));
+    fireEvent.click(screen.getByRole("switch", { name: "Pause music while dictating" }));
+    await waitFor(() =>
+      expect(argsOf("update_settings")).toEqual([
+        { patch: { sounds: { notifications: false } } },
+        { patch: { media: { mute: true, pause: false } } },
+        { patch: { media: { pause: true, mute: false } } },
+      ]),
+    );
   });
 });

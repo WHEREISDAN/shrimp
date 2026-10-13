@@ -1,6 +1,7 @@
 //! The dictation actor: one task owns all session state and reacts to
 //! shortcuts, Flow Bar clicks, timers and pipeline results on one channel.
 
+mod microphone;
 mod recording;
 mod shortcuts;
 mod transforms;
@@ -15,6 +16,7 @@ use tokio::time::MissedTickBehavior;
 use super::command::CommandRunner;
 use super::gestures::{BarControl, CancelReason, Command, Gestures, Input, RecordingMode};
 use super::learn::{self, LearnTiming};
+use super::media::{MediaSession, QUIET_AFTER};
 use super::outcomes;
 use super::pipeline::Pipeline;
 use super::state::{
@@ -26,10 +28,11 @@ use crate::audio::{AudioError, AudioSourceSpec, Recorder, level};
 use crate::context::{self, DictationContext, PendingContext};
 use crate::edit::Editor;
 use crate::hotkeys::{Action, Binding, HotkeyEvent, Trigger};
+use crate::mic::Microphones;
 use crate::notify::{Notice, NoticeAction};
 use crate::platform::{
-    CuePlayer, FocusInspector, HotkeyBackend, Launcher, Permission, PermissionStatus, Permissions,
-    PlatformError, TextInserter,
+    CuePlayer, FocusInspector, HotkeyBackend, Launcher, MediaControl, Permission, PermissionStatus,
+    Permissions, PlatformError, TextInserter,
 };
 use crate::settings::SettingsStore;
 use crate::sounds::Cue;
@@ -47,6 +50,8 @@ pub struct Services {
     pub permissions: Arc<dyn Permissions>,
     pub sounds: Arc<dyn CuePlayer>,
     pub launcher: Arc<dyn Launcher>,
+    /// Mutes or pauses playing audio while dictating (SND-03, SND-04).
+    pub media: Arc<dyn MediaControl>,
     pub settings: Arc<SettingsStore>,
     /// The engine the settings choose.
     pub engine: Arc<dyn SttEngine>,
@@ -57,6 +62,8 @@ pub struct Services {
     pub editor: Arc<Editor>,
     pub ui: Arc<dyn DictationUi>,
     pub source: AudioSourceSpec,
+    /// Chooses the microphone when `source` is the default microphone.
+    pub microphones: Option<Arc<Microphones>>,
     pub timing: Timing,
 }
 
@@ -125,6 +132,10 @@ struct Recording {
     recorder: Recorder,
     session: u64,
     started: Instant,
+    /// The microphone and its warnings, when recording from one (MIC-07).
+    microphone: Option<microphone::MicSession>,
+    /// Muted or paused audio to restore when recording ends.
+    media: Option<MediaSession>,
     /// The app the user dictates into and its focused field, read while
     /// recording (CTX-01).
     context: PendingContext,
@@ -139,8 +150,10 @@ struct Controller {
     permissions: Arc<dyn Permissions>,
     sounds: Arc<dyn CuePlayer>,
     launcher: Arc<dyn Launcher>,
+    media: Arc<dyn MediaControl>,
     settings: Arc<SettingsStore>,
     ui: Arc<dyn DictationUi>,
+    microphones: Option<Arc<Microphones>>,
     pipeline: Pipeline,
     timing: Timing,
     tx: UnboundedSender<ControllerInput>,
@@ -194,8 +207,10 @@ impl Controller {
             permissions: services.permissions,
             sounds: services.sounds,
             launcher: services.launcher,
+            media: services.media,
             settings: services.settings,
             ui: services.ui,
+            microphones: services.microphones,
             pipeline,
             timing: services.timing,
             tx,
@@ -283,10 +298,10 @@ impl Controller {
             ControllerInput::SessionWarning(session) if self.is_current(session) => {
                 self.sounds.play(Cue::Warning);
                 let left = self.timing.session_limit - self.timing.session_warning;
-                self.ui.notice(Notice::warning(format!(
-                    "Dictation stops in {}.",
-                    minutes(left)
-                )));
+                self.ui.notice(
+                    Notice::warning(format!("Dictation stops in {}.", minutes(left)))
+                        .without_sound(),
+                );
             }
             ControllerInput::SessionLimit(session) if self.is_current(session) => {
                 if self.gestures.force_finish() {
@@ -337,14 +352,19 @@ impl Controller {
     }
 
     fn start_recording(&mut self, mode: RecordingMode) {
-        let spec = lock(&self.source).clone();
-        let available = spec.check_available();
-        if available.is_ok() && spec.is_microphone() && !self.microphone_allowed() {
-            self.gestures.reset();
-            return;
-        }
+        let (source, device) = match self.open_source() {
+            Ok(Some(opened)) => opened,
+            Ok(None) => {
+                self.gestures.reset();
+                return;
+            }
+            Err(error) => {
+                self.recording_failed_to_start(error);
+                return;
+            }
+        };
         // Capture starts before anything else, so the first word is kept (ENG-04).
-        match available.and_then(|()| Recorder::start(spec.open())) {
+        match Recorder::start(source) {
             Ok(recorder) => {
                 self.generation.fetch_add(1, Ordering::SeqCst);
                 self.sessions += 1;
@@ -364,13 +384,20 @@ impl Controller {
                 } else {
                     context::capture(focus, app)
                 };
+                if let (Some(microphones), Some(device)) = (&self.microphones, &device) {
+                    microphones.recording_started(device);
+                }
+                self.sounds.play(Cue::Start);
+                let media =
+                    MediaSession::begin(&self.media, self.settings.get().media, QUIET_AFTER);
                 self.recording = Some(Recording {
                     recorder,
                     session,
                     started: Instant::now(),
+                    microphone: device.map(microphone::MicSession::new),
+                    media,
                     context,
                 });
-                self.sounds.play(Cue::Start);
                 let editor = Arc::clone(&self.pipeline.editor);
                 tauri::async_runtime::spawn(async move { editor.warm_up().await });
                 self.refresh_bindings();
@@ -387,17 +414,19 @@ impl Controller {
                     command,
                 });
             }
-            Err(error) => {
-                log::warn!("could not start recording from {spec}: {error}");
-                self.gestures.reset();
-                self.ui.notice(match error {
-                    AudioError::NoInputDevice => {
-                        Notice::error("No microphone found. Connect one and try again.")
-                    }
-                    error => Notice::error(format!("Couldn't start recording: {error}")),
-                });
-            }
+            Err(error) => self.recording_failed_to_start(error),
         }
+    }
+
+    fn recording_failed_to_start(&mut self, error: AudioError) {
+        log::warn!("could not start recording: {error}");
+        self.gestures.reset();
+        self.ui.notice(match error {
+            AudioError::NoInputDevice => {
+                Notice::error("No microphone detected").with_action(NoticeAction::OpenSoundSettings)
+            }
+            error => Notice::error(format!("Couldn't start recording: {error}")),
+        });
     }
 
     fn microphone_allowed(&self) -> bool {
@@ -439,6 +468,7 @@ impl Controller {
     }
 
     fn finish(&mut self) {
+        self.release_devices();
         let Some(recording) = self.recording.take() else {
             return;
         };
@@ -472,6 +502,7 @@ impl Controller {
     }
 
     fn cancel(&mut self, reason: CancelReason) {
+        self.release_devices();
         let Some(recording) = self.recording.take() else {
             return;
         };
@@ -596,9 +627,25 @@ impl Controller {
             return;
         };
         match recording.recorder.poll() {
-            Ok(samples) => self.ui.level(level::display_level(level::rms(samples))),
+            Ok(samples) => {
+                let rms = (!samples.is_empty()).then(|| level::rms(samples));
+                self.ui.level(level::display_level(rms.unwrap_or(0.0)));
+                let open = recording.recorder.is_open();
+                if let Some(microphone) = recording.microphone.as_mut() {
+                    microphone.update(open, rms, self.ui.as_ref());
+                }
+            }
+            Err(AudioError::Disconnected) if recording.microphone.is_some() => {
+                // Every microphone is gone: keep what was said (MIC-07).
+                self.ui.notice(Notice::error("Microphone disconnected"));
+                if self.gestures.force_finish() {
+                    self.finish();
+                }
+                return;
+            }
             Err(error) => {
                 log::warn!("recording failed: {error}");
+                self.release_devices();
                 self.recording = None;
                 self.gestures.reset();
                 self.refresh_bindings();

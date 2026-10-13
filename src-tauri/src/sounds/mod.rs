@@ -2,6 +2,12 @@
 //! short sine tones with soft attack and release.
 
 use std::io::Cursor;
+use std::sync::Arc;
+
+use crate::dictation::{Answer, DictationState, DictationUi, RecordingStatus, TransformView};
+use crate::notify::Notice;
+use crate::platform::CuePlayer;
+use crate::settings::SettingsStore;
 
 const SAMPLE_RATE: u32 = 44_100;
 const VOLUME: f32 = 0.22;
@@ -19,6 +25,16 @@ pub enum Cue {
     Cancel,
     /// The session is about to hit its time limit (CORE-08).
     Warning,
+    /// A warning or error notice appeared.
+    Notice,
+}
+
+impl Cue {
+    /// Dictation cues follow Settings › Sound › Dictation sounds; the notice
+    /// sound follows Notification sounds (SND-02).
+    pub fn is_dictation(self) -> bool {
+        self != Self::Notice
+    }
 }
 
 /// One tone: frequency in Hz and duration in seconds, then a pause.
@@ -35,6 +51,7 @@ fn notes(cue: Cue) -> &'static [Note] {
         ],
         Cue::Cancel => &[Note(392.0, 0.08, 0.0), Note(293.66, 0.14, 0.0)],
         Cue::Warning => &[Note(880.0, 0.12, 0.08), Note(880.0, 0.12, 0.0)],
+        Cue::Notice => &[Note(1046.5, 0.05, 0.03), Note(784.0, 0.09, 0.0)],
     }
 }
 
@@ -67,6 +84,77 @@ fn silence(seconds: f32) -> impl Iterator<Item = f32> {
     std::iter::repeat_n(0.0, (seconds * SAMPLE_RATE as f32) as usize)
 }
 
+/// Plays cues only when the sound settings allow them (SND-02).
+pub struct SettingsCues {
+    inner: Arc<dyn CuePlayer>,
+    settings: Arc<SettingsStore>,
+}
+
+impl SettingsCues {
+    pub fn new(inner: Arc<dyn CuePlayer>, settings: Arc<SettingsStore>) -> Self {
+        Self { inner, settings }
+    }
+}
+
+impl CuePlayer for SettingsCues {
+    fn play(&self, cue: Cue) {
+        let sounds = self.settings.get().sounds;
+        let on = if cue.is_dictation() {
+            sounds.dictation
+        } else {
+            sounds.notifications
+        };
+        if on {
+            self.inner.play(cue);
+        }
+    }
+}
+
+/// Plays the notice sound with every warning and error notice (SND-02).
+pub struct SoundingNotices {
+    inner: Arc<dyn DictationUi>,
+    cues: Arc<dyn CuePlayer>,
+}
+
+impl SoundingNotices {
+    pub fn new(inner: Arc<dyn DictationUi>, cues: Arc<dyn CuePlayer>) -> Self {
+        Self { inner, cues }
+    }
+}
+
+impl DictationUi for SoundingNotices {
+    fn state(&self, state: DictationState) {
+        self.inner.state(state);
+    }
+
+    fn level(&self, level: f32) {
+        self.inner.level(level);
+    }
+
+    fn notice(&self, notice: Notice) {
+        if notice.sound {
+            self.cues.play(Cue::Notice);
+        }
+        self.inner.notice(notice);
+    }
+
+    fn dismiss(&self, id: u64) {
+        self.inner.dismiss(id);
+    }
+
+    fn answer(&self, answer: Answer) {
+        self.inner.answer(answer);
+    }
+
+    fn changes(&self, view: TransformView) {
+        self.inner.changes(view);
+    }
+
+    fn shortcut_recording(&self, status: RecordingStatus) {
+        self.inner.shortcut_recording(status);
+    }
+}
+
 /// The cue as a 16-bit PCM WAV file in memory.
 pub fn wav_bytes(cue: Cue) -> Vec<u8> {
     let spec = hound::WavSpec {
@@ -96,7 +184,14 @@ pub fn wav_bytes(cue: Cue) -> Vec<u8> {
 mod tests {
     use super::*;
 
-    const ALL: [Cue; 5] = [Cue::Start, Cue::Stop, Cue::Lock, Cue::Cancel, Cue::Warning];
+    const ALL: [Cue; 6] = [
+        Cue::Start,
+        Cue::Stop,
+        Cue::Lock,
+        Cue::Cancel,
+        Cue::Warning,
+        Cue::Notice,
+    ];
 
     #[test]
     fn cues_are_short_audible_and_distinct() {

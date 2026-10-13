@@ -45,6 +45,7 @@ objc2-foundation = { version = "0.3.2", default-features = false, features = ["s
 objc2-core-foundation = { version = "0.3.2", default-features = false, features = ["std", "CFString", "CFData", "CFArray", "CFDictionary", "CFNumber", "CFBase", "CFPreferences", "CFURL", "CFMachPort", "CFRunLoop"] }
 objc2-app-kit = { version = "0.3.2", default-features = false, features = ["std", "NSPasteboard", "NSPasteboardItem", "NSRunningApplication", "NSWorkspace", "NSSound", "libc"] }
 objc2-core-graphics = { version = "0.3.2", default-features = false, features = ["std", "CGEvent", "CGEventSource", "CGEventTypes", "CGRemoteOperation", "CGSession"] }
+objc2-core-audio = { version = "0.3.2", default-features = false, features = ["std", "AudioHardware", "objc2-core-audio-types"] }
 objc2-io-kit = { version = "0.3.2", default-features = false, features = ["std", "libc", "hidsystem"] }
 libc = "0.2"
 objc2-application-services = { version = "0.3.2", default-features = false, features = ["std", "AXUIElement", "AXError", "AXValue", "AXValueConstants", "AXAttributeConstants", "AXRoleConstants", "HIServices", "libc"] }

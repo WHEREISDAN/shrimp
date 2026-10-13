@@ -3,6 +3,7 @@ import { fireEvent } from "@testing-library/react";
 import type {
   AiOptions,
   DictionaryEntry,
+  MicrophoneList,
   ModelStatus,
   Settings,
   ShortcutList,
@@ -108,7 +109,13 @@ export const SETTINGS: Settings = {
   privacy: { contextAwareness: true },
   experimental: { commandMode: false, commandModeIntroSeen: false, pressEnterCommand: false },
   shortcuts: { bindings: {} },
-  notices: { commandModeOffCount: 0, commandModeOffDay: "" },
+  notices: {
+    commandModeOffCount: 0,
+    commandModeOffDay: "",
+    bluetoothAdviceCount: 0,
+    bluetoothAdviceAt: 0,
+    bluetoothAdviceOff: false,
+  },
   transforms: {
     enabled: false,
     polish: {
@@ -121,6 +128,9 @@ export const SETTINGS: Settings = {
   },
   vibeCoding: { fileTagging: true },
   dictionary: { autoLearn: true },
+  microphone: { selected: null, ranking: [] },
+  sounds: { dictation: true, notifications: true },
+  media: { mute: false, pause: false },
 };
 
 export const MODELS: ModelStatus[] = [
@@ -149,6 +159,45 @@ export const MODELS: ModelStatus[] = [
     state: "active",
   },
 ];
+
+export const MICROPHONES: MicrophoneList = {
+  selected: null,
+  active: "usb",
+  devices: [
+    {
+      id: "usb",
+      name: "Yeti",
+      kind: "wired",
+      connected: true,
+      unavailable: null,
+      rank: 0,
+    },
+    {
+      id: "builtin",
+      name: "MacBook Pro Microphone",
+      kind: "builtIn",
+      connected: true,
+      unavailable: "Laptop lid is closed",
+      rank: 1,
+    },
+    {
+      id: "pods",
+      name: "Dan's AirPods",
+      kind: "bluetooth",
+      connected: false,
+      unavailable: null,
+      rank: 2,
+    },
+    {
+      id: "hole",
+      name: "BlackHole 2ch",
+      kind: "virtual",
+      connected: true,
+      unavailable: null,
+      rank: null,
+    },
+  ],
+};
 
 export const SHORTCUTS: ShortcutList = {
   rows: [

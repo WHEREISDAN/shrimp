@@ -231,13 +231,15 @@ fn cloud_failure(error: &SttError) -> String {
     }
 }
 
-/// Trims silence (no signal means no STT call at all) and transcribes.
+/// Trims silence (no signal means no STT call at all), raises whispered
+/// speech to a normal level (MIC-09) and transcribes.
 pub async fn transcribe(
     engine: &dyn SttEngine,
     clip: &AudioClip,
     options: &SttOptions,
 ) -> Result<Transcript, SttError> {
     let speech = level::trim_silence(clip).ok_or(SttError::NoSpeech)?;
+    let speech = level::normalize(&speech);
     let started = Instant::now();
     let transcript = engine.transcribe(&speech, options).await?;
     log::info!(

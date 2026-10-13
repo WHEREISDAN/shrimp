@@ -29,7 +29,14 @@ export type NoticeAction =
   | "openExperimentalSettings"
   | "viewTransformChanges"
   | "openDictionary"
-  | "undoCancel";
+  | "undoCancel"
+  | "chooseMicrophone"
+  | "switchMicrophone"
+  | "switchToNewMicrophone"
+  | "keepMicrophone"
+  | "dismissBluetoothAdvice"
+  | "openSoundSettings"
+  | "troubleshootMicrophone";
 
 /** Mirrors `notify::Notice`. */
 export interface Notice {
@@ -45,6 +52,30 @@ export interface Answer {
   id: number;
   question: string;
   text: string;
+}
+
+/** Mirrors `audio::DeviceKind`. */
+export type DeviceKind = "builtIn" | "wired" | "bluetooth" | "virtual";
+
+/** Mirrors `mic::MicrophoneEntry`: one microphone in the picker. */
+export interface MicrophoneEntry {
+  id: string;
+  name: string;
+  kind: DeviceKind;
+  connected: boolean;
+  /** Why it can't be used now, such as "Laptop lid is closed". */
+  unavailable: string | null;
+  /** Its place in the ranking, for physical microphones. */
+  rank: number | null;
+}
+
+/** Mirrors `mic::MicrophoneList`. */
+export interface MicrophoneList {
+  /** A device id, or null for Auto-detect. */
+  selected: string | null;
+  /** The device a dictation would record from now. */
+  active: string | null;
+  devices: MicrophoneEntry[];
 }
 
 /** Mirrors `hotkeys::Action`: everything a shortcut can trigger. */
@@ -204,10 +235,23 @@ export interface Settings {
   experimental: { commandMode: boolean; commandModeIntroSeen: boolean; pressEnterCommand: boolean };
   /** Bindings per action ("pushToTalk", "transform:<id>"), e.g. ["Fn", "Mouse4"]; missing means the defaults. */
   shortcuts: { bindings: Record<string, string[]> };
-  notices: { commandModeOffCount: number; commandModeOffDay: string };
+  notices: {
+    commandModeOffCount: number;
+    commandModeOffDay: string;
+    bluetoothAdviceCount: number;
+    bluetoothAdviceAt: number;
+    bluetoothAdviceOff: boolean;
+  };
   transforms: TransformSettings;
   vibeCoding: { fileTagging: boolean };
   dictionary: { autoLearn: boolean };
+  microphone: {
+    selected: string | null;
+    ranking: { id: string; name: string; kind: DeviceKind }[];
+  };
+  sounds: { dictation: boolean; notifications: boolean };
+  /** At most one is on. */
+  media: { mute: boolean; pause: boolean };
 }
 
 /** A JSON merge patch for `update_settings`: any subset of the settings. */
@@ -219,6 +263,8 @@ export interface SettingsPatch {
   experimental?: Partial<Settings["experimental"]>;
   vibeCoding?: Partial<Settings["vibeCoding"]>;
   dictionary?: Partial<Settings["dictionary"]>;
+  sounds?: Partial<Settings["sounds"]>;
+  media?: Partial<Settings["media"]>;
   /** `null` restores a default (a whole section, or Polish's rules). */
   transforms?: {
     enabled?: boolean;
@@ -378,6 +424,24 @@ export const resetShortcuts = (): Promise<void> => invoke("reset_shortcuts");
 
 export const getModels = (): Promise<ModelStatus[]> => invoke<ModelStatus[]>("get_models");
 
+export const getMicrophones = (): Promise<MicrophoneList> =>
+  invoke<MicrophoneList>("get_microphones");
+
+/** Chooses a microphone, or Auto-detect with null. */
+export const selectMicrophone = (id: string | null): Promise<MicrophoneList> =>
+  invoke<MicrophoneList>("select_microphone", { id });
+
+export const rankMicrophone = (id: string, up: boolean): Promise<MicrophoneList> =>
+  invoke<MicrophoneList>("rank_microphone", { id, up });
+
+export const forgetMicrophone = (id: string): Promise<MicrophoneList> =>
+  invoke<MicrophoneList>("forget_microphone", { id });
+
+/** Starts the live level meter; levels arrive as `EVENTS.micLevel`. */
+export const startMicPreview = (): Promise<void> => invoke("start_mic_preview");
+
+export const stopMicPreview = (): Promise<void> => invoke("stop_mic_preview");
+
 /** Retries getting the chosen model ready after a failure. */
 export const retryModel = (): Promise<void> => invoke("retry_model");
 
@@ -465,6 +529,9 @@ export const EVENTS = {
   answer: "command://answer",
   changes: "transform://changes",
   recording: "shortcuts://recording",
+  dismiss: "notify://dismiss",
+  micLevel: "mic://level",
+  microphones: "mic://devices",
 } as const;
 
 export function onEvent<T>(name: string, handler: (payload: T) => void): Promise<UnlistenFn> {

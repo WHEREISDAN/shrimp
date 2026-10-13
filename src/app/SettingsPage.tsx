@@ -10,9 +10,11 @@ import {
 import { AiProviderSection } from "./AiProviderSection";
 import { CommandModeIntro } from "./CommandModeIntro";
 import { ExperimentalSection } from "./ExperimentalSection";
+import { MicrophoneSection } from "./MicrophoneSection";
 import { Page } from "./Page";
 import { PrivacySection } from "./PrivacySection";
 import { ShortcutsSection } from "./ShortcutsSection";
+import { SoundSection } from "./SoundSection";
 import { SpeechEngineSection } from "./SpeechEngineSection";
 import { VibeCodingSection } from "./VibeCodingSection";
 import { useSettings } from "./useSettings";
@@ -20,11 +22,14 @@ import { useSettings } from "./useSettings";
 interface SettingsPageProps {
   /** Increments each time Settings › Experimental should come into view. */
   revealExperimental?: number;
+  /** Increments each time Settings › Microphone should come into view. */
+  revealMicrophone?: number;
   onOpenShortcuts?: () => void;
 }
 
 export function SettingsPage({
   revealExperimental = 0,
+  revealMicrophone = 0,
   onOpenShortcuts = () => undefined,
 }: SettingsPageProps) {
   const { settings, error, update } = useSettings();
@@ -103,6 +108,8 @@ export function SettingsPage({
             update={update}
           />
           <ShortcutsSection onOpenShortcuts={onOpenShortcuts} />
+          <MicrophoneSection reveal={revealMicrophone} />
+          <SoundSection settings={settings} update={update} />
           <PrivacySection settings={settings} update={update} />
           <VibeCodingSection settings={settings} update={update} />
           <ExperimentalSection

@@ -45,6 +45,8 @@ pub trait DictationUi: Send + Sync {
     /// Input level in 0..=1, about 30 times a second while recording.
     fn level(&self, level: f32);
     fn notice(&self, notice: Notice);
+    /// Takes a notice away once its cause is gone.
+    fn dismiss(&self, _id: u64) {}
     /// A Command Mode answer, shown in a panel instead of pasted (CMD-03).
     fn answer(&self, _answer: Answer) {}
     /// What the last transform changed (TRF-04).

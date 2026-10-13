@@ -247,6 +247,52 @@ Debug builds also register two commands, so an agent can switch sources through
 `flow_bar_control` with `{ "control": "start" }` (then `"stop"` or `"cancel"`) starts a
 hands-free dictation without any shortcut, which needs no Accessibility grant.
 
+### Fake microphones
+
+This Mac has no microphone, so debug builds can replace the devices with fakes at runtime.
+`dev_set_microphones` takes the devices to report (a missing one is "unplugged", and a
+source recording from it fails as a disconnect), the default input and whether the lid
+is closed; `{"devices": null}` goes back to the real devices:
+
+```json
+{
+  "devices": [
+    {
+      "id": "usb",
+      "name": "Yeti",
+      "kind": "wired",
+      "behaviour": { "type": "wav", "path": "/abs/speech.wav" }
+    },
+    {
+      "id": "pods",
+      "name": "AirPods",
+      "kind": "bluetooth",
+      "behaviour": { "type": "tone", "amplitude": 0.2 }
+    },
+    { "id": "mute", "name": "Muted mic", "kind": "builtIn", "behaviour": { "type": "silent" } },
+    {
+      "id": "slow",
+      "name": "Slow mic",
+      "kind": "wired",
+      "behaviour": { "type": "slowOpen", "millis": 9000 }
+    }
+  ],
+  "default": "usb",
+  "lidClosed": false
+}
+```
+
+`kind` is `builtIn`, `wired`, `bluetooth` or `virtual`; `behaviour` is `tone`, `wav`
+(looped), `silent`, `slowOpen` (then silence) or `dead` (opens, never delivers). A
+dictation uses them when the audio source is `mic` (the default). Tests use the same fakes
+through `FakeDevices`.
+
+### Keyboards without an Fn key
+
+Debug builds read `SHRIMP_FN_KEY`: `0` pretends no keyboard has Apple's Fn key, so the
+defaults become Ctrl+Opt, Ctrl+Opt+Space and Cmd+Ctrl+Opt; `1` forces Fn. Without it,
+IOKit decides (CORE-10).
+
 Two more debug-only commands help with AI edits:
 
 | Command                | Arguments                                                                                               | Effect                                                                                                                                                                                                                                                                               |

@@ -61,6 +61,9 @@ export function FlowBar() {
     setLevels((previous) => [...previous.slice(1), level]);
   });
   useTauriEvent<Notice>(EVENTS.notice, setNotice, () => void flowBarReady());
+  useTauriEvent<number>(EVENTS.dismiss, (id) =>
+    setNotice((current) => (current?.id === id ? null : current)),
+  );
   useTauriEvent<Answer>(EVENTS.answer, setAnswer);
   useTauriEvent<TransformView>(EVENTS.changes, setChanges);
 

@@ -85,7 +85,6 @@ pub fn has_apple_fn_key() -> bool {
 }
 
 /// Whether a MacBook's lid is closed (clamshell mode). False on desktops.
-#[allow(dead_code)]
 pub fn lid_closed() -> bool {
     let Some(matching) = matching(c"IOPMrootDomain") else {
         return false;

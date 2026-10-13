@@ -47,7 +47,7 @@ impl AudioSource for WavFileSource {
         format!("WAV file {}", self.path.display())
     }
 
-    fn start(&mut self, sink: AudioSink) -> Result<AudioFormat, AudioError> {
+    fn start(&mut self, sink: AudioSink) -> Result<Option<AudioFormat>, AudioError> {
         if self.worker.is_some() {
             return Err(AudioError::AlreadyStarted);
         }
@@ -60,7 +60,7 @@ impl AudioSource for WavFileSource {
             .spawn(move || deliver(&samples, format, pacing, &worker_stop, &sink))
             .map_err(|err| AudioError::Device(format!("could not start WAV thread: {err}")))?;
         self.worker = Some(Worker { stop, handle });
-        Ok(format)
+        Ok(Some(format))
     }
 
     fn stop(&mut self) {
@@ -192,16 +192,17 @@ mod tests {
                 AudioEvent::Samples(chunk) => delivered += chunk.len(),
                 AudioEvent::Ended => break,
                 AudioEvent::Failed(error) => panic!("source failed: {error}"),
+                AudioEvent::Format(format) => panic!("unexpected format change: {format:?}"),
             }
         }
         source.stop();
 
         assert_eq!(
             format,
-            AudioFormat {
+            Some(AudioFormat {
                 sample_rate: 48_000,
                 channels: 2
-            }
+            })
         );
         assert_eq!(delivered, samples.len());
     }

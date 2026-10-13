@@ -10,8 +10,17 @@ use super::{AudioError, AudioFormat, AudioSink, AudioSource};
 /// lives on its own thread because CoreAudio streams are not `Send`; the
 /// callback only converts samples to f32 and hands them to the sink.
 pub struct MicrophoneSource {
-    device: Option<String>,
+    device: Selector,
     worker: Option<Worker>,
+}
+
+/// Which input device to open.
+#[derive(Debug, Clone, PartialEq, Eq)]
+enum Selector {
+    Default,
+    Name(String),
+    /// The backend's device id (Core Audio's UID).
+    Id(String),
 }
 
 struct Worker {
@@ -23,7 +32,15 @@ impl MicrophoneSource {
     /// `None` records from the system default input.
     pub fn new(device: Option<String>) -> Self {
         Self {
-            device,
+            device: device.map_or(Selector::Default, Selector::Name),
+            worker: None,
+        }
+    }
+
+    /// Records from the device with this backend id (Core Audio's UID).
+    pub fn with_id(id: String) -> Self {
+        Self {
+            device: Selector::Id(id),
             worker: None,
         }
     }
@@ -32,18 +49,38 @@ impl MicrophoneSource {
 /// Whether the microphone exists, without opening it (and without any
 /// permission prompt).
 pub fn microphone_available(name: Option<&str>) -> bool {
-    find_device(name).is_ok()
+    let selector = name.map_or(Selector::Default, |name| Selector::Name(name.to_owned()));
+    find_device(&selector).is_ok()
+}
+
+/// Names of the input devices cpal lists.
+pub fn input_names() -> Vec<String> {
+    cpal::default_host()
+        .input_devices()
+        .map(|devices| {
+            devices
+                .filter_map(|device| device.description().ok())
+                .map(|description| description.name().to_owned())
+                .collect()
+        })
+        .unwrap_or_default()
+}
+
+pub fn default_input_name() -> Option<String> {
+    let device = cpal::default_host().default_input_device()?;
+    Some(device.description().ok()?.name().to_owned())
 }
 
 impl AudioSource for MicrophoneSource {
     fn describe(&self) -> String {
         match &self.device {
-            Some(name) => format!("microphone {name}"),
-            None => "default microphone".into(),
+            Selector::Name(name) => format!("microphone {name}"),
+            Selector::Id(id) => format!("microphone {id}"),
+            Selector::Default => "default microphone".into(),
         }
     }
 
-    fn start(&mut self, sink: AudioSink) -> Result<AudioFormat, AudioError> {
+    fn start(&mut self, sink: AudioSink) -> Result<Option<AudioFormat>, AudioError> {
         if self.worker.is_some() {
             return Err(AudioError::AlreadyStarted);
         }
@@ -52,7 +89,7 @@ impl AudioSource for MicrophoneSource {
         let device = self.device.clone();
         let handle = std::thread::Builder::new()
             .name("shrimp-microphone".into())
-            .spawn(move || match open_stream(device.as_deref(), sink) {
+            .spawn(move || match open_stream(&device, sink) {
                 Ok((stream, format)) => {
                     let _ = ready_tx.send(Ok(format));
                     // Keep the stream alive until stopped.
@@ -73,7 +110,7 @@ impl AudioSource for MicrophoneSource {
         match format {
             Ok(format) => {
                 self.worker = Some(Worker { stop, handle });
-                Ok(format)
+                Ok(Some(format))
             }
             Err(error) => {
                 let _ = handle.join();
@@ -96,18 +133,22 @@ impl Drop for MicrophoneSource {
     }
 }
 
-fn find_device(name: Option<&str>) -> Result<Device, AudioError> {
+fn find_device(selector: &Selector) -> Result<Device, AudioError> {
     let host = cpal::default_host();
-    let device = match name {
-        None => host.default_input_device(),
-        Some(name) => host
-            .input_devices()
-            .map_err(|err| AudioError::Device(format!("could not list microphones: {err}")))?
-            .find(|device| {
-                device
-                    .description()
-                    .is_ok_and(|description| description.name() == name)
-            }),
+    let devices = || {
+        host.input_devices()
+            .map_err(|err| AudioError::Device(format!("could not list microphones: {err}")))
+    };
+    let device = match selector {
+        Selector::Default => host.default_input_device(),
+        Selector::Name(name) => devices()?.find(|device| {
+            device
+                .description()
+                .is_ok_and(|description| description.name() == name)
+        }),
+        Selector::Id(id) => {
+            devices()?.find(|device| device.id().is_ok_and(|found| found.id() == id))
+        }
     };
     // A Mac without any input hardware can still report a default input
     // device that has no usable configuration.
@@ -116,8 +157,8 @@ fn find_device(name: Option<&str>) -> Result<Device, AudioError> {
         .ok_or(AudioError::NoInputDevice)
 }
 
-fn open_stream(name: Option<&str>, sink: AudioSink) -> Result<(Stream, AudioFormat), AudioError> {
-    let device = find_device(name)?;
+fn open_stream(selector: &Selector, sink: AudioSink) -> Result<(Stream, AudioFormat), AudioError> {
+    let device = find_device(selector)?;
     let supported = device
         .default_input_config()
         .map_err(|err| AudioError::Device(format!("microphone unavailable: {err}")))?;

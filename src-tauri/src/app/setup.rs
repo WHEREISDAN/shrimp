@@ -5,19 +5,23 @@ use std::sync::Arc;
 
 use tauri::{App, AppHandle, Emitter, Manager};
 
-use super::events::{MODELS_EVENT, SETTINGS_EVENT, TauriUi};
+use super::events::{MICROPHONES_EVENT, MODELS_EVENT, SETTINGS_EVENT, TauriUi};
 use super::{flow_bar, tray};
-use crate::audio::AudioSourceSpec;
+#[cfg(debug_assertions)]
+use crate::audio::SwitchableDevices;
+use crate::audio::{AudioSourceSpec, DeviceProvider};
 use crate::commands::ai::HttpClient;
 use crate::commands::permissions::AppPermissions;
 use crate::commands::shortcuts::DefaultBindings;
 use crate::dictation::{self, ControllerInput, DictationUi, Services, Timing};
 use crate::edit::{EditTimeout, Editor, Library};
 use crate::llm::{Providers, http};
+use crate::mic::Microphones;
 use crate::notify::{Notice, NoticeAction};
-use crate::platform::{self, MainThread};
+use crate::platform::{self, CuePlayer, MainThread};
 use crate::secrets::{Keychain, Secrets};
 use crate::settings::SettingsStore;
+use crate::sounds::{SettingsCues, SoundingNotices};
 use crate::storage::Database;
 use crate::stt::{EngineSlot, ModelManager, SttEngine, SttRouter};
 
@@ -73,6 +77,31 @@ pub fn setup(app: &mut App) -> Result<(), Box<dyn std::error::Error>> {
 
     #[cfg(debug_assertions)]
     app.manage(crate::commands::dev::DevFocus(Arc::clone(&platform.focus)));
+    // Sounds follow Settings › Sound, and warnings come with the notice sound (SND-02).
+    let cues: Arc<dyn CuePlayer> =
+        Arc::new(SettingsCues::new(platform.sounds, Arc::clone(&settings)));
+    let dictation_ui: Arc<dyn DictationUi> = Arc::new(SoundingNotices::new(
+        Arc::clone(&ui) as Arc<dyn DictationUi>,
+        Arc::clone(&cues),
+    ));
+    #[cfg(debug_assertions)]
+    let devices: Arc<dyn DeviceProvider> = {
+        let switchable = Arc::new(SwitchableDevices::new(platform.devices));
+        app.manage(Arc::clone(&switchable));
+        switchable
+    };
+    #[cfg(not(debug_assertions))]
+    let devices = platform.devices;
+    let emitter = handle.clone();
+    let microphones = Microphones::new(
+        devices,
+        Arc::clone(&settings),
+        Arc::clone(&dictation_ui),
+        Box::new(move |list| {
+            let _ = emitter.emit(MICROPHONES_EVENT, list);
+        }),
+    );
+    Arc::clone(&microphones).watch();
     app.manage(DefaultBindings {
         bindings: platform.default_bindings.clone(),
         label: platform.label,
@@ -84,15 +113,17 @@ pub fn setup(app: &mut App) -> Result<(), Box<dyn std::error::Error>> {
         inserter: platform.inserter,
         focus: platform.focus,
         permissions: Arc::clone(&platform.permissions),
-        sounds: platform.sounds,
+        sounds: cues,
         launcher: platform.launcher,
+        media: platform.media,
         settings: Arc::clone(&settings),
         engine: Arc::new(router),
         fallback_engine: Some(Arc::clone(&slot) as Arc<dyn SttEngine>),
         languages: platform.language.into_iter().collect(),
         editor: Arc::clone(&editor),
-        ui: Arc::clone(&ui) as Arc<dyn DictationUi>,
+        ui: dictation_ui,
         source: audio_source(),
+        microphones: Some(Arc::clone(&microphones)),
         timing: Timing::default(),
     });
 
@@ -107,6 +138,7 @@ pub fn setup(app: &mut App) -> Result<(), Box<dyn std::error::Error>> {
     app.manage(editor);
     app.manage(HttpClient(client));
     app.manage(Arc::clone(&models));
+    app.manage(microphones);
     app.manage(Arc::clone(&slot));
     app.manage(ui);
     app.manage(AppPermissions(platform.permissions));

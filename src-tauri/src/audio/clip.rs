@@ -38,6 +38,16 @@ impl AudioClip {
         Ok(Self { samples })
     }
 
+    /// The clips one after another.
+    pub fn concat(clips: &[AudioClip]) -> Self {
+        Self {
+            samples: clips
+                .iter()
+                .flat_map(|clip| clip.samples.iter().copied())
+                .collect(),
+        }
+    }
+
     pub fn samples(&self) -> &[f32] {
         &self.samples
     }

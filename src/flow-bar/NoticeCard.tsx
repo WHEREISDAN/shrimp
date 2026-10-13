@@ -11,6 +11,13 @@ const ACTION_LABELS: Record<NoticeAction, string> = {
   viewTransformChanges: "See changes",
   openDictionary: "View",
   undoCancel: "Undo",
+  chooseMicrophone: "Choose microphone",
+  switchMicrophone: "Switch microphone",
+  switchToNewMicrophone: "Switch",
+  keepMicrophone: "Don't switch",
+  dismissBluetoothAdvice: "Don't show again",
+  openSoundSettings: "Open Sound Settings",
+  troubleshootMicrophone: "Troubleshoot",
 };
 
 interface NoticeCardProps {

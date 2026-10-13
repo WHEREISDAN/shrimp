@@ -9,6 +9,7 @@ use crate::app::{flow_bar, window};
 use crate::dictation::gestures::BarControl;
 use crate::dictation::{ControllerHandle, ControllerInput, DictationState, TransformAction};
 use crate::hotkeys::Action;
+use crate::mic::Microphones;
 use crate::notify::NoticeAction;
 use crate::platform::{self, Permission};
 use crate::settings::SettingsStore;
@@ -44,6 +45,7 @@ pub fn run_notice_action(
     permissions: State<'_, AppPermissions>,
     models: State<'_, Arc<ModelManager>>,
     settings: State<'_, Arc<SettingsStore>>,
+    microphones: State<'_, Arc<Microphones>>,
 ) -> Result<(), CommandError> {
     let open = |permission| {
         permissions
@@ -79,6 +81,20 @@ pub fn run_notice_action(
         NoticeAction::ViewTransformChanges => {
             controller.send(ControllerInput::Transform(TransformAction::View));
             Ok(())
+        }
+        NoticeAction::ChooseMicrophone | NoticeAction::SwitchMicrophone => {
+            window::show_main(&app);
+            let _ = app.emit_to(window::MAIN_LABEL, NAVIGATE_EVENT, "microphone");
+            Ok(())
+        }
+        NoticeAction::SwitchToNewMicrophone | NoticeAction::KeepMicrophone => microphones
+            .answer_new_microphone(action == NoticeAction::SwitchToNewMicrophone)
+            .map_err(|message| CommandError::new("invalid", message)),
+        NoticeAction::DismissBluetoothAdvice => microphones
+            .dismiss_bluetooth_advice()
+            .map_err(|message| CommandError::new("invalid", message)),
+        NoticeAction::OpenSoundSettings | NoticeAction::TroubleshootMicrophone => {
+            platform::open_sound_settings().map_err(|err| CommandError::new("platform", err))
         }
         NoticeAction::UndoCancel => {
             controller.send(ControllerInput::UndoCancel);

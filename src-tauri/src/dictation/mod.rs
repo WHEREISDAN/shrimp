@@ -6,6 +6,7 @@ mod command;
 mod controller;
 pub mod gestures;
 pub mod learn;
+pub mod media;
 mod outcomes;
 mod pipeline;
 mod state;

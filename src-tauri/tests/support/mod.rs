@@ -9,7 +9,10 @@ pub use std::time::{Duration, Instant};
 
 pub use async_trait::async_trait;
 pub use handy_keys::Modifiers;
-pub use shrimp_lib::audio::{AudioClip, AudioSourceSpec};
+pub use shrimp_lib::audio::{
+    AudioClip, AudioSourceSpec, DeviceKind, DeviceProvider, FakeBehaviour, FakeDevice, FakeDevices,
+    InputDevice,
+};
 pub use shrimp_lib::dictation::gestures::BarControl;
 pub use shrimp_lib::dictation::{
     self, Answer, ControllerHandle, ControllerInput, DictationState, DictationUi, Mode,
@@ -23,14 +26,16 @@ pub use shrimp_lib::hotkeys::{
 pub use shrimp_lib::llm::{
     LlmError, LlmProvider, LlmProviderId, LlmRequest, LlmResponse, LlmSource,
 };
+pub use shrimp_lib::mic::Microphones;
 pub use shrimp_lib::notify::Notice;
 pub use shrimp_lib::platform::{
     AppIdentity, ContextRequest, CuePlayer, FieldContext, FocusInspector, HotkeyBackend,
-    InsertOptions, InsertOutcome, InsertText, Launcher, Permission, PermissionStatus, Permissions,
-    PlatformError, SyntheticKey, TextInserter, TextRange,
+    InsertOptions, InsertOutcome, InsertText, Launcher, MediaControl, Permission, PermissionStatus,
+    Permissions, PlatformError, Restore, SyntheticKey, TextInserter, TextRange,
 };
 pub use shrimp_lib::settings::{Settings, SettingsStore};
 pub use shrimp_lib::sounds::Cue;
+pub use shrimp_lib::sounds::{SettingsCues, SoundingNotices};
 pub use shrimp_lib::storage::{DictionaryEntry, EntrySource, Snippet};
 pub use shrimp_lib::stt::{SttEngine, SttEngineId, SttError, SttOptions, Transcript};
 
@@ -73,6 +78,9 @@ pub struct Fakes {
     pub cues: Mutex<Vec<Cue>>,
     pub states: Mutex<Vec<DictationState>>,
     pub notices: Mutex<Vec<Notice>>,
+    pub dismissed: Mutex<Vec<u64>>,
+    /// "mute", "unmute", "pause", "resume", in order.
+    pub media: Mutex<Vec<&'static str>>,
     pub transcribed: Mutex<Vec<usize>>,
     pub failures_left: AtomicUsize,
     pub stt_delay: Mutex<Duration>,
@@ -231,6 +239,23 @@ impl Permissions for Granted {
     }
 }
 
+/// Something is always playing.
+pub struct FakeMedia(pub Arc<Fakes>);
+
+impl MediaControl for FakeMedia {
+    fn mute(&self) -> Option<Restore> {
+        self.0.media.lock().unwrap().push("mute");
+        let fakes = Arc::clone(&self.0);
+        Some(Box::new(move || fakes.media.lock().unwrap().push("unmute")))
+    }
+
+    fn pause(&self) -> Option<Restore> {
+        self.0.media.lock().unwrap().push("pause");
+        let fakes = Arc::clone(&self.0);
+        Some(Box::new(move || fakes.media.lock().unwrap().push("resume")))
+    }
+}
+
 pub struct FakeSounds(pub Arc<Fakes>);
 
 impl CuePlayer for FakeSounds {
@@ -353,6 +378,9 @@ pub struct Setup {
     pub field: Option<FieldContext>,
     pub settings: Settings,
     pub transcript: Option<String>,
+    /// Record from these fake microphones through the microphone chooser
+    /// instead of a WAV file.
+    pub microphones: Option<Arc<FakeDevices>>,
 }
 
 impl Default for Setup {
@@ -367,6 +395,7 @@ impl Default for Setup {
             field: None,
             settings: Settings::default(),
             transcript: None,
+            microphones: None,
         }
     }
 }
@@ -382,6 +411,10 @@ impl DictationUi for FakeUi {
 
     fn notice(&self, notice: Notice) {
         self.0.notices.lock().unwrap().push(notice);
+    }
+
+    fn dismiss(&self, id: u64) {
+        self.0.dismissed.lock().unwrap().push(id);
     }
 
     fn answer(&self, answer: Answer) {
@@ -400,6 +433,7 @@ impl DictationUi for FakeUi {
 pub struct Harness {
     pub controller: ControllerHandle,
     pub fakes: Arc<Fakes>,
+    pub microphones: Option<Arc<Microphones>>,
     pub settings: Arc<SettingsStore>,
     pub library: Arc<FixedLibrary>,
     pub _dir: tempfile::TempDir,
@@ -444,6 +478,27 @@ impl Harness {
         } else {
             (local, None)
         };
+        let cues: Arc<dyn CuePlayer> = Arc::new(SettingsCues::new(
+            Arc::new(FakeSounds(Arc::clone(&fakes))),
+            Arc::clone(&settings),
+        ));
+        let ui: Arc<dyn DictationUi> = Arc::new(SoundingNotices::new(
+            Arc::new(FakeUi(Arc::clone(&fakes))),
+            Arc::clone(&cues),
+        ));
+        let microphones = setup.microphones.map(|devices| {
+            Microphones::new(
+                Arc::new(devices) as Arc<dyn DeviceProvider>,
+                Arc::clone(&settings),
+                Arc::clone(&ui),
+                Box::new(|_| {}),
+            )
+        });
+        let source = if microphones.is_some() {
+            AudioSourceSpec::Microphone { device: None }
+        } else {
+            AudioSourceSpec::WavFile(path)
+        };
         let controller = dictation::spawn(Services {
             hotkeys: Box::new(FakeHotkeys(Arc::clone(&fakes))),
             bindings: macos_defaults(true),
@@ -451,20 +506,23 @@ impl Harness {
             inserter: Arc::new(FakeInserter(Arc::clone(&fakes))),
             focus: Arc::new(FakeFocus(Arc::clone(&fakes))),
             permissions: Arc::new(Granted),
-            sounds: Arc::new(FakeSounds(Arc::clone(&fakes))),
+            sounds: cues,
             launcher: Arc::new(FakeLauncher(Arc::clone(&fakes))),
+            media: Arc::new(FakeMedia(Arc::clone(&fakes))),
             settings: Arc::clone(&settings),
             engine,
             fallback_engine,
             languages: vec!["en".into()],
             editor,
-            ui: Arc::new(FakeUi(Arc::clone(&fakes))),
-            source: AudioSourceSpec::WavFile(path),
+            ui,
+            source,
+            microphones: microphones.clone(),
             timing,
         });
         Self {
             controller,
             fakes,
+            microphones,
             settings,
             library,
             _dir: dir,

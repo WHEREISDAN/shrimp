@@ -2,6 +2,7 @@
 //! The webview reads them with `get_settings` and changes them with
 //! `update_settings(patch)`; Rust validates, saves and announces each change.
 
+pub mod audio;
 mod model;
 pub mod shortcuts;
 pub mod transforms;
@@ -11,6 +12,7 @@ use std::sync::RwLock;
 
 use serde_json::Value;
 
+pub use audio::{KnownMicrophone, MediaSettings, MicrophoneSettings, SoundSettings};
 pub use model::{
     AiSettings, DictionarySettings, ExperimentalSettings, NoticeSettings, PrivacySettings,
     SETTINGS_VERSION, Settings, SttSettings, StyleSettings, VibeCodingSettings,

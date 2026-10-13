@@ -14,6 +14,9 @@ pub struct Notice {
     pub message: String,
     /// Buttons, in order.
     pub actions: Vec<NoticeAction>,
+    /// Comes with the notice sound (warnings and errors with no cue of their own).
+    #[serde(skip)]
+    pub sound: bool,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
@@ -43,6 +46,20 @@ pub enum NoticeAction {
     OpenDictionary,
     /// Transcribes the cancelled dictation and inserts it (CORE-11).
     UndoCancel,
+    /// Opens Settings › Microphone (MIC-07).
+    ChooseMicrophone,
+    /// The same, from the Bluetooth advice (MIC-08).
+    SwitchMicrophone,
+    /// Uses the microphone just connected (MIC-04).
+    SwitchToNewMicrophone,
+    /// Keeps the current microphone; the new one is ranked last.
+    KeepMicrophone,
+    /// Stops the Bluetooth advice.
+    DismissBluetoothAdvice,
+    /// Opens System Settings › Sound › Input.
+    OpenSoundSettings,
+    /// The same, from a warning about no sound.
+    TroubleshootMicrophone,
 }
 
 impl NoticeAction {
@@ -58,6 +75,13 @@ impl NoticeAction {
             Self::ViewTransformChanges => "See changes",
             Self::OpenDictionary => "View",
             Self::UndoCancel => "Undo",
+            Self::ChooseMicrophone => "Choose microphone",
+            Self::SwitchMicrophone => "Switch microphone",
+            Self::SwitchToNewMicrophone => "Switch",
+            Self::KeepMicrophone => "Don't switch",
+            Self::DismissBluetoothAdvice => "Don't show again",
+            Self::OpenSoundSettings => "Open Sound Settings",
+            Self::TroubleshootMicrophone => "Troubleshoot",
         }
     }
 }
@@ -71,6 +95,7 @@ impl Notice {
             level,
             message: message.into(),
             actions: Vec::new(),
+            sound: level != NoticeLevel::Info,
         }
     }
 
@@ -88,6 +113,12 @@ impl Notice {
 
     pub fn with_action(mut self, action: NoticeAction) -> Self {
         self.actions.push(action);
+        self
+    }
+
+    /// Shown without the notice sound, because a cue already played.
+    pub fn without_sound(mut self) -> Self {
+        self.sound = false;
         self
     }
 

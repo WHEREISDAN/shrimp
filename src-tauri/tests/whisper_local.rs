@@ -146,3 +146,31 @@ async fn dictionary_terms_fix_misrecognised_words() {
         assert!(biased.contains(term), "{biased}");
     }
 }
+
+#[tokio::test(flavor = "multi_thread")]
+#[ignore = "needs downloaded Whisper and VAD models"]
+async fn whispered_speech_transcribes_after_its_level_is_raised() {
+    // `say -v Whisper`, band-limited to 300–3400 Hz, peaking at -42 dBFS over
+    // a -84 dBFS noise floor (MIC-09).
+    let engine = engine();
+    let clip = clip("whispered.wav");
+    let peak = clip
+        .samples()
+        .iter()
+        .fold(0.0f32, |peak, sample| peak.max(sample.abs()));
+    assert!(peak < 0.01, "the fixture is quiet: peak {peak}");
+
+    let as_is = engine.transcribe(&clip, &english()).await;
+    println!("without the level raised: {as_is:?}");
+
+    let started = Instant::now();
+    let text = transcribe(&engine, &clip, &english()).await.unwrap().text;
+    println!("raised: {text:?} in {:?}", started.elapsed());
+    let words = words(&text);
+    for expected in ["move the design review", "thursday afternoon", "whole team"] {
+        assert!(
+            words.contains(expected),
+            "{expected:?} missing from {text:?}"
+        );
+    }
+}

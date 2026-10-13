@@ -3,6 +3,7 @@
 
 mod ax;
 mod context;
+mod core_audio;
 pub mod flow_bar;
 mod focus;
 mod globe;
@@ -11,6 +12,7 @@ mod insert;
 mod iokit;
 mod keymap;
 mod launcher;
+mod media;
 mod mouse;
 mod pasteboard;
 mod permissions;
@@ -32,6 +34,8 @@ pub fn platform(main_thread: MainThread) -> Platform {
         permissions: Arc::new(permissions::MacPermissions),
         sounds: Arc::new(sound::MacCuePlayer::new(main_thread)),
         launcher: Arc::new(launcher::MacLauncher),
+        devices: Arc::new(core_audio::CoreAudioDevices),
+        media: Arc::new(media::MacMedia),
         default_bindings: macos_defaults(has_fn_key()),
         label: macos_label,
         language: preferred_language(),
@@ -39,7 +43,7 @@ pub fn platform(main_thread: MainThread) -> Platform {
     }
 }
 
-pub use globe::open_keyboard_settings;
+pub use globe::{open_keyboard_settings, open_sound_settings};
 
 /// Debug builds read this variable to pretend the keyboard has (1) or
 /// lacks (0) an Apple Fn key. See docs/DEVELOPMENT.md.

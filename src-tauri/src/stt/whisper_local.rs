@@ -18,7 +18,10 @@ use crate::audio::{AudioClip, STT_SAMPLE_RATE};
 /// whisper.cpp skips input shorter than one second, so short clips are padded.
 const MIN_SAMPLES: usize = STT_SAMPLE_RATE as usize * 6 / 5;
 const MAX_THREADS: usize = 8;
-/// Silence kept around detected speech.
+/// Audio kept before the first detected speech: soft, breathy starts
+/// (whispers, MIC-09) begin before Silero is sure.
+const VAD_LEAD_SAMPLES: usize = STT_SAMPLE_RATE as usize * 3 / 4;
+/// Silence kept after the last detected speech.
 const VAD_PADDING_SAMPLES: usize = STT_SAMPLE_RATE as usize / 4;
 /// Whisper's encoder covers 30 s as 1500 frames (50 per second).
 const FULL_AUDIO_CTX: usize = 1500;
@@ -101,11 +104,21 @@ fn utf8(path: &Path) -> Result<&str, SttError> {
         .ok_or_else(|| SttError::Unavailable(format!("{} is not a UTF-8 path", path.display())))
 }
 
+/// Silero's speech threshold, below its 0.5 default so the soft starts of
+/// whispered words count (MIC-09).
+const VAD_THRESHOLD: f32 = 0.35;
+
+fn vad_params() -> WhisperVadParams {
+    let mut params = WhisperVadParams::new();
+    params.set_threshold(VAD_THRESHOLD);
+    params
+}
+
 /// Cuts the clip to the span from the first to the last detected speech.
 fn speech_only(vad: &Mutex<WhisperVadContext>, samples: Vec<f32>) -> Result<Vec<f32>, SttError> {
     let mut vad = vad.lock().unwrap_or_else(|err| err.into_inner());
     let segments = vad
-        .segments_from_samples(WhisperVadParams::new(), &samples)
+        .segments_from_samples(vad_params(), &samples)
         .map_err(|err| SttError::Failed(format!("speech detection failed: {err}")))?;
     let count = segments.num_segments();
     if count == 0 {
@@ -117,7 +130,7 @@ fn speech_only(vad: &Mutex<WhisperVadContext>, samples: Vec<f32>) -> Result<Vec<
     let end = segments
         .get_segment_end_timestamp(count - 1)
         .map_or(samples.len(), to_sample);
-    let start = start.saturating_sub(VAD_PADDING_SAMPLES);
+    let start = start.saturating_sub(VAD_LEAD_SAMPLES);
     let end = (end + VAD_PADDING_SAMPLES).min(samples.len());
     Ok(samples[start..end.max(start)].to_vec())
 }

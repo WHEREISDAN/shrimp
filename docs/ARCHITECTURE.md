@@ -70,8 +70,14 @@ audio/                  audio input                                             
   clip.rs               AudioClip (16 kHz mono f32), downmix + rubato resampling       (built)
   level.rs              RMS, waveform level, silence trim                              (built)
   spec.rs               AudioSourceSpec, SHRIMP_AUDIO_SOURCE parsing, open()           (built)
-  devices.rs            device listing, ranking, fallback                              (P4)
+  devices.rs            InputDevice, DeviceProvider, fake and switchable devices       (built)
   wav_encode.rs         16-bit WAV encoding in memory for cloud uploads                (built)
+mic/                    microphones (MIC-02..08)                                       (built)
+  mod.rs                Microphones: choose, rank, hot-plug prompt, Bluetooth advice   (built)
+  choice.rs             which device a dictation uses, the picker's list               (built)
+  fallback.rs           FallbackSource: next microphone mid-dictation, no break        (built)
+  monitor.rs            MicMonitor: slow to open, muted, no audio after 5 s and 15 s   (built)
+  preview.rs            the picker's live level meter                                  (built)
 stt/                    speech-to-text                                                 (built)
   engine.rs             SttEngine trait, SttOptions, Transcript, SttError              (built)
   whisper_local.rs      LocalWhisper (whisper-rs, Metal) with Silero VAD               (built)
@@ -117,6 +123,7 @@ dictation/              orchestration                                           
   command.rs            a Command Mode session: target, search, replace, answer        (built)
   transform.rs          a transform run: source text, replace in place, retry, undo    (built)
   learn.rs              dictionary auto-learn: watch the field, find respellings       (built)
+  media.rs              MediaSession: mute or pause while recording (SND-03, SND-04)   (built)
   bindings.rs           the shortcuts bound at each moment; add, replace, remove,
                         reset as settings patches (KEYS-02, KEYS-08)                  (built)
   outcomes.rs           notices and paste-last memory per outcome                      (built)
@@ -132,8 +139,9 @@ hotkeys/                bindings, platform independent                          
 platform/               OS integration behind traits (next section)                    (built)
   mod.rs                traits + Platform bundle + GlobeKeyAction
   macos/                hotkeys, mouse (button tap), secure_input, iokit (Fn keyboard,
-                        lid, Caps Lock), insert, pasteboard, keymap, focus, context,
-                        ax, permissions, sound, globe, flow_bar (NSPanel)              (built)
+                        lid, Caps Lock), core_audio (devices, output mute and volume),
+                        media (mute, MediaRemote pause), insert, pasteboard, keymap,
+                        focus, context, ax, permissions, sound, globe, flow_bar        (built)
   windows/              Windows backend                                                (P5)
 storage/                SQLite                                                         (built: dictionary, snippets)
   db.rs                 open, WAL, migrations                                          (built)
@@ -144,7 +152,8 @@ storage/                SQLite                                                  
 settings/               typed Settings, JSON file, merge-patch updates, change events;
                         shortcuts.rs for the bindings per action                      (built)
 secrets/                API keys in the OS keychain (keyring), cached in memory        (built)
-sounds/                 start/stop/lock/cancel/warning cues, synthesised               (built)
+sounds/                 start/stop/lock/cancel/warning/notice cues, synthesised;
+                        SettingsCues and SoundingNotices follow Settings › Sound      (built)
 notify/                 notices shown next to the Flow Bar                             (built)
 ```
 
@@ -190,10 +199,10 @@ Built so far:
 | -------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Commands | `app_info`, `get_dictation_state`, `flow_bar_control`, `flow_bar_ready`, `flow_bar_layout`, `run_notice_action`, `get_models`, `get_permissions`, `open_permission_settings`                                                                                                                                                                                                                                                                                                             |
 | Phase 3  | `transform_action` (the changes view's Copy, Retry and Undo)                                                                                                                                                                                                                                                                                                                                                                                                                             |
-| Phase 4  | `get_shortcuts` (every action's bindings, the overlap warning, Secure Keyboard Entry), `record_shortcut` (records through the hooks; progress as `shortcuts://recording`), `cancel_shortcut_recording`, `remove_shortcut`, `reset_shortcuts`; `retry_model`, `download_model`, `delete_model`                                                                                                                                                                                            |
+| Phase 4  | `get_shortcuts` (every action's bindings, the overlap warning, Secure Keyboard Entry), `record_shortcut` (records through the hooks; progress as `shortcuts://recording`), `cancel_shortcut_recording`, `remove_shortcut`, `reset_shortcuts`; `retry_model`, `download_model`, `delete_model`; `get_microphones`, `select_microphone`, `rank_microphone`, `forget_microphone`, `start_mic_preview`, `stop_mic_preview`                                                                   |
 | Phase 2  | `get_settings`, `update_settings`, `get_ai_options`, `get_api_keys`, `set_api_key`, `delete_api_key`, `list_ollama_models`, `test_ai_provider`; dictionary and snippet CRUD and imports (`list_dictionary`, `add_dictionary_entry`, `update_dictionary_entry`, `set_dictionary_pinned`, `delete_dictionary_entries`, `preview_dictionary_import`, `import_dictionary`, `list_snippets`, `add_snippet`, `update_snippet`, `delete_snippets`, `preview_snippet_import`, `import_snippets`) |
-| Dev only | `dev_get_audio_source`, `dev_set_audio_source`, `dev_set_app_category`, `dev_edit_text`, `dev_read_context` (debug builds; see DEVELOPMENT.md)                                                                                                                                                                                                                                                                                                                                           |
-| Events   | `dictation://state`, `dictation://level` (Flow Bar only), `notify://notice`, `command://answer` and `transform://changes` (Flow Bar only), `models://status`, `app://navigate`, `settings://changed`, `shortcuts://recording`                                                                                                                                                                                                                                                            |
+| Dev only | `dev_get_audio_source`, `dev_set_audio_source`, `dev_set_app_category`, `dev_edit_text`, `dev_read_context`, `dev_set_microphones` (debug builds; see DEVELOPMENT.md)                                                                                                                                                                                                                                                                                                                    |
+| Events   | `dictation://state`, `dictation://level` (Flow Bar only), `notify://notice`, `command://answer` and `transform://changes` (Flow Bar only), `models://status`, `app://navigate`, `settings://changed`, `shortcuts://recording`, `notify://dismiss` (a notice whose cause went away), `mic://devices`, `mic://level`                                                                                                                                                                       |
 
 The Flow Bar calls `flow_bar_ready` once its notice listener is registered; notices raised
 before that (for example a missing permission at startup) are queued and delivered then. It
@@ -250,8 +259,7 @@ Processing(Command) = Transcribing → reading the selection → search, or LLM 
 Processing ── any dictation shortcut ──▶ rejected, "Transcript currently processing" (CORE-07)
 ```
 
-Phases 1 to 3 run the steps in this diagram except media mute and pause (P4) and history
-storage (P4). The last dictation (its text, or its audio
+Every step in this diagram runs except history storage (P4b). The last dictation (its text, or its audio
 when it failed or was cancelled) is kept in memory for paste and copy last transcript.
 
 Notes:
@@ -292,6 +300,8 @@ pub struct Platform {
     pub inserter: Arc<dyn TextInserter>,
     pub permissions: Arc<dyn Permissions>,
     pub sounds: Arc<dyn CuePlayer>,
+    pub devices: Arc<dyn DeviceProvider>, // input devices (MIC-02..08)
+    pub media: Arc<dyn MediaControl>,     // mute or pause while dictating
     pub default_bindings: Vec<Binding>,
     pub label: fn(&Trigger) -> String, // "fn Space", "⌃⌘V", "Mouse 4"
     pub language: Option<String>,     // preferred language, ISO 639-1
@@ -364,7 +374,19 @@ pub trait CuePlayer: Send + Sync {
     fn play(&self, cue: Cue);
 }
 
-// P4: MediaController (mute or pause while dictating).
+/// Input devices: id (Core Audio UID), name, kind (built-in, wired, Bluetooth, virtual).
+pub trait DeviceProvider: Send + Sync {
+    fn input_devices(&self) -> Vec<InputDevice>;
+    fn default_input(&self) -> Option<String>;
+    fn lid_closed(&self) -> bool;
+    fn open(&self, device: &InputDevice) -> Box<dyn AudioSource>;
+}
+
+/// Mute the output or pause the playing media app; the closures undo it.
+pub trait MediaControl: Send + Sync {
+    fn mute(&self) -> Option<Restore>;
+    fn pause(&self) -> Option<Restore>;
+}
 ```
 
 The macOS inserter decides itself whether an editable field is focused
@@ -432,8 +454,9 @@ ever used (Apple DTS, developer forums thread 828052).
 | Frontmost app             | `NSWorkspace::sharedWorkspace().frontmostApplication()`: bundle ID, name, PID (objc2-app-kit features `NSWorkspace`, `NSRunningApplication`, `libc`). The window title comes from AX (`AXFocusedWindow` → `AXTitle`); `CGWindowList` titles would need Screen Recording.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               | none (title: Accessibility) |
 | Selection and nearby text | objc2-application-services (`platform/macos/ax.rs`, `context.rs`): `AXUIElement::new_application(pid)` with `set_messaging_timeout(0.25)` → `AXFocusedUIElement` → `AXSelectedTextRange` (a `CFRange` inside an `AXValue`), `AXSelectedText`, `AXNumberOfCharacters`, and `AXStringForRange` for 1,000 characters on each side, falling back to slicing `AXValue` (UTF-16 offsets). `AXRole`/`AXSubrole` `AXSecureTextField` marks a secure field, which is never read; a value equal to `AXPlaceholderValue` counts as empty. The parents are walked to the enclosing `AXWebArea`, whose `AXURL` is the page; a text field outside any web area in a browser is its address bar. In VS Code, Cursor and Windsurf, `AXDOMClassList` tells Monaco's input (`inputarea`) and xterm.js's (`xterm-helper-textarea`) from other fields (Cursor's chat input is `aislash-editor-input`). The focused window's texts (static texts, titles and descriptions; at most 1,500 elements, 300 texts or 150 ms) feed names and file names. Measured: 30–100 ms per read in TextEdit, Safari, Cursor and Terminal. Use the per-app element: the system-wide element returned `kAXErrorCannotComplete` in testing. The crate does not export the `kAX…` names (they are `CFSTR` macros), so attributes are built with `CFString::from_static_str("AXFocusedUIElement")`. Chromium and Electron apps need `AXManualAccessibility` set first; in VS Code and Cursor (with `editor.accessibilitySupport` on "auto") this also switches the editor to "Screen Reader Optimized", which exposes the open file's text through `AXValue`. Fallback for the selection: clipboard snapshot, Cmd+C, wait for `changeCount`, read, restore. Writing `AXSelectedText` is ignored by many web editors, so replacements are pasted. | Accessibility               |
 | Browser URL               | `AXURL` of the web area around the focused field, or of the first `AXWebArea` in the focused window (breadth first, at most 250 elements) when no field is focused (STY-05). Safari returned `https://discord.com/login` this way.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     | Accessibility               |
-| Mute while dictating      | Core Audio: `kAudioDevicePropertyDeviceIsRunningSomewhere` on the default output device, then device mute (volume 0 as fallback) and restore (SND-03).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 | none                        |
-| Pause media (P4)          | Since macOS 15.4, in-process MediaRemote reads return nothing for third-party apps, but commands still work. So: return early if the output device isn't running; probe "now playing" with `osascript -l JavaScript` (`MRNowPlayingRequest`, about 60–130 ms); if something plays, send `MRMediaRemoteSendCommand(kMRPause)` through `dlopen` and remember the bundle ID; afterwards send `kMRPlay` only if that app is still paused. Any failure means doing nothing. A play/pause media-key event is a toggle and is only safe when the state is known.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              | none                        |
+| Mute while dictating      | Core Audio (`core_audio.rs`, objc2-core-audio): if `kAudioDevicePropertyDeviceIsRunningSomewhere` says the default output device plays, set its main-element `kAudioDevicePropertyMute` (or `VolumeScalar` to 0 when mute isn't settable) 200 ms after recording starts, after the start cue, and put it back when recording ends, before the stop cue (SND-03).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       | none                        |
+| Pause media               | Since macOS 15.4, in-process MediaRemote reads return nothing for third-party apps, but commands still work. So: return early if the output device isn't running; probe "now playing" with `osascript -l JavaScript` (`MRNowPlayingRequest`, about 60–130 ms); if something plays, send `MRMediaRemoteSendCommand(kMRPause)` through `dlopen` and remember the bundle ID; afterwards send `kMRPlay` only if that app is still paused. Calls and meetings (Zoom, Teams, FaceTime, Webex, Slack, Discord, Skype, GoTo) are never paused. Any failure means doing nothing (SND-04). A play/pause media-key event is a toggle and is only safe when the state is known.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    | none                        |
+| Input devices             | `core_audio.rs`: `kAudioHardwarePropertyDevices`, devices with input streams, their `kAudioDevicePropertyDeviceUID`, `kAudioObjectPropertyName` and `kAudioDevicePropertyTransportType` (built-in, Bluetooth/BLE, virtual/aggregate, else wired; known virtual names such as BlackHole and Krisp count as virtual), the default input. Recording opens the cpal device whose `id()` is the UID. The lid state is IOKit's `AppleClamshellState` on `IOPMrootDomain`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    | Microphone (recording)      |
 | Permissions               | Direct calls: objc2-av-foundation `AVCaptureDevice::authorizationStatusForMediaType` / `requestAccessForMediaType_completionHandler`; `AXIsProcessTrusted` (the Accessibility pane is opened, not prompted); objc2-io-kit `IOHIDCheckAccess` / `IOHIDRequestAccess(ListenEvent)` for Input Monitoring, if a listen-only tap is ever added. The microphone is requested on the first microphone dictation, after checking that an input device exists, so a Mac without one never sees the prompt. Deep links: `x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility` (also `Privacy_Microphone`, `Privacy_ListenEvent`). tauri-plugin-macos-permissions 2.3.0 is not used: it reads an `NSInteger` as `i32`, which objc2 rejects with a panic in debug builds.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                | —                           |
 | Flow Bar panel            | tauri-nspanel 2.1.1: a `tauri_panel!` class with `can_become_key_window: false` and `is_floating_panel: true`; `window.to_panel()`, `PanelLevel::Status`, the non-activating style mask, collection behaviour `can_join_all_spaces().full_screen_auxiliary().stationary().ignores_cycle()`, `set_hides_on_deactivate(false)`. Panel calls must run on the main thread. Tauri's `focusable(false)` alone does not stop a click from activating the app; the window also needs `accept_first_mouse(true)` so the first click on the inactive panel registers. Show it with Tauri's `window.show()` before `orderFrontRegardless`: while Tauri believes the window is hidden, WebKit keeps painting a stale snapshot of the first frame over later content. Needs Tauri's `macos-private-api` feature (`macOSPrivateApi` in tauri.conf.json).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             | none                        |
 | Dictation sounds          | `NSSound` from in-memory WAV data, created and played on the main thread, so no audio output stream stays open between cues (rodio would hold one). The cues are synthesised in `sounds/`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             | none                        |
@@ -463,26 +486,65 @@ P3GLEG's plugin from git).
 Built in phase 0; see [DEVELOPMENT.md](DEVELOPMENT.md#audio-from-a-wav-file-instead-of-the-microphone)
 for usage.
 
-- `AudioSource` (trait): `start(sink) -> AudioFormat` and `stop()`. Sources push interleaved
-  f32 chunks through `AudioSink`, which wraps an `mpsc` channel. Implementations:
-  `WavFileSource` **(built)** and `MicrophoneSource` **(built)**.
+- `AudioSource` (trait): `start(sink) -> Option<AudioFormat>` and `stop()`. Sources push
+  interleaved f32 chunks through `AudioSink`, which wraps an `mpsc` channel; a source that
+  opens its device in the background returns `None` and sends `AudioEvent::Format` first,
+  and a source that switches devices sends a new `Format`. Implementations:
+  `WavFileSource`, `MicrophoneSource`, `mic::FallbackSource` and the fake devices.
 - `MicrophoneSource` **(built)**: cpal 0.18 input stream on the selected device in its default
   configuration, owned by its own thread because CoreAudio streams are not `Send`. The
   callback converts samples to f32 and sends them; it does no other work. cpal 0.18 streams
   start only after `play()`. A Mac with no input hardware can still report a default input
   device; a device without a usable default configuration counts as no microphone.
-- `Recorder` **(built)**: drains the channel, exposes newly added samples for level
-  metering, and converts to `AudioClip` on `finish()`.
+- `Recorder` **(built)**: drains the channel, keeps each run of one format as a segment,
+  exposes newly added samples for level metering and whether the source has opened, and
+  converts every segment to `AudioClip` on `finish()`, keeping audio delivered before a
+  failure.
 - `AudioClip` **(built)**: mono f32 at 16 kHz. Downmix averages channels; resampling uses
   rubato 5's `Fft` resampler with `process_all`, which trims the filter delay.
-- Speech detection (ENG-03): first an RMS check per 20 ms frame (about -50 dBFS) trims
-  leading and trailing silence and rejects clips with no signal before any STT call
-  (`audio/level.rs`). Then `LocalWhisper` runs Silero VAD (`ggml-silero-v6.2.0.bin`, 885 KB)
-  through its own `WhisperVadContext`: no speech segments means no Whisper call, and the
-  audio is cut to the span of speech plus 0.25 s. `FullParams::enable_vad` is not used: in
+- Speech detection (ENG-03, MIC-09): first an RMS check per 20 ms frame trims leading and
+  trailing silence and rejects clips with no signal before any STT call
+  (`audio/level.rs`). The threshold is 3× the recording's noise floor (its 10th
+  percentile frame), between -74 and -50 dBFS, so a whisper over a quiet room counts as
+  sound. Quiet speech is then raised to about -26 dBFS RMS (at most +36 dB, peaks under
+  0.9) before any engine sees it. Then `LocalWhisper` runs Silero VAD
+  (`ggml-silero-v6.2.0.bin`, 885 KB, threshold 0.35 instead of 0.5) through its own
+  `WhisperVadContext`: no speech segments means no Whisper call, and the audio is cut to
+  the span of speech with 0.75 s before (soft, breathy starts) and 0.25 s after. A
+  whispered fixture (`say -v Whisper`, -42 dBFS peak) transcribes word for word this way
+  and as "you to Thursday afternoon…" without the raise. `FullParams::enable_vad` is not used: in
   testing, Whisper still turned 3 s of silence into "you" with it enabled.
 - Recordings for history are written as 16-bit WAV (hound) to `recordings/<id>.wav` and
   deleted after 14 days (HIS-04).
+
+### Microphones (MIC-02..10)
+
+- **Choice.** `mic::choice::order` lists the devices a dictation tries: the selected one
+  if it can be used, then the ranked physical microphones in order, then other physical
+  ones (system default first, then built-in). Virtual devices are used only when
+  selected; with the lid closed the built-in microphone is unavailable ("Laptop lid is
+  closed"). The first run ranks every physical microphone; a new one later prompts
+  "Switch to it?" (Switch ranks it first, or selects it when a microphone is chosen;
+  Don't switch ranks it last), after the recording ends, never for AirPods (ranked
+  last) or virtual devices. Forgetting removes one from the ranking.
+- **Fallback.** `FallbackSource` opens the first device on its own thread and moves to
+  the next when one fails or is unplugged, sending the new format, so the recording
+  carries on without a break ("X disconnected. Switched to Y."). When every device is
+  gone the recording finishes with what was said ("Microphone disconnected").
+- **Warnings.** `MicMonitor`, fed about 30 times a second, reports a microphone taking
+  over 8 s to open, digital silence 2.5 s after it opened ("Is your microphone muted?"),
+  and, after speech, 5 s and 15 s without audio; each notice is dismissed
+  (`notify://dismiss`) when its cause goes away. No device at all gives "No microphone
+  detected" with Open Sound Settings; a selected device that can't be used gives
+  "Selected microphone is unavailable" and the next one is used.
+- **Bluetooth advice.** Recording from a Bluetooth microphone shows advice with Switch
+  microphone and Don't show again, at most 3 times and once a week.
+- **Hot-plug** is a 2 s poll of the device list and the lid. The picker's level meter
+  opens the device a dictation would use and reports `mic://level` about 20 times a
+  second while Settings shows it.
+- **Fakes.** `FakeDevices` (tests) and, in debug builds, `SwitchableDevices` with
+  `dev_set_microphones` give devices that play a tone or a WAV, stay silent, open slowly
+  or never deliver, and disconnect when removed.
 
 ## Speech-to-text
 
@@ -916,7 +978,9 @@ category, Formal by default), `privacy` (`contextAwareness`, on by default),
 `transforms`, `vibeCoding` (`fileTagging`, on by default) and `dictionary` (`autoLearn`, on
 by default). Every change is announced to listeners: the webview's `settings://changed`,
 the controller, which rebinds shortcuts, and the model manager, which loads a newly chosen
-Whisper model. Later phases add privacy, system, notifications and onboarding.
+Whisper model. `microphone` (selection and ranking), `sounds` (dictation and notification
+sounds) and `media` (mute or pause while dictating, at most one) hold Settings ›
+Microphone and Sound. Later phases add privacy, system, notifications and onboarding.
 
 ### Secrets (built)
 
@@ -994,6 +1058,7 @@ needs 1.90 or later.
 | keyring                                                                                                                                     | 4.2.0             | built | OS keychain (macOS Keychain, Windows Credential Manager) via the default `v1` feature.                                                                                                                                         |
 | tauri-plugin-global-shortcut                                                                                                                | 2.4.1             | —     | Not used: Shrimp explains Secure Keyboard Entry instead of re-registering keyed shortcuts.                                                                                                                                     |
 | objc2-io-kit, libc                                                                                                                          | 0.3.2 / 0.2       | built | Apple Fn keyboard detection, lid state, Caps Lock lock state (IOKit).                                                                                                                                                          |
+| objc2-core-audio                                                                                                                            | 0.3.2             | built | Input devices with UID, name and transport; the output device's state, mute and volume. Already a dependency of cpal.                                                                                                          |
 | handy-keys                                                                                                                                  | 0.3.4             | built | CGEventTap / `WH_KEYBOARD_LL` key events with Fn, modifier-only chords, press and release, and blocking (MIT; used by Handy).                                                                                                  |
 | objc2, block2, objc2-foundation, objc2-core-foundation, objc2-core-graphics, objc2-app-kit, objc2-application-services, objc2-av-foundation | 0.6 / 0.6 / 0.3.2 | built | Event posting, pasteboard, frontmost app, Accessibility, permissions, `NSSound`, `NSLocale`, preferences. Features per API, `default-features = false`. Text Input Sources and `UCKeyTranslate` are declared by hand (Carbon). |
 | rodio                                                                                                                                       | 0.23.0            | —     | Not used: `NSSound` plays the cues without keeping an output stream open.                                                                                                                                                      |

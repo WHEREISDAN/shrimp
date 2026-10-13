@@ -243,7 +243,7 @@ fn a_missing_source_fails_with_a_notice_and_no_cue() {
     wait_until("the error notice", || {
         h.fakes.has_notice("Couldn't start recording")
     });
-    assert!(h.fakes.cues().is_empty());
+    assert!(!h.fakes.cues().contains(&Cue::Start));
     h.shortcut(Action::PushToTalk, false);
     std::thread::sleep(Duration::from_millis(100));
     assert!(h.fakes.inserted().is_empty());

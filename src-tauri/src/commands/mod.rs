@@ -7,6 +7,7 @@ pub mod app;
 pub mod dev;
 pub mod dictation;
 pub mod library;
+pub mod microphones;
 pub mod models;
 pub mod permissions;
 pub mod settings;
@@ -29,6 +30,12 @@ pub const NAMES: &[&str] = &[
     "cancel_shortcut_recording",
     "remove_shortcut",
     "reset_shortcuts",
+    "get_microphones",
+    "select_microphone",
+    "rank_microphone",
+    "forget_microphone",
+    "start_mic_preview",
+    "stop_mic_preview",
     "get_models",
     "retry_model",
     "download_model",
@@ -66,6 +73,8 @@ pub const NAMES: &[&str] = &[
     "dev_edit_text",
     #[cfg(debug_assertions)]
     "dev_read_context",
+    #[cfg(debug_assertions)]
+    "dev_set_microphones",
 ];
 
 /// The error every command returns. Mirrors `CommandError` in src/lib/ipc.ts.

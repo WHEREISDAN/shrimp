@@ -304,6 +304,18 @@ pub trait CuePlayer: Send + Sync {
     fn play(&self, cue: Cue);
 }
 
+/// Puts back what [`MediaControl`] changed.
+pub type Restore = Box<dyn FnOnce() + Send>;
+
+/// Quiets playing audio while dictating (SND-03, SND-04).
+pub trait MediaControl: Send + Sync {
+    /// Mutes the output if something is playing; the closure unmutes it.
+    fn mute(&self) -> Option<Restore>;
+    /// Pauses the playing media app unless it is a call; the closure
+    /// resumes it if it is still paused.
+    fn pause(&self) -> Option<Restore>;
+}
+
 /// Opens URLs in the default browser (CMD-05 web searches).
 pub trait Launcher: Send + Sync {
     fn open_url(&self, url: &str) -> Result<(), PlatformError>;
@@ -317,6 +329,9 @@ pub struct Platform {
     pub permissions: Arc<dyn Permissions>,
     pub sounds: Arc<dyn CuePlayer>,
     pub launcher: Arc<dyn Launcher>,
+    /// Input devices (MIC-02..08).
+    pub devices: Arc<dyn crate::audio::DeviceProvider>,
+    pub media: Arc<dyn MediaControl>,
     pub default_bindings: Vec<Binding>,
     /// Formats a binding for display, e.g. "fn Space" or "⌃⌘V".
     pub label: fn(&crate::hotkeys::Trigger) -> String,
@@ -364,7 +379,7 @@ pub fn native(main_thread: MainThread) -> Platform {
 }
 
 #[cfg(target_os = "macos")]
-pub use macos::open_keyboard_settings;
+pub use macos::{open_keyboard_settings, open_sound_settings};
 
 /// Adds the Tauri plugins the platform backend relies on.
 pub fn register_plugins<R: tauri::Runtime>(builder: tauri::Builder<R>) -> tauri::Builder<R> {

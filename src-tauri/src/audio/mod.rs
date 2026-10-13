@@ -6,6 +6,7 @@
 //! (16 kHz mono f32), so the rest of the pipeline never knows where audio came from.
 
 mod clip;
+pub mod devices;
 mod error;
 pub mod level;
 mod mic;
@@ -18,6 +19,10 @@ mod wav;
 pub mod wav_encode;
 
 pub use clip::{AudioClip, STT_SAMPLE_RATE};
+pub use devices::{
+    DeviceKind, DeviceProvider, FakeBehaviour, FakeDevice, FakeDevices, InputDevice,
+    SwitchableDevices,
+};
 pub use error::AudioError;
 pub use mic::{MicrophoneSource, microphone_available};
 pub use recorder::Recorder;
