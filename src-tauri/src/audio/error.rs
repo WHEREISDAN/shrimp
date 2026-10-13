@@ -18,6 +18,10 @@ pub enum AudioError {
     Resample(String),
     #[error("invalid audio source spec {spec:?}: {reason}")]
     InvalidSpec { spec: String, reason: &'static str },
+    #[error("no microphone found")]
+    NoInputDevice,
+    #[error("{} does not exist", .0.display())]
+    MissingFile(PathBuf),
     #[error("{0}")]
     Device(String),
 }

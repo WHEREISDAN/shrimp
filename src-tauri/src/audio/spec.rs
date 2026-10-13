@@ -1,7 +1,9 @@
 use std::path::PathBuf;
 use std::str::FromStr;
 
-use super::AudioError;
+use super::{
+    AudioError, AudioSource, MicrophoneSource, Pacing, WavFileSource, microphone_available,
+};
 
 /// Debug builds read this variable to replace the microphone, e.g.
 /// `SHRIMP_AUDIO_SOURCE=wav:/path/to/speech.wav`. See docs/DEVELOPMENT.md.
@@ -27,6 +29,43 @@ impl AudioSourceSpec {
             .filter(|value| !value.trim().is_empty())
             .map(|value| value.parse())
             .transpose()
+    }
+}
+
+impl AudioSourceSpec {
+    /// A fresh source for one dictation. WAV files play at real-time pace.
+    pub fn open(&self) -> Box<dyn AudioSource> {
+        match self {
+            Self::Microphone { device } => Box::new(MicrophoneSource::new(device.clone())),
+            Self::WavFile(path) => Box::new(WavFileSource::new(path, Pacing::Realtime)),
+        }
+    }
+
+    pub fn is_microphone(&self) -> bool {
+        matches!(self, Self::Microphone { .. })
+    }
+
+    /// Fails fast when the input is missing, before any permission prompt.
+    pub fn check_available(&self) -> Result<(), AudioError> {
+        match self {
+            Self::Microphone { device } if !microphone_available(device.as_deref()) => {
+                Err(AudioError::NoInputDevice)
+            }
+            Self::WavFile(path) if !path.is_file() => Err(AudioError::MissingFile(path.clone())),
+            _ => Ok(()),
+        }
+    }
+}
+
+impl std::fmt::Display for AudioSourceSpec {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Microphone { device: None } => write!(f, "mic"),
+            Self::Microphone {
+                device: Some(device),
+            } => write!(f, "mic:{device}"),
+            Self::WavFile(path) => write!(f, "wav:{}", path.display()),
+        }
     }
 }
 
@@ -82,6 +121,13 @@ mod tests {
             "wav:/tmp/a:b.wav".parse::<AudioSourceSpec>().unwrap(),
             AudioSourceSpec::WavFile(PathBuf::from("/tmp/a:b.wav"))
         );
+    }
+
+    #[test]
+    fn displays_in_the_parsed_syntax() {
+        for spec in ["mic", "mic:USB Mic", "wav:/tmp/a.wav"] {
+            assert_eq!(spec.parse::<AudioSourceSpec>().unwrap().to_string(), spec);
+        }
     }
 
     #[test]

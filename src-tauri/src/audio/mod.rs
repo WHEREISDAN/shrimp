@@ -7,6 +7,8 @@
 
 mod clip;
 mod error;
+pub mod level;
+mod mic;
 mod recorder;
 mod source;
 mod spec;
@@ -16,6 +18,7 @@ mod wav;
 
 pub use clip::{AudioClip, STT_SAMPLE_RATE};
 pub use error::AudioError;
+pub use mic::{MicrophoneSource, microphone_available};
 pub use recorder::Recorder;
 pub use source::{AudioEvent, AudioFormat, AudioSink, AudioSource};
 pub use spec::{AUDIO_SOURCE_ENV, AudioSourceSpec};
