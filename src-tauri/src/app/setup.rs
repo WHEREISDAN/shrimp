@@ -7,6 +7,7 @@ use std::time::Duration;
 use tauri::{App, AppHandle, Emitter, Manager};
 
 use super::events::{HISTORY_EVENT, MICROPHONES_EVENT, MODELS_EVENT, SETTINGS_EVENT, TauriUi};
+use super::updates::{self, Updates};
 use super::{flow_bar, system, tray, window};
 #[cfg(debug_assertions)]
 use crate::audio::SwitchableDevices;
@@ -132,6 +133,7 @@ pub fn setup(app: &mut App) -> Result<(), Box<dyn std::error::Error>> {
         label: platform.label,
     });
     let notices = Arc::clone(&dictation_ui);
+    let update_notices = Arc::clone(&dictation_ui);
     let login_item = Arc::clone(&platform.login_item);
     #[cfg(debug_assertions)]
     let permissions: Arc<dyn Permissions> = {
@@ -142,10 +144,14 @@ pub fn setup(app: &mut App) -> Result<(), Box<dyn std::error::Error>> {
     };
     #[cfg(not(debug_assertions))]
     let permissions: Arc<dyn Permissions> = platform.permissions;
+    let version = app.package_info().version.to_string();
+    // The first launch of a new version opens the main window, as after an update (PKG-04).
+    let updated =
+        settings.get().onboarding.completed && settings.get().onboarding.version != version;
     system::recheck_permissions(
         &settings,
         permissions.as_ref(),
-        &app.package_info().version.to_string(),
+        &version,
         dictation_ui.as_ref(),
     );
     let controller = dictation::spawn(Services {
@@ -174,7 +180,7 @@ pub fn setup(app: &mut App) -> Result<(), Box<dyn std::error::Error>> {
     settings.on_change(Box::new(move |_| {
         shortcuts_changed.send(ControllerInput::SettingsChanged);
     }));
-    app.manage(controller);
+    app.manage(controller.clone());
     app.manage(Arc::clone(&settings));
     app.manage(secrets);
     app.manage(database);
@@ -188,6 +194,11 @@ pub fn setup(app: &mut App) -> Result<(), Box<dyn std::error::Error>> {
     app.manage(ui);
     app.manage(AppPermissions(permissions));
     app.manage(Arc::clone(&health));
+    app.manage(Arc::new(Updates::new(
+        &handle,
+        controller,
+        Arc::new(move |notice| update_notices.notice(notice)),
+    )));
 
     tray::create(&handle, &settings.get())?;
     let tray_handle = handle.clone();
@@ -227,9 +238,11 @@ pub fn setup(app: &mut App) -> Result<(), Box<dyn std::error::Error>> {
         Arc::clone(&login_item),
         Arc::new(move |notice| notices.notice(notice)),
     );
+    updates::start(&handle);
     // The main window starts hidden; a launch at login stays in the menu bar (APP-06),
-    // unless setup isn't finished.
-    if !settings.get().onboarding.completed
+    // unless setup isn't finished or Shrimp was just updated.
+    if updated
+        || !settings.get().onboarding.completed
         || !system::starts_in_background(login_item.as_ref(), &health)
     {
         window::show_main(&handle);

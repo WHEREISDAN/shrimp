@@ -50,5 +50,11 @@
         "Resources/pt.lproj/InfoPlist.strings": "locales/macos/pt.lproj/InfoPlist.strings"
       }
     }
+  },
+  "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDQ4OTk2NDU1RTBEQ0YwM0IKUldRNzhOemdWV1NaU0p3dnpURWh3Uk13dDh4OFo0Qk1LeDM2NGFDY1BsbTJhNWpTM0lVQmYxLzgK",
+      "requireSignedVersion": true
+    }
   }
 }

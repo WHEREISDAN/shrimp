@@ -330,11 +330,11 @@ this file.
 
 | Status | ID     | Feature           | Acceptance criterion                                                                                                   | Phase |
 | ------ | ------ | ----------------- | ---------------------------------------------------------------------------------------------------------------------- | ----- |
-| [ ]    | PKG-01 | macOS DMG         | A Developer ID-signed, notarized DMG for Apple Silicon installs Shrimp into /Applications.                             | 5     |
+| [x]    | PKG-01 | macOS DMG         | A Developer ID-signed, notarized DMG for Apple Silicon installs Shrimp into /Applications.                             | 5     |
 | [ ]    | PKG-02 | Windows installer | A signed per-user installer (MSI or NSIS) installs to %LOCALAPPDATA% without admin rights.                             | 5     |
-| [ ]    | PKG-03 | Check for updates | "Check for updates…" in the tray finds a newer release on the configured feed and offers "Update ready, restart now?". | 5     |
-| [ ]    | PKG-04 | Idle updates      | Updates wait until no dictation is running, and the main window reopens after an update.                               | 5     |
-| [ ]    | PKG-05 | Grants survive    | Updating the signed release keeps its macOS privacy grants.                                                            | 5     |
+| [x]    | PKG-03 | Check for updates | "Check for updates…" in the tray finds a newer release on the configured feed and offers "Update ready, restart now?". | 5     |
+| [x]    | PKG-04 | Idle updates      | Updates wait until no dictation is running, and the main window reopens after an update.                               | 5     |
+| [x]    | PKG-05 | Grants survive    | Updating the signed release keeps its macOS privacy grants.                                                            | 5     |
 
 ## Audit and regression
 
@@ -516,6 +516,20 @@ tap, with a WAV file as the audio source.
 | WIN-10  | Live on Windows: the silent per-user install wrote the `Run` value `"…\Shrimp\shrimp.exe" --background` and the first start showed Launch at login on. That command, with onboarding finished, started Shrimp hidden with Notepad still in front (unfinished onboarding shows the window, as on macOS). `WM_ENDSESSION` exits cleanly, so no crash screen follows a logoff. Uninstalling removed the value.                                                                              |
 | WIN-11  | Live on Windows: context reads through UI Automation took 30 ms in Notepad, 40 ms in Command Prompt and 61 ms in Edge (2–3 s on the first contact with a Chromium page); Command Mode read the Notepad selection and replaced it with the rewrite ("Make this more formal.", Ollama `qwen3.5:4b` in 922 ms); auto-learn polled the field every second and added "Formalyx" when "formal" was respelled.                                                                                  |
 | WIN-12  | Live on Windows: a helper's media session in the system media transport controls was paused while dictating and resumed afterwards; Spotify, already paused, was left alone.                                                                                                                                                                                                                                                                                                             |
+| PKG-01  | Live: `scripts/macos/release.sh` built 0.1.0 for arm64 with Developer ID, hardened runtime, secure timestamp and only the audio-input entitlement; the app zip and the DMG were each notarized (Accepted) and stapled. Mounted read-only, the DMG held `Shrimp.app` and `Applications -> /Applications`; `codesign --verify --deep --strict` passed, `spctl -a -vv` said "accepted, source=Notarized Developer ID" and `stapler validate` passed for the app and the DMG.                |
+| PKG-03  | Live, release builds and a local feed: "Check for updates…" said "You're up to date. Shrimp 0.1.0 is the latest version."; with 0.1.1 published it showed "Downloading Shrimp 0.1.1…", then "Update ready, restart now? Shrimp 0.1.1 is downloaded." with Restart now, and the tray item became "Restart to update". The automatic check ran 60 s after launch. The final build has no feed: "Updates aren't configured" (disabled).                                                     |
+| PKG-04  | Live, release: with the main window closed, Restart to update swapped the bundle in place (0.1.1, its notarized CDHash; `spctl`, `stapler validate` pass) and 2 s later the app ran with its main window open. Live, dev app 0.1.0 to 0.1.1: during a WAV dictation, Restart now showed "Shrimp restarts to update when you finish dictating." and the tray "Restarting to update…"; the install began 6.05 s after the dictation ended. `app::updates` tests.                           |
+| PKG-05  | The designated requirement (`identifier "com.shrimp.desktop" and anchor apple generic and … leaf[subject.OU] = URKK7Q7758`) was identical for release builds 0.1.0, 0.1.1 and the final 0.1.0 (three CDHashes) and for the app after its in-place update. Live, the dev app kept Accessibility and Microphone "granted" across its 0.1.0 to 0.1.1 update. See RELEASING.md.                                                                                                              |
+
+Verified partly, in phase 5:
+
+- PKG-01: as the brief asked, the DMG was not installed into /Applications; its layout,
+  signatures, notarization and stapling were checked with it mounted.
+- PKG-05: the release app had no grants to keep, since granting is the owner's step in
+  System Settings. Keeping them rests on the unchanged designated requirement, which TCC
+  matches; the dev app's grants were seen to survive its update.
+- PKG-04: a restart asked for while the tray menu is open waits until the menu closes
+  (seen live when an Esc meant for the menu cancelled the test dictation instead).
 
 Verified on Windows, in phase 5:
 

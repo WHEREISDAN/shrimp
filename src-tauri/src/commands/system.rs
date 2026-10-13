@@ -3,7 +3,7 @@
 
 use std::sync::Arc;
 
-use tauri::{AppHandle, Emitter, Manager, State};
+use tauri::{AppHandle, Emitter, Manager, Runtime, State};
 
 use super::CommandError;
 use crate::app::events::HEALTH_EVENT;
@@ -62,7 +62,7 @@ pub fn open_storage_settings() -> Result<(), CommandError> {
 
 /// Quits normally (Whisper unloads, the crash marker goes) and opens the
 /// app again once this process has gone.
-fn restart(app: &AppHandle) -> Result<(), CommandError> {
+pub(crate) fn restart<R: Runtime>(app: &AppHandle<R>) -> Result<(), CommandError> {
     platform::relaunch_after_exit().map_err(|err| CommandError::new("platform", err))?;
     app.exit(0);
     Ok(())

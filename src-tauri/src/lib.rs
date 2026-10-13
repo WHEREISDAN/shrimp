@@ -36,6 +36,7 @@ pub fn run() {
             app::window::show_main(app)
         }));
 
+    let builder = builder.plugin(tauri_plugin_updater::Builder::new().build());
     #[cfg(debug_assertions)]
     let builder = builder.plugin(app::dev_bridge::plugin());
     let builder = platform::register_plugins(builder);

@@ -5,7 +5,7 @@ use tauri::{AppHandle, Emitter, State};
 use super::CommandError;
 use super::permissions::AppPermissions;
 use crate::app::events::{NAVIGATE_EVENT, TauriUi};
-use crate::app::{flow_bar, window};
+use crate::app::{flow_bar, updates, window};
 use crate::dictation::gestures::BarControl;
 use crate::dictation::{
     ControllerHandle, ControllerInput, DictationState, DictationUi, TransformAction,
@@ -192,6 +192,10 @@ pub fn run_notice_action(
         NoticeAction::SeeVoiceProfile | NoticeAction::UpdateVoiceProfile => {
             window::show_main(&app);
             let _ = app.emit_to(window::MAIN_LABEL, NAVIGATE_EVENT, "voiceProfile");
+            Ok(())
+        }
+        NoticeAction::RestartToUpdate => {
+            updates::restart_when_idle(&app);
             Ok(())
         }
     }

@@ -361,9 +361,12 @@ fn a_failed_cloud_engine_falls_back_to_whisper() {
     dictate(&h);
     wait_until("insertion", || h.fakes.inserted() == [TEXT]);
     let device = if cfg!(windows) { "PC" } else { "Mac" };
-    assert!(h.fakes.has_notice(&format!(
-        "Groq rate limit reached. Used Whisper on this {device} instead."
-    )));
+    // The notice can follow the insertion.
+    wait_until("fallback notice", || {
+        h.fakes.has_notice(&format!(
+            "Groq rate limit reached. Used Whisper on this {device} instead."
+        ))
+    });
 }
 
 fn entry(id: i64, term: &str, misspelling: Option<&str>) -> DictionaryEntry {

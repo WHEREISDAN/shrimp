@@ -115,5 +115,12 @@
   "notice.transform.textChanged": "Der Text hat sich geändert, daher liegt das Ergebnis in der Zwischenablage.",
   "notice.transform.timedOut": "Zeitüberschreitung bei der Transformation",
   "notice.transform.tooLong": "Hoppla, zu lang für eine Transformation. Versuch es mit weniger als {max} Wörtern.",
-  "notice.transform.undone": "Rückgängig gemacht"
+  "notice.transform.undone": "Rückgängig gemacht",
+  "notice.update.checkFailed": "Die Suche nach Updates ist fehlgeschlagen: {error}",
+  "notice.update.downloadFailed": "Das Update konnte nicht geladen werden: {error}",
+  "notice.update.downloading": "Shrimp {version} wird geladen …",
+  "notice.update.installFailed": "Das Update konnte nicht installiert werden: {error}",
+  "notice.update.ready": "Update bereit, jetzt neu starten? Shrimp {version} ist geladen.",
+  "notice.update.upToDate": "Alles aktuell. Shrimp {version} ist die neueste Version.",
+  "notice.update.waiting": "Shrimp startet für das Update neu, sobald du mit dem Diktieren fertig bist."
 }

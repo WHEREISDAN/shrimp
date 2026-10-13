@@ -7,7 +7,7 @@ use tauri::tray::TrayIconBuilder;
 use tauri::{AppHandle, Emitter, Manager, Runtime, include_image};
 
 use super::events::NAVIGATE_EVENT;
-use super::window;
+use super::{updates, window};
 use crate::dictation::{ControllerHandle, ControllerInput};
 use crate::hotkeys::Action;
 use crate::platform::TRAY_ACCELERATORS;
@@ -43,6 +43,7 @@ pub fn create<R: Runtime>(app: &AppHandle<R>, settings: &Settings) -> tauri::Res
             PASTE_LAST_ID => send(app, Action::PasteLast),
             COPY_LAST_ID => send(app, Action::CopyLast),
             PRIVACY_ID => toggle_privacy_mode(app),
+            updates::MENU_ID => updates::menu_clicked(app),
             QUIT_ID => app.exit(0),
             _ => {}
         })
@@ -86,6 +87,7 @@ fn menu<R: Runtime>(app: &AppHandle<R>, settings: &Settings) -> tauri::Result<Me
     log::debug!("tray menu: paste last transcript enabled: {paste_available}");
     let open = item(OPEN_ID, t!("tray.open"), true, None)?;
     let shortcuts = item(SHORTCUTS_ID, t!("tray.shortcuts"), true, None)?;
+    let update = updates::menu_item(app)?;
     let paste_last = item(
         PASTE_LAST_ID,
         t!("tray.pasteLast"),
@@ -107,6 +109,7 @@ fn menu<R: Runtime>(app: &AppHandle<R>, settings: &Settings) -> tauri::Result<Me
         &[
             &open,
             &shortcuts,
+            &update,
             &PredefinedMenuItem::separator(app)?,
             &paste_last,
             &copy_last,

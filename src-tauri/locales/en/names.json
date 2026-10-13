@@ -34,5 +34,11 @@
   "tray.copyLast": "Copy last transcript",
   "tray.privacyMode": "Privacy mode",
   "tray.quit": "Quit Shrimp",
-  "tray.privacyTooltip": "Shrimp (Privacy mode)"
+  "tray.privacyTooltip": "Shrimp (Privacy mode)",
+  "tray.checkForUpdates": "Check for updates…",
+  "tray.checkingForUpdates": "Checking for updates…",
+  "tray.downloadingUpdate": "Downloading update…",
+  "tray.restartToUpdate": "Restart to update",
+  "tray.restartingToUpdate": "Restarting to update…",
+  "tray.updatesNotConfigured": "Updates aren't configured"
 }

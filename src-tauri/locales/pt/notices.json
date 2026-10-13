@@ -115,5 +115,12 @@
   "notice.transform.textChanged": "O texto mudou, então o resultado está na área de transferência.",
   "notice.transform.timedOut": "Tempo esgotado na transformação",
   "notice.transform.tooLong": "Ops, longo demais para transformar. Tente de novo com menos de {max} palavras.",
-  "notice.transform.undone": "Desfeito"
+  "notice.transform.undone": "Desfeito",
+  "notice.update.checkFailed": "Não foi possível verificar atualizações: {error}",
+  "notice.update.downloadFailed": "Não foi possível baixar a atualização: {error}",
+  "notice.update.downloading": "Baixando o Shrimp {version}…",
+  "notice.update.installFailed": "Não foi possível instalar a atualização: {error}",
+  "notice.update.ready": "Atualização pronta, reiniciar agora? O Shrimp {version} já foi baixado.",
+  "notice.update.upToDate": "Tudo em dia. O Shrimp {version} é a versão mais recente.",
+  "notice.update.waiting": "O Shrimp vai reiniciar para atualizar quando você terminar de ditar."
 }

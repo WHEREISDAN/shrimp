@@ -46,7 +46,8 @@ export type NoticeAction =
   | "openHistory"
   | "openInsights"
   | "seeVoiceProfile"
-  | "updateVoiceProfile";
+  | "updateVoiceProfile"
+  | "restartToUpdate";
 
 /** Mirrors `notify::Notice`. */
 export interface Notice {

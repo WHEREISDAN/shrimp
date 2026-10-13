@@ -34,5 +34,11 @@
   "tray.copyLast": "Letztes Transkript kopieren",
   "tray.privacyMode": "Datenschutzmodus",
   "tray.quit": "Shrimp beenden",
-  "tray.privacyTooltip": "Shrimp (Datenschutzmodus)"
+  "tray.privacyTooltip": "Shrimp (Datenschutzmodus)",
+  "tray.checkForUpdates": "Nach Updates suchen …",
+  "tray.checkingForUpdates": "Suche nach Updates …",
+  "tray.downloadingUpdate": "Update wird geladen …",
+  "tray.restartToUpdate": "Neu starten und aktualisieren",
+  "tray.restartingToUpdate": "Neustart für das Update …",
+  "tray.updatesNotConfigured": "Updates sind nicht eingerichtet"
 }
