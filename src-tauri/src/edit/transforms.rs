@@ -158,6 +158,21 @@ pub enum TransformError {
     Llm(LlmProviderId, LlmError),
 }
 
+/// "**Goal:** text" → "Goal: text": Markdown bold the model added despite
+/// the plain-text rule. Lines with an odd number of markers stay as they are.
+pub fn strip_bold(text: &str) -> String {
+    text.lines()
+        .map(|line| {
+            if line.matches("**").count() % 2 == 0 {
+                line.replace("**", "")
+            } else {
+                line.to_owned()
+            }
+        })
+        .collect::<Vec<_>>()
+        .join("\n")
+}
+
 /// The model's text without echoed tags, fences or a "Here is…" line.
 pub fn clean_output(output: &str) -> String {
     let mut text = output.trim();
@@ -265,11 +280,14 @@ impl Editor {
             provider_id.label(),
             provider.model()
         );
-        let text = clean_output(&response.text);
-        if text.is_empty() {
+        let mut result = clean_output(&response.text);
+        if !text.contains("**") {
+            result = strip_bold(&result);
+        }
+        if result.is_empty() {
             return Err(TransformError::Empty);
         }
-        Ok((text, elapsed))
+        Ok((result, elapsed))
     }
 }
 
@@ -334,6 +352,10 @@ mod tests {
         assert_eq!(
             clean_output("Here is why: it works."),
             "Here is why: it works."
+        );
+        assert_eq!(
+            strip_bold("- **Goal:** ship it\n2**3 stays"),
+            "- Goal: ship it\n2**3 stays"
         );
     }
 }

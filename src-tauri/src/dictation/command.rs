@@ -11,7 +11,7 @@ use super::pipeline::Pipeline;
 use super::state::{Answer, Delivered, Outcome, Processed};
 use crate::audio::AudioClip;
 use crate::context::{AppKind, DictationContext, PendingContext};
-use crate::edit::command::{CommandInput, CommandReply, MAX_COMMAND_WORDS};
+use crate::edit::command::{CommandInput, CommandReply, MAX_COMMAND_WORDS, drops_text};
 use crate::notify::Notice;
 use crate::platform::{
     ContextRequest, CopyReason, Editable, FieldContext, FieldKind, FocusInspector, InsertOptions,
@@ -114,6 +114,19 @@ impl CommandRunner {
                 ))
                 .into();
             }
+        };
+        let reply = match (reply, target.input()) {
+            (
+                CommandReply::Edit(text),
+                CommandInput::Selection(original) | CommandInput::Document(original),
+            ) if drops_text(&instruction, original, &text) => {
+                log::info!("command result left out most of the text; shown instead");
+                notices.push(Notice::warning(
+                    "The result left out most of your text, so it wasn't pasted.",
+                ));
+                CommandReply::Answer(text)
+            }
+            (reply, _) => reply,
         };
         let outcome = match (reply, &target) {
             (CommandReply::Edit(text) | CommandReply::Answer(text), Target::EmptyField) => {

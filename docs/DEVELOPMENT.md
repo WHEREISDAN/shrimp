@@ -321,6 +321,19 @@ SHRIMP_EVAL_PROVIDER=ollama SHRIMP_EVAL_MODEL=qwen3.5:4b \
 provider failed) and the unedited transcript would have been inserted. The pipeline's own
 log lines, including rejected outputs at debug level, are printed under the case.
 
+`src-tauri/tests/command_eval.rs` does the same for Command Mode and transforms: the 15
+cases in `tests/fixtures/eval/commands.json` (edits, questions, drafts, injection
+attempts in the selection and the document, Polish, Prompt Engineer and a custom
+transform). The same variables apply, except `SHRIMP_EVAL_RUNS`:
+
+```sh
+SHRIMP_EVAL_PROVIDER=ollama SHRIMP_EVAL_MODEL=qwen2.5-coder:7b \
+  cargo test --manifest-path src-tauri/Cargo.toml --test command_eval -- --ignored --nocapture
+```
+
+The kind column says whether the reply was an edit, an answer, or "withheld": an edit
+that drops most of the text, which the app shows instead of pasting.
+
 ## Testing shortcuts and pasting in the real app
 
 The keyboard hook sees events posted through the HID event tap like physical keys, so a

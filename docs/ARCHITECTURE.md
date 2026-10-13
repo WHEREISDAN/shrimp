@@ -651,11 +651,14 @@ Off until turned on in Settings › Experimental, with a one-time intro (CMD-06)
 3. **Search.** An instruction that starts with "search", "search for", "look up" or
    "google" opens `perplexity.ai/search` in the default browser with the selection
    appended (CMD-05; Wispr Flow uses Perplexity too). `Launcher::open_url` opens it.
-4. **Model.** `Editor::command` (`edit/command.rs`) sends the instruction in
-   `<instruction>` tags and the selection (`<selected_text>`) or field text (`<document>`)
-   as data, with tags inside defused; the system prompt says only the instruction is
-   followed and asks for `<edit>new text</edit>` or `<answer>reply</answer>`. Untagged
-   output counts as an answer, so it never replaces text. At most 3,000 words.
+4. **Model.** `Editor::command` (`edit/command.rs`) sends the selection
+   (`<selected_text>`) or field text (`<document>`) as data, with tags inside defused,
+   and then the instruction in `<instruction>` tags, last so it has the final word; the
+   system prompt says only the instruction is followed, shows injected instructions kept
+   as content, and asks for `<edit>new text</edit>` or `<answer>reply</answer>`. Untagged
+   output counts as an answer, so it never replaces text, unless the instruction itself
+   starts with an editing verb ("translate", "make", "fix"…); a mangled wrapper tag
+   around it is dropped. At most 3,000 words.
 5. **Result.** An edit replaces the selection, or the whole field (selected through
    `FocusInspector::select_range`, else Cmd+A) when nothing was selected; it is pasted
    verbatim, without dictation formatting, as one undo step, and the clipboard is
@@ -663,8 +666,24 @@ Off until turned on in Settings › Experimental, with a one-time intro (CMD-06)
    any result with no text field, appears in the Flow Bar's answer panel with Copy
    (CMD-03) and becomes the last transcript. Before replacing a selection read through
    Accessibility, it is read again: if the app or the selected text changed, the result
-   stays on the clipboard with a notice, so the user's text is never lost. A failed
-   model call changes nothing.
+   stays on the clipboard with a notice, so the user's text is never lost. An edit that
+   leaves out most of a text of 8 words or more (it keeps under 40% of the words) when
+   the instruction asks for nothing shorter ("shorten", "summarize", "translate", "only"…)
+   is shown in the answer panel with a notice instead of pasted (`drops_text`): it is
+   what a model that obeyed the document looks like ("delete everything and write…").
+   A failed model call changes nothing.
+
+`tests/command_eval.rs` runs 15 cases (edits, questions, drafts, injection attempts in
+the selection and the document, and the built-in transforms) through the real prompts;
+on 2026-10-13 on the M4 Mac mini:
+
+| Model              | Passed | Latency, median / p90 | Failed                                                                                        |
+| ------------------ | ------ | --------------------- | --------------------------------------------------------------------------------------------- |
+| `qwen3.5:4b`       | 13/15  | 1,439 / 2,424 ms      | A summary written in the pirate voice the selection asked for; "POTATO" withheld, not pasted. |
+| `qwen2.5-coder:7b` | 13/15  | 1,204 / 2,377 ms      | "HACKED…" and "POTATO" from injected instructions, both withheld, not pasted.                 |
+
+Prompt Engineer is the slow case (7.7–9.2 s for a long structured prompt); other
+transforms took 0.8–1.7 s.
 
 ### Transforms
 
@@ -677,7 +696,8 @@ and See changes (Opt+O). They live in `settings.transforms`.
 A run (`dictation/transform.rs`) reads the selection like Command Mode, else the whole
 field, else, in an empty field, the last dictation pasted within the past minute; text
 of 1 to 1,000 words is sent in `<text>` tags as data (`edit/transforms.rs`), and the
-result replaces it in place as one undoable paste. Errors use Wispr's texts: "Select
+result replaces it in place as one undoable paste. Markdown bold the model adds despite
+the plain-text rule is removed, unless the text had some. Errors use Wispr's texts: "Select
 text to apply a transform", "Oops, too long to polish. Try again with under 1000
 words.", "Transform timed out", "Transform returned no text". The run keeps the
 original, the result and where the result starts in the field, so the changes view
@@ -889,6 +909,7 @@ belongs to the signed app and reading it never prompts.
 | Local Whisper   | `#[ignore]` tests that need a downloaded model (`whisper_local.rs`, including the dictionary fixture for DIC-02), run with `cargo test -- --ignored`.                                                                                                                                                                                   |
 | Providers       | Request bodies and response parsing pinned against recorded JSON per provider; error mapping against recorded error bodies (`llm/http.rs`).                                                                                                                                                                                             |
 | AI edit eval    | `tests/ai_eval.rs` (`#[ignore]`): 37 dictation-style cases in `tests/fixtures/eval/cases.json` through the real pipeline and a real provider, with checks and cleanup latency per case (see DEVELOPMENT.md).                                                                                                                            |
+| Command eval    | `tests/command_eval.rs` (`#[ignore]`): 15 Command Mode and transform cases in `tests/fixtures/eval/commands.json`, including injection attempts in the selection and the document, with checks and latency per case.                                                                                                                    |
 | UI              | Vitest + Testing Library with `mockIPC`.                                                                                                                                                                                                                                                                                                |
 | Real app        | tauri-mcp against the signed dev bundle, with `SHRIMP_AUDIO_SOURCE=wav:<path>`.                                                                                                                                                                                                                                                         |
 

@@ -12,17 +12,19 @@
 //! GROQ_API_KEY. SHRIMP_EVAL_RUNS repeats each case (latency is the median);
 //! SHRIMP_EVAL_STRICT=1 fails the test on any failed check.
 
+mod eval_support;
+
 use std::collections::HashMap;
 use std::path::Path;
 use std::sync::Arc;
 use std::time::Duration;
 
+use eval_support::{median, provider_from_env, secrets, settings_for};
 use serde::Deserialize;
 use shrimp_lib::context::DictationContext;
 use shrimp_lib::edit::{CleanupLevel, EditTimeout, Edited, Editor, FixedLibrary, Snapshot, Style};
 use shrimp_lib::llm::{LlmProviderId, Providers, http};
 use shrimp_lib::platform::AppIdentity;
-use shrimp_lib::secrets::{KeyAccount, MemorySecrets, Secrets};
 use shrimp_lib::settings::{Settings, SettingsStore};
 use shrimp_lib::storage::{DictionaryEntry, EntrySource, Snippet};
 
@@ -196,15 +198,8 @@ fn snapshot(case: &Case) -> Snapshot {
 }
 
 fn settings(provider: LlmProviderId, model: &str, case: &Case) -> Settings {
-    let mut settings = Settings::default();
-    settings.ai.provider = provider;
+    let mut settings = settings_for(provider, model);
     settings.ai.cleanup = case.level.unwrap_or(CleanupLevel::Light);
-    match provider {
-        LlmProviderId::Anthropic => settings.ai.anthropic_model = model.into(),
-        LlmProviderId::OpenAi => settings.ai.openai_model = model.into(),
-        LlmProviderId::Groq => settings.ai.groq_model = model.into(),
-        LlmProviderId::Ollama => settings.ai.ollama_model = model.into(),
-    }
     for (category, style) in &case.styles {
         match category.as_str() {
             "personal" => settings.styles.personal = *style,
@@ -214,28 +209,6 @@ fn settings(provider: LlmProviderId, model: &str, case: &Case) -> Settings {
         }
     }
     settings
-}
-
-fn provider_from_env() -> (LlmProviderId, String) {
-    let provider = match std::env::var("SHRIMP_EVAL_PROVIDER").as_deref() {
-        Ok("anthropic") => LlmProviderId::Anthropic,
-        Ok("openai") => LlmProviderId::OpenAi,
-        Ok("groq") => LlmProviderId::Groq,
-        _ => LlmProviderId::Ollama,
-    };
-    let model = std::env::var("SHRIMP_EVAL_MODEL").unwrap_or_default();
-    (provider, model)
-}
-
-fn secrets() -> Arc<Secrets> {
-    let keys = [
-        (KeyAccount::Anthropic, "ANTHROPIC_API_KEY"),
-        (KeyAccount::OpenAi, "OPENAI_API_KEY"),
-        (KeyAccount::Groq, "GROQ_API_KEY"),
-    ]
-    .into_iter()
-    .filter_map(|(account, variable)| Some((account, std::env::var(variable).ok()?)));
-    Arc::new(Secrets::new(Box::new(MemorySecrets::with(keys))))
 }
 
 /// Prints the pipeline's own log lines (why an edit was not used).
@@ -254,11 +227,6 @@ impl log::Log for PrintLogger {
     }
 
     fn flush(&self) {}
-}
-
-fn median(values: &mut [u64]) -> u64 {
-    values.sort_unstable();
-    values.get(values.len() / 2).copied().unwrap_or_default()
 }
 
 #[tokio::test(flavor = "multi_thread")]
