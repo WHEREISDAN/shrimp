@@ -5,9 +5,14 @@ How to set up, run, test and drive Shrimp during development. Architecture lives
 
 ## Prerequisites
 
-- macOS 14.2 or later on Apple Silicon (the first platform). Windows arrives in phase 5.
-- Xcode with its command line tools, and CMake (`brew install cmake`). whisper.cpp is
-  built from source by `whisper-rs` from phase 1.
+- macOS 14.2 or later on Apple Silicon, or Windows 10 21H2 or later (x64).
+- macOS: Xcode with its command line tools, and CMake (`brew install cmake`). whisper.cpp
+  is built from source by `whisper-rs`.
+- Windows: Visual Studio 2022 Build Tools with "Desktop development with C++" (MSVC and
+  the Windows SDK), CMake, and LLVM for `whisper-rs`'s bindgen (`LIBCLANG_PATH` pointing
+  at the folder with `libclang.dll`). WebView2 ships with Windows 10 and 11. The GPU build
+  also needs the [Vulkan SDK](https://vulkan.lunarg.com/) (`VULKAN_SDK`); see
+  [Windows](#windows).
 - Rust through rustup. `rust-toolchain.toml` pins Rust 1.99.0 (Tauri 2.12 needs 1.90 or
   later). rustup installs it on the first `cargo` run, or run
   `rustup toolchain install 1.99.0`. The pin does not change your global default.
@@ -25,6 +30,9 @@ pnpm install
 | `pnpm app:dev`                  | Builds the signed debug app bundle `Shrimp Dev.app`.                                   |
 | `pnpm app:dev:open`             | Quits any running `Shrimp Dev`, then launches the bundle (builds it first if missing). |
 | `scripts/macos/dev-app.sh quit` | Quits the running `Shrimp Dev` app.                                                    |
+| `pnpm app:dev:win`              | Windows: builds the debug app `shrimp.exe` (`scripts/windows/dev-app.ps1 build`).      |
+| `pnpm app:dev:win:open`         | Windows: quits a running `Shrimp Dev`, then launches it (builds it first if missing).  |
+| `pnpm release:win`              | Windows: the per-user NSIS installer with Whisper on the GPU (`release.ps1`).          |
 | `pnpm check`                    | Every check: formatting, lint, type check, JS tests, clippy and Rust tests.            |
 | `pnpm format`                   | Formats JS/TS/JSON/CSS/Markdown (Prettier) and Rust (rustfmt).                         |
 | `pnpm lint`                     | oxlint, with warnings treated as errors.                                               |
@@ -328,7 +336,8 @@ Text) receives the plain text.
 
 `src-tauri/tests/whisper_local.rs` runs the real model on the fixtures. It needs the model
 files, so it is ignored by default. The dev app downloads them to
-`~/Library/Application Support/com.shrimp.desktop.dev/models/` on first launch:
+`~/Library/Application Support/com.shrimp.desktop.dev/models/` (Windows:
+`%APPDATA%\com.shrimp.desktop.dev\models\`) on first launch:
 
 ```sh
 cargo test --manifest-path src-tauri/Cargo.toml --test whisper_local -- --ignored --nocapture
@@ -437,3 +446,63 @@ Documents/com~apple~TextEdit/Documents/Untitled*.rtf`) as soon as they change. C
 A WAV source needs no microphone permission. Everything from recording to transcription
 and AI edits can therefore be tested without privacy grants. Only the hotkey and the paste
 into another app still need them.
+
+## Windows
+
+### Building
+
+- `pnpm check` works as on macOS. Debug and test builds run Whisper on the CPU.
+- The GPU build adds the `vulkan` feature (`dev-app.ps1 build -Vulkan`, and always in
+  `release.ps1`). It needs `VULKAN_SDK`, and a short `CARGO_TARGET_DIR`: whisper.cpp builds
+  its shader generator as a nested CMake project whose files sit about 230 characters
+  below the target directory, and MSBuild's file tracker fails beyond `MAX_PATH`, so even
+  `%LOCALAPPDATA%\…` is too long. The scripts use `C:\st` unless `CARGO_TARGET_DIR` is set.
+- `release.ps1` builds whisper.cpp for a portable CPU baseline (`GGML_NATIVE=OFF` with
+  AVX2, BMI2, FMA and F16C) instead of the build machine's own instructions, and signs every
+  binary through `scripts/windows/sign.ps1` when `SHRIMP_WINDOWS_SIGN_THUMBPRINT` names a
+  code-signing certificate in the certificate store (`SHRIMP_WINDOWS_TIMESTAMP_URL`
+  optional). Without it the installer is unsigned and the build says so.
+- The installer (`tauri.windows.conf.json`) is NSIS, per user, into
+  `%LOCALAPPDATA%\Shrimp` without administrator rights. A first install adds the login
+  item (`src-tauri/windows/hooks.nsh`); updates keep the user's choice; uninstalling
+  removes it. The Tauri CLI downloads NSIS into its cache on the first installer build.
+  `Shrimp_<version>_x64-setup.exe /S` installs and `uninstall.exe /S` uninstalls without
+  prompts; a silent uninstall keeps `%APPDATA%\com.shrimp.desktop` and
+  `%LOCALAPPDATA%\com.shrimp.desktop` (WebView2's data).
+- A login launch (`--background`) shows the main window anyway until onboarding is
+  finished, as on macOS.
+
+### Running the debug app
+
+- `shrimp.exe` is a GUI app, also in debug builds (no console window); its logs go to
+  tauri-mcp. `shrimp.exe --quit` asks the running debug instance to quit cleanly, which
+  `dev-app.ps1 quit` uses; killing the process instead leaves the crash marker and the
+  next launch shows "Shrimp quit unexpectedly". Logging off or shutting down exits
+  cleanly: tao turns `WM_ENDSESSION` into `RunEvent::Exit`.
+- Data lives in `%APPDATA%\com.shrimp.desktop.dev`; launch at login is the value
+  "Shrimp Dev" under `HKCU\Software\Microsoft\Windows\CurrentVersion\Run`; API keys are
+  generic credentials named `<account>.com.shrimp.desktop.dev` in Credential Manager.
+- Windows asks no permission for the hooks, pasting or UI Automation. A normal process
+  can't see keys typed into, or send keys to, an app running as administrator; pasting
+  there leaves the text on the clipboard with "Run Shrimp as administrator…".
+- tauri-mcp: on Windows the MCP server always connects to the pipe
+  `\\.\pipe\tmp\tauri-mcp.sock` and can't read a token file next to it, so debug builds
+  open that pipe without a token. A pipe's default security already limits it to the
+  same user and administrators. `take_screenshot` of the main window can return a stale
+  frame; `query_page` and `read_text` read the live page.
+
+### Testing input on Windows
+
+- Every `SendInput` event Shrimp sends carries `dwExtraInfo` 0x53485250 ("SHRP"), and
+  Shrimp's hooks let those pass. Keys any other program sends, a test helper included,
+  count as the user's, so a helper can hold Ctrl+Win to dictate.
+- The keyboard hook, `SendInput`, the clipboard and UI Automation belong to the desktop
+  session. From a remote shell (SSH runs in a session of its own), run helpers in the
+  interactive session through a scheduled task with an interactive logon
+  (`Register-ScheduledTask` with `-LogonType Interactive`, then `Start-ScheduledTask`).
+- `GetLastInputInfo` counts injected input too. To tell whether the person at the PC is
+  idle, watch with a low-level hook that ignores `LLKHF_INJECTED` and `LLMHF_INJECTED`.
+- Esc while Ctrl+Win is held cancels the dictation; if a test sends Esc after the
+  dictation ended, Ctrl+Esc reaches Windows and opens Start.
+- The Flow Bar's notices disappear after a few seconds; read them with `read_text` on
+  `flow-bar` right after the action.
