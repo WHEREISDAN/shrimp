@@ -101,6 +101,7 @@ export interface Settings {
     ollamaUrl: string;
   };
   styles: Record<AppCategory, Style>;
+  privacy: { contextAwareness: boolean };
 }
 
 /** A JSON merge patch for `update_settings`: any subset of the settings. */
@@ -108,6 +109,7 @@ export interface SettingsPatch {
   stt?: Partial<Settings["stt"]>;
   ai?: Partial<Settings["ai"]>;
   styles?: Partial<Settings["styles"]>;
+  privacy?: Partial<Settings["privacy"]>;
 }
 
 /** Mirrors `llm::catalog::ModelOption`. */

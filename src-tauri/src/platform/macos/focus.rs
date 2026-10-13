@@ -3,21 +3,28 @@
 //! the clipboard (INS-04).
 
 use std::collections::HashSet;
-use std::ptr::NonNull;
 use std::sync::Mutex;
 use std::time::Duration;
 
 use objc2_app_kit::NSWorkspace;
 use objc2_application_services::{AXError, AXUIElement};
-use objc2_core_foundation::{CFBoolean, CFRetained, CFString, CFType};
 
-use crate::platform::{AppIdentity, FocusInspector};
+use super::{ax, context};
+use crate::platform::{
+    AppIdentity, ContextRequest, Editable, FieldContext, FocusInspector, TextRange,
+};
 
-const MESSAGING_TIMEOUT_SECONDS: f32 = 0.25;
+pub const MESSAGING_TIMEOUT_SECONDS: f32 = 0.25;
 const RETRY_DELAY: Duration = Duration::from_millis(80);
 
 /// Roles of elements that accept typed text.
-const TEXT_ROLES: [&str; 4] = ["AXTextField", "AXTextArea", "AXComboBox", "AXSearchField"];
+const TEXT_ROLES: [&str; 5] = [
+    "AXTextField",
+    "AXTextArea",
+    "AXComboBox",
+    "AXSearchField",
+    "AXSecureTextField",
+];
 /// Roles that are never text input, even when they hold keyboard focus.
 const NON_TEXT_ROLES: [&str; 14] = [
     "AXButton",
@@ -36,18 +43,11 @@ const NON_TEXT_ROLES: [&str; 14] = [
     "AXWindow",
 ];
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum FocusedField {
-    Editable,
-    NotEditable,
-    /// The app does not report its focus reliably; paste and hope.
-    Unknown,
-}
-
 /// Pids whose Chromium/Electron accessibility tree Shrimp has switched on.
 static MANUAL_ACCESSIBILITY: Mutex<Option<HashSet<i32>>> = Mutex::new(None);
 
-/// The frontmost app's bundle ID and name, from `NSWorkspace`.
+/// The frontmost app's bundle ID and name, from `NSWorkspace`, and its
+/// focused field through Accessibility.
 pub struct MacFocus;
 
 impl FocusInspector for MacFocus {
@@ -63,6 +63,27 @@ impl FocusInspector for MacFocus {
             .unwrap_or_default();
         Some(AppIdentity { bundle_id, name })
     }
+
+    fn read_field(&self, request: &ContextRequest) -> Option<FieldContext> {
+        let pid = frontmost_pid()?;
+        if is_own(pid) || !super::permissions::accessibility_trusted() {
+            return None;
+        }
+        context::read(pid, request)
+    }
+
+    fn select_range(&self, field_id: u64, range: TextRange) -> bool {
+        let Some(pid) = frontmost_pid().filter(|pid| !is_own(*pid)) else {
+            return false;
+        };
+        let app = ax::application(pid, MESSAGING_TIMEOUT_SECONDS);
+        match ax::element(&app, "AXFocusedUIElement") {
+            Some(element) if ax::hash(&element) == field_id => {
+                ax::set_selected_range(&element, range)
+            }
+            _ => false,
+        }
+    }
 }
 
 pub fn frontmost_pid() -> Option<i32> {
@@ -72,17 +93,20 @@ pub fn frontmost_pid() -> Option<i32> {
         .map(|app| app.processIdentifier())
 }
 
-pub fn focused_field(pid: i32) -> FocusedField {
-    if pid == std::process::id() as i32 {
-        // Shrimp's own windows have no dictation targets, and AX calls into
-        // our own process from its main thread would deadlock.
-        return FocusedField::NotEditable;
+/// Shrimp's own windows have no dictation targets, and AX calls into our
+/// own process from its main thread would deadlock.
+pub fn is_own(pid: i32) -> bool {
+    pid == std::process::id() as i32
+}
+
+pub fn focused_field(pid: i32) -> Editable {
+    if is_own(pid) {
+        return Editable::No;
     }
-    let app = unsafe { AXUIElement::new_application(pid) };
-    unsafe { app.set_messaging_timeout(MESSAGING_TIMEOUT_SECONDS) };
+    let app = ax::application(pid, MESSAGING_TIMEOUT_SECONDS);
     let first_contact = enable_manual_accessibility(&app, pid);
     let (mut field, mut role) = query(&app, first_contact);
-    if field == FocusedField::NotEditable {
+    if field == Editable::No {
         // WebKit and Chromium build their tree on the first request; ask again.
         std::thread::sleep(RETRY_DELAY);
         (field, role) = query(&app, false);
@@ -91,29 +115,26 @@ pub fn focused_field(pid: i32) -> FocusedField {
     field
 }
 
-fn query(app: &AXUIElement, tree_just_enabled: bool) -> (FocusedField, Option<String>) {
-    match copy_attribute(app, "AXFocusedUIElement") {
+fn query(app: &AXUIElement, tree_just_enabled: bool) -> (Editable, Option<String>) {
+    match ax::copy(app, "AXFocusedUIElement") {
         Ok(value) => match value.downcast::<AXUIElement>() {
             Ok(element) => classify(&element),
-            Err(_) => (FocusedField::Unknown, None),
+            Err(_) => (Editable::Unknown, None),
         },
-        Err(AXError::NoValue) if !tree_just_enabled => (FocusedField::NotEditable, None),
-        Err(_) => (FocusedField::Unknown, None),
+        Err(AXError::NoValue) if !tree_just_enabled => (Editable::No, None),
+        Err(_) => (Editable::Unknown, None),
     }
 }
 
-fn classify(element: &AXUIElement) -> (FocusedField, Option<String>) {
-    let role = copy_attribute(element, "AXRole")
-        .ok()
-        .and_then(|value| value.downcast::<CFString>().ok())
-        .map(|role| role.to_string());
+pub fn classify(element: &AXUIElement) -> (Editable, Option<String>) {
+    let role = ax::string(element, "AXRole");
     let field = match role.as_deref() {
-        Some(role) if TEXT_ROLES.contains(&role) => FocusedField::Editable,
-        _ if has_attribute(element, "AXSelectedTextRange") || is_settable(element, "AXValue") => {
-            FocusedField::Editable
+        Some(role) if TEXT_ROLES.contains(&role) => Editable::Yes,
+        _ if ax::has(element, "AXSelectedTextRange") || ax::is_settable(element, "AXValue") => {
+            Editable::Yes
         }
-        Some(role) if NON_TEXT_ROLES.contains(&role) => FocusedField::NotEditable,
-        _ => FocusedField::Unknown,
+        Some(role) if NON_TEXT_ROLES.contains(&role) => Editable::No,
+        _ => Editable::Unknown,
     };
     (field, role)
 }
@@ -121,7 +142,7 @@ fn classify(element: &AXUIElement) -> (FocusedField, Option<String>) {
 /// Chromium and Electron only expose their accessibility tree when asked.
 /// Returns true the first time an app accepts the request; native apps
 /// reject the attribute and are read normally from the start.
-fn enable_manual_accessibility(app: &AXUIElement, pid: i32) -> bool {
+pub fn enable_manual_accessibility(app: &AXUIElement, pid: i32) -> bool {
     let mut seen = MANUAL_ACCESSIBILITY
         .lock()
         .unwrap_or_else(|err| err.into_inner());
@@ -130,34 +151,5 @@ fn enable_manual_accessibility(app: &AXUIElement, pid: i32) -> bool {
         return false;
     }
     seen.insert(pid);
-    let attribute = CFString::from_static_str("AXManualAccessibility");
-    let value = CFBoolean::new(true);
-    let result = unsafe { app.set_attribute_value(&attribute, value) };
-    result == AXError::Success
-}
-
-fn copy_attribute(
-    element: &AXUIElement,
-    name: &'static str,
-) -> Result<CFRetained<CFType>, AXError> {
-    let attribute = CFString::from_static_str(name);
-    let mut value: *const CFType = std::ptr::null();
-    let error = unsafe { element.copy_attribute_value(&attribute, NonNull::from(&mut value)) };
-    if error != AXError::Success {
-        return Err(error);
-    }
-    NonNull::new(value.cast_mut())
-        .map(|value| unsafe { CFRetained::from_raw(value) })
-        .ok_or(AXError::NoValue)
-}
-
-fn has_attribute(element: &AXUIElement, name: &'static str) -> bool {
-    copy_attribute(element, name).is_ok()
-}
-
-fn is_settable(element: &AXUIElement, name: &'static str) -> bool {
-    let attribute = CFString::from_static_str(name);
-    let mut settable: u8 = 0;
-    let error = unsafe { element.is_attribute_settable(&attribute, NonNull::from(&mut settable)) };
-    error == AXError::Success && settable != 0
+    ax::set_bool(app, "AXManualAccessibility", true) == AXError::Success
 }

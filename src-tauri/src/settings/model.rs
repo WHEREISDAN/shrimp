@@ -18,6 +18,7 @@ pub struct Settings {
     pub stt: SttSettings,
     pub ai: AiSettings,
     pub styles: StyleSettings,
+    pub privacy: PrivacySettings,
 }
 
 impl Default for Settings {
@@ -27,6 +28,24 @@ impl Default for Settings {
             stt: SttSettings::default(),
             ai: AiSettings::default(),
             styles: StyleSettings::default(),
+            privacy: PrivacySettings::default(),
+        }
+    }
+}
+
+/// Data and privacy.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", default)]
+pub struct PrivacySettings {
+    /// Names and terms from the screen may reach the speech engine and the
+    /// AI provider (CTX-04). Casing and spacing use the context either way.
+    pub context_awareness: bool,
+}
+
+impl Default for PrivacySettings {
+    fn default() -> Self {
+        Self {
+            context_awareness: true,
         }
     }
 }
@@ -179,6 +198,7 @@ mod tests {
         assert_eq!(json["ai"]["cleanup"], "light");
         assert_eq!(json["ai"]["ollamaUrl"], "http://localhost:11434");
         assert_eq!(json["styles"]["personal"], "formal");
+        assert_eq!(json["privacy"]["contextAwareness"], true);
     }
 
     #[test]

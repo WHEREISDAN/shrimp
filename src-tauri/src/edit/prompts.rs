@@ -15,6 +15,8 @@ pub struct PromptOptions<'a> {
     pub terms: &'a [String],
     /// Snippet triggers in the text, which must survive word for word.
     pub triggers: &'a [String],
+    /// Names and identifiers visible on the user's screen (CTX-02).
+    pub screen_terms: &'a [String],
 }
 
 const ROLE: &str = "\
@@ -113,6 +115,14 @@ pub fn system_prompt(options: &PromptOptions<'_>) -> String {
         prompt.push_str(&options.terms.join(", "));
         prompt.push('.');
     }
+    if !options.screen_terms.is_empty() {
+        prompt.push_str(
+            "\n- These names and terms are on the user's screen. When the speaker says one, \
+             spell it exactly as written here: ",
+        );
+        prompt.push_str(&options.screen_terms.join(", "));
+        prompt.push('.');
+    }
     if !options.triggers.is_empty() {
         let quoted: Vec<String> = options
             .triggers
@@ -138,9 +148,14 @@ pub fn system_prompt(options: &PromptOptions<'_>) -> String {
 /// Wraps the transcript as data. Tags inside it are defused so it cannot
 /// close the wrapper early.
 pub fn user_message(transcript: &str) -> String {
-    let defused = replace_ignoring_case(transcript, CLOSE_TAG, "</ transcript>");
-    let defused = replace_ignoring_case(&defused, OPEN_TAG, "< transcript>");
-    format!("{OPEN_TAG}{defused}{CLOSE_TAG}")
+    format!("{OPEN_TAG}{}{CLOSE_TAG}", defuse(transcript, "transcript"))
+}
+
+/// Breaks `<tag>` and `</tag>` inside `text` (any case), so data can't open
+/// or close a wrapper with that name.
+pub fn defuse(text: &str, tag: &str) -> String {
+    let defused = replace_ignoring_case(text, &format!("</{tag}>"), &format!("</ {tag}>"));
+    replace_ignoring_case(&defused, &format!("<{tag}>"), &format!("< {tag}>"))
 }
 
 /// Removes a wrapper the model may have echoed back.
@@ -174,6 +189,7 @@ mod tests {
             style,
             terms: &[],
             triggers: &[],
+            screen_terms: &[],
         }
     }
 

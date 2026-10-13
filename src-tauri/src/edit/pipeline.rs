@@ -11,14 +11,19 @@ use super::library::{Library, Snapshot};
 use super::markdown::{self, Rendered, SNIPPET_END, SNIPPET_START};
 use super::prompts::{self, PromptOptions};
 use super::style::{self, Style, Target};
-use super::{CleanupLevel, dictionary, snippets, spoken};
+use super::{CleanupLevel, context_format, dictionary, names, snippets, spoken};
+use crate::context::DictationContext;
 use crate::llm::{LlmError, LlmProviderId, LlmRequest, LlmSource, http};
 use crate::notify::{Notice, NoticeAction};
-use crate::platform::AppIdentity;
 use crate::settings::{Settings, SettingsStore};
 
 /// Ends every notice about a failed AI edit.
 pub const RAW_INSERTED: &str = "Inserted the transcript without AI edits.";
+
+/// Names and identifiers from the screen that may reach the speech engine
+/// and the AI edit, when context awareness is on (CTX-02, CTX-04).
+const MAX_CONTEXT_NAMES: usize = 20;
+const MAX_CONTEXT_IDENTIFIERS: usize = 40;
 
 /// Phrases that cancel a whole dictation, so an empty edit is intended.
 const CANCEL_PHRASES: [&str; 5] = [
@@ -65,6 +70,15 @@ pub struct Edited {
     pub llm_ms: Option<u64>,
 }
 
+/// The words the cleanup prompt lists: dictionary spellings, snippet
+/// triggers and terms on screen.
+#[derive(Clone, Copy)]
+struct PromptTerms<'a> {
+    terms: &'a [String],
+    triggers: &'a [String],
+    screen: &'a [String],
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 enum Failure {
     Llm(LlmProviderId, LlmError),
@@ -96,9 +110,29 @@ impl Editor {
         }
     }
 
-    /// Dictionary terms for the speech engine, pinned and most used first.
-    pub async fn vocabulary(&self) -> Vec<String> {
-        dictionary::vocabulary(&self.snapshot().await.dictionary)
+    /// Dictionary terms for the speech engine, pinned and most used first,
+    /// then the names and identifiers on screen when context awareness is on.
+    pub async fn vocabulary(&self, context: &DictationContext) -> Vec<String> {
+        let mut terms = dictionary::vocabulary(&self.snapshot().await.dictionary);
+        for term in self.context_terms(context) {
+            if !terms.iter().any(|known| known.eq_ignore_ascii_case(&term)) {
+                terms.push(term);
+            }
+        }
+        terms
+    }
+
+    /// Terms from the screen that providers may see (CTX-04: none when off).
+    fn context_terms(&self, context: &DictationContext) -> Vec<String> {
+        if !self.settings.get().privacy.context_awareness {
+            return Vec::new();
+        }
+        let names = context.names().into_iter().take(MAX_CONTEXT_NAMES);
+        let identifiers = context
+            .identifiers()
+            .into_iter()
+            .take(MAX_CONTEXT_IDENTIFIERS);
+        names.chain(identifiers).collect()
     }
 
     /// The dictionary and snippets, read on the blocking pool (SQLite).
@@ -120,10 +154,10 @@ impl Editor {
         }
     }
 
-    pub async fn edit(&self, raw: &str, app: Option<&AppIdentity>) -> Edited {
+    pub async fn edit(&self, raw: &str, context: &DictationContext) -> Edited {
         let settings = self.settings.get();
         let library = self.snapshot().await;
-        let target = style::categorize(app);
+        let target = context.target();
         if let Some(snippet) = snippets::match_alone(raw, &library.snippets) {
             return Edited {
                 text: markdown::render(&format!(
@@ -136,21 +170,33 @@ impl Editor {
             };
         }
 
+        let terms = dictionary::vocabulary(&library.dictionary);
+        let visible_names = context.names();
         let prepared = spoken::line_breaks(raw);
         let (prepared, mut used) = dictionary::correct(&prepared, &library.dictionary);
+        let prepared = names::respell(&prepared, &visible_names, &terms);
         let held = snippets::find_triggers(&prepared, &library.snippets);
         let triggers: Vec<String> = held
             .iter()
             .map(|&index| library.snippets[index].trigger.clone())
             .collect();
-        let terms = dictionary::vocabulary(&library.dictionary);
+        let screen_terms = self.context_terms(context);
         let level = settings.ai.cleanup;
 
         let started = Instant::now();
         let edited = match level {
             CleanupLevel::None => Err(None),
             _ => self
-                .llm_pass(&settings, &prepared, target, &terms, &triggers)
+                .llm_pass(
+                    &settings,
+                    &prepared,
+                    target,
+                    PromptTerms {
+                        terms: &terms,
+                        triggers: &triggers,
+                        screen: &screen_terms,
+                    },
+                )
                 .await
                 .map_err(Some),
         };
@@ -174,6 +220,7 @@ impl Editor {
             }
         };
 
+        let body = names::respell(&body, &visible_names, &terms);
         let styled = self.post_pass(&body, &settings, target, level, &terms, &library);
         let (expanded, kept_placeholders) =
             match snippets::expand(&styled, &held, &library.snippets) {
@@ -188,7 +235,13 @@ impl Editor {
                     (expanded.unwrap_or(fallback), false)
                 }
             };
-        let text = markdown::render(&expanded);
+        let mut text = markdown::render(&expanded);
+        if text.html.is_none()
+            && let Some(around) = context.surroundings()
+        {
+            let protected: Vec<String> = terms.iter().cloned().chain(visible_names).collect();
+            text.plain = context_format::fit(&text.plain, around, &protected);
+        }
         used.extend(dictionary::used_terms(&text.plain, &library.dictionary));
         used.sort_unstable();
         used.dedup();
@@ -209,8 +262,7 @@ impl Editor {
         settings: &Settings,
         text: &str,
         target: Target,
-        terms: &[String],
-        triggers: &[String],
+        terms: PromptTerms<'_>,
     ) -> Result<String, Failure> {
         let provider_id = settings.ai.provider;
         let provider = self
@@ -222,8 +274,9 @@ impl Editor {
             level: settings.ai.cleanup,
             target,
             style: settings.styles.for_category(target.category),
-            terms,
-            triggers,
+            terms: terms.terms,
+            triggers: terms.triggers,
+            screen_terms: terms.screen,
         };
         let request = LlmRequest::single(
             prompts::system_prompt(&options),

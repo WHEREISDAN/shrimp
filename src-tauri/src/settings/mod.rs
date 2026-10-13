@@ -9,7 +9,9 @@ use std::sync::RwLock;
 
 use serde_json::Value;
 
-pub use model::{AiSettings, SETTINGS_VERSION, Settings, SttSettings, StyleSettings};
+pub use model::{
+    AiSettings, PrivacySettings, SETTINGS_VERSION, Settings, SttSettings, StyleSettings,
+};
 
 type OnChange = Box<dyn Fn(&Settings) + Send + Sync>;
 

@@ -9,6 +9,8 @@ use std::time::Duration;
 
 use serde::{Deserialize, Serialize};
 
+use handy_keys::Modifiers;
+
 use crate::hotkeys::{Binding, ShortcutEvent};
 use crate::sounds::Cue;
 
@@ -69,13 +71,101 @@ impl InsertText {
     }
 }
 
+/// How a paste is made: how long the transcript stays on the clipboard,
+/// whether a focused text field is required, and whether to paste in parts.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct InsertOptions {
+    pub hold: Duration,
+    /// Leave the text on the clipboard when no text field is focused (INS-04).
+    /// Terminals and remote desktops don't report their fields, so they skip
+    /// the check (INS-10, INS-11).
+    pub require_field: bool,
+    /// Paste long text in parts (INS-09).
+    pub split: Option<PasteSplit>,
+}
+
+impl InsertOptions {
+    pub fn new(hold: Duration) -> Self {
+        Self {
+            hold,
+            require_field: true,
+            split: None,
+        }
+    }
+}
+
+/// Limits for each part of a split paste, and the pause between parts.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct PasteSplit {
+    pub max_chars: usize,
+    pub max_breaks: usize,
+    pub pause: Duration,
+}
+
+impl PasteSplit {
+    /// Cuts `text` into parts of at most `max_chars` characters and
+    /// `max_breaks` line breaks, at line breaks or spaces where possible.
+    /// Joined back together, the parts are exactly `text`.
+    pub fn parts(&self, text: &str) -> Vec<String> {
+        let mut parts = Vec::new();
+        let mut rest = text;
+        while !rest.is_empty() {
+            let end = self.part_end(rest);
+            parts.push(rest[..end].to_owned());
+            rest = &rest[end..];
+        }
+        parts
+    }
+
+    fn part_end(&self, text: &str) -> usize {
+        let mut breaks = 0;
+        let mut last_space = None;
+        for (count, (index, c)) in text.char_indices().enumerate() {
+            if count == self.max_chars.max(1) {
+                return last_space.unwrap_or(index);
+            }
+            if c == '\n' {
+                breaks += 1;
+                if breaks == self.max_breaks.max(1) {
+                    return index + 1;
+                }
+            }
+            if c.is_whitespace() {
+                last_space = Some(index + c.len_utf8());
+            }
+        }
+        text.len()
+    }
+}
+
+/// Keys Shrimp presses in the focused app.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SyntheticKey {
+    Enter,
+    SelectAll,
+    Undo,
+}
+
 pub trait TextInserter: Send + Sync {
     /// Pastes `text` into the focused field: snapshot the clipboard, write the
-    /// text, send the paste keystroke and restore the clipboard after `hold`
-    /// unless something else was copied meanwhile.
-    fn insert(&self, text: &InsertText, hold: Duration) -> Result<InsertOutcome, PlatformError>;
+    /// text, send the paste keystroke and restore the clipboard after
+    /// `options.hold` unless something else was copied meanwhile.
+    fn insert(
+        &self,
+        text: &InsertText,
+        options: &InsertOptions,
+    ) -> Result<InsertOutcome, PlatformError>;
     /// Puts `text` on the clipboard and leaves it there.
     fn copy(&self, text: &InsertText) -> Result<(), PlatformError>;
+    /// Presses `key` in the focused app with `extra` modifiers held (Shift+Enter).
+    fn press(&self, _key: SyntheticKey, _extra: Modifiers) -> Result<(), PlatformError> {
+        Err(PlatformError::Unsupported)
+    }
+    /// Copies the selection of the focused app with the copy shortcut and
+    /// returns it, putting the clipboard back afterwards (CMD-02 fallback).
+    fn copy_selection(&self) -> Result<Option<String>, PlatformError> {
+        Err(PlatformError::Unsupported)
+    }
 }
 
 /// The app a dictation is for.
@@ -86,9 +176,93 @@ pub struct AppIdentity {
     pub name: String,
 }
 
-/// What has focus. Phase 3 adds the selection and the text around the cursor.
+/// A span of a field's text in UTF-16 code units, as Accessibility counts.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct TextRange {
+    pub start: usize,
+    pub len: usize,
+}
+
+impl TextRange {
+    pub fn end(&self) -> usize {
+        self.start + self.len
+    }
+}
+
+/// What kind of field has focus, as far as reading and pasting go.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum FieldKind {
+    #[default]
+    Text,
+    /// A code editor (Monaco in Cursor, VS Code and Windsurf).
+    Code,
+    /// A terminal, including IDE terminals.
+    Terminal,
+    /// A password or other secure field. Its text is never read (CTX-03).
+    Secure,
+}
+
+/// Whether the focused element takes typed text.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum Editable {
+    Yes,
+    No,
+    /// The app doesn't say; pasting is worth a try.
+    #[default]
+    Unknown,
+}
+
+/// The focused field and what surrounds it, read through Accessibility.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct FieldContext {
+    /// Identifies the element, so a later read can tell it is the same field.
+    pub field_id: u64,
+    pub kind: FieldKind,
+    pub editable: Editable,
+    /// The selection, or the cursor when its length is 0.
+    pub selection: Option<TextRange>,
+    pub selected_text: String,
+    /// Text just before the selection and just after it.
+    pub before: String,
+    pub after: String,
+    /// The whole text, when the request's limit allows.
+    pub text: Option<String>,
+    /// Length of the field's text in UTF-16 units.
+    pub length: usize,
+    /// The web page the field is in, or the page the window shows.
+    pub url: Option<String>,
+    /// The field is part of a web page; browser address bars are not.
+    pub in_web_content: bool,
+    pub window_title: Option<String>,
+    /// Short texts visible in the focused window: labels, names, file names.
+    pub screen_text: Vec<String>,
+}
+
+/// How much of the focused field and window to read.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct ContextRequest {
+    /// Characters to read on each side of the selection.
+    pub around: usize,
+    /// Read the whole text when it has at most this many characters (0: never).
+    pub text_limit: usize,
+    /// Collect the short texts of the focused window.
+    pub scan_window: bool,
+    /// Look for the web page the window shows even when no field is focused.
+    pub find_url: bool,
+}
+
+/// What has focus: the frontmost app, and its focused field.
 pub trait FocusInspector: Send + Sync {
     fn frontmost_app(&self) -> Option<AppIdentity>;
+    /// Reads the focused field of the frontmost app. Blocking, with a short
+    /// timeout per call. Secure fields and Shrimp's own windows are never read.
+    fn read_field(&self, _request: &ContextRequest) -> Option<FieldContext> {
+        None
+    }
+    /// Selects `range` in the focused field, if it is still `field_id`.
+    fn select_range(&self, _field_id: u64, _range: TextRange) -> bool {
+        false
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -210,6 +384,26 @@ mod tests {
             GlobeKeyAction::from_usage_type(None),
             GlobeKeyAction::ShowEmoji
         );
+    }
+
+    #[test]
+    fn split_pastes_keep_every_character_within_the_limits() {
+        let split = PasteSplit {
+            max_chars: 12,
+            max_breaks: 2,
+            pause: Duration::ZERO,
+        };
+        let text = "one two three four five six\nseven\neight\nnine ten elevenelevenEleven";
+        let parts = split.parts(text);
+        assert_eq!(parts.concat(), text);
+        assert!(parts.len() > 3);
+        for part in &parts {
+            assert!(part.chars().count() <= 12, "{part:?}");
+            assert!(part.matches('\n').count() <= 2, "{part:?}");
+        }
+        assert_eq!(parts[0], "one two ", "cut at a space");
+        assert_eq!(split.parts("short"), ["short"]);
+        assert!(split.parts("").is_empty());
     }
 
     #[test]

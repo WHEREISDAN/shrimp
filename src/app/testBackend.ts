@@ -93,6 +93,7 @@ export const SETTINGS: Settings = {
     ollamaUrl: "http://localhost:11434",
   },
   styles: { personal: "veryCasual", work: "formal", email: "formal", other: "casual" },
+  privacy: { contextAwareness: true },
 };
 
 export const AI_OPTIONS: AiOptions = {

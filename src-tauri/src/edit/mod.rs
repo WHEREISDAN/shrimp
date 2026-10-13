@@ -2,10 +2,12 @@
 //! dictionary corrections, the LLM cleanup with app-aware styles, and the
 //! rendering of lists and rich snippets for pasting.
 
+mod context_format;
 pub mod dictionary;
 pub mod guard;
 pub mod library;
 pub mod markdown;
+mod names;
 mod phrase;
 mod pipeline;
 pub mod prompts;

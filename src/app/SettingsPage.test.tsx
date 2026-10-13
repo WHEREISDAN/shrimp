@@ -20,6 +20,7 @@ function backend(
         ...settings,
         stt: { ...settings.stt, ...patch.stt },
         ai: { ...settings.ai, ...patch.ai },
+        privacy: { ...settings.privacy, ...patch.privacy },
       };
       return settings;
     },
@@ -252,5 +253,21 @@ describe("SettingsPage speech engine", () => {
     await waitFor(() =>
       expect(argsOf("update_settings")).toEqual([{ patch: { stt: { openaiModel: "whisper-1" } } }]),
     );
+  });
+});
+
+describe("SettingsPage data and privacy", () => {
+  it("turns context awareness off", async () => {
+    const { argsOf } = backend();
+    render(<SettingsPage />);
+    const toggle = await screen.findByRole("switch", { name: "Context awareness" });
+    expect(toggle).toBeChecked();
+    fireEvent.click(toggle);
+    await waitFor(() =>
+      expect(argsOf("update_settings")).toEqual([
+        { patch: { privacy: { contextAwareness: false } } },
+      ]),
+    );
+    await waitFor(() => expect(toggle).not.toBeChecked());
   });
 });

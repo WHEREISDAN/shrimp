@@ -7,9 +7,10 @@ use tauri::State;
 
 use super::CommandError;
 use crate::audio::AudioSourceSpec;
+use crate::context::DictationContext;
 use crate::dictation::ControllerHandle;
 use crate::edit::{AppCategory, Editor, Target, style};
-use crate::platform::AppIdentity;
+use crate::platform::{AppIdentity, FocusInspector};
 
 /// The current audio source, as `mic`, `mic:<device>` or `wav:<path>`.
 #[tauri::command]
@@ -91,12 +92,99 @@ pub async fn dev_edit_text(
         bundle_id,
         name: String::new(),
     });
-    let edited = editor.edit(&text, app.as_ref()).await;
+    let edited = editor.edit(&text, &DictationContext::new(app, None)).await;
     Ok(DevEdited {
         plain: edited.text.plain,
         html: edited.text.html,
         formatted: edited.formatted,
         notice: edited.notice.map(|notice| notice.message),
         llm_ms: edited.llm_ms,
+    })
+}
+
+/// The focus inspector, kept for debug commands.
+pub struct DevFocus(pub Arc<dyn FocusInspector>);
+
+/// What context capture reads from the frontmost app, shortened for display.
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DevContext {
+    pub app: Option<String>,
+    pub app_kind: String,
+    pub field_kind: Option<String>,
+    pub readable: bool,
+    pub selection: Option<(usize, usize)>,
+    pub before: String,
+    pub after: String,
+    pub selected: String,
+    pub url: Option<String>,
+    pub category: String,
+    pub ai_app: bool,
+    pub window_title: Option<String>,
+    pub names: Vec<String>,
+    pub identifiers: Vec<String>,
+    pub file_names: Vec<String>,
+    pub screen_texts: usize,
+    pub read_ms: u64,
+}
+
+fn tail(text: &str, chars: usize) -> String {
+    let count = text.chars().count();
+    text.chars().skip(count.saturating_sub(chars)).collect()
+}
+
+/// Reads the frontmost app's field after `delay_ms` (to switch apps first).
+#[tauri::command]
+pub async fn dev_read_context(
+    delay_ms: Option<u64>,
+    focus: State<'_, DevFocus>,
+) -> Result<DevContext, CommandError> {
+    tokio::time::sleep(std::time::Duration::from_millis(delay_ms.unwrap_or(0))).await;
+    let focus = Arc::clone(&focus.0);
+    let started = std::time::Instant::now();
+    let app = focus.frontmost_app();
+    let mut pending = crate::context::capture(focus, app);
+    let context = loop {
+        let context = pending.ready();
+        if context.field.is_some() || started.elapsed().as_secs() >= 3 {
+            break context;
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(20)).await;
+    };
+    let read_ms = started.elapsed().as_millis() as u64;
+    let target = context.target();
+    let field = context.field.as_ref();
+    Ok(DevContext {
+        app: context
+            .app
+            .as_ref()
+            .map(|app| format!("{} ({})", app.name, app.bundle_id)),
+        app_kind: format!("{:?}", context.app_kind()),
+        field_kind: field.map(|_| format!("{:?}", context.field_kind())),
+        readable: context.readable_field().is_some(),
+        selection: field
+            .and_then(|field| field.selection)
+            .map(|range| (range.start, range.len)),
+        before: context
+            .surroundings()
+            .map(|around| tail(around.before, 120))
+            .unwrap_or_default(),
+        after: context
+            .surroundings()
+            .map(|around| around.after.chars().take(120).collect())
+            .unwrap_or_default(),
+        selected: context
+            .surroundings()
+            .map(|around| around.selected.chars().take(120).collect())
+            .unwrap_or_default(),
+        url: field.and_then(|field| field.url.clone()),
+        category: format!("{:?}", target.category),
+        ai_app: target.ai_app,
+        window_title: field.and_then(|field| field.window_title.clone()),
+        names: context.names(),
+        identifiers: context.identifiers().into_iter().take(20).collect(),
+        file_names: context.file_names().into_iter().take(20).collect(),
+        screen_texts: field.map_or(0, |field| field.screen_text.len()),
+        read_ms,
     })
 }

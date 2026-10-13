@@ -49,6 +49,8 @@ pub struct Timing {
     /// How long the transcript stays on the clipboard before the old
     /// contents return (INS-02).
     pub clipboard_hold: Duration,
+    /// The same for remote desktops, which read the clipboard late (INS-10).
+    pub remote_clipboard_hold: Duration,
     pub level_interval: Duration,
     /// How often to retry the keyboard hook while Accessibility is missing.
     pub hotkey_retry: Duration,
@@ -62,6 +64,7 @@ impl Default for Timing {
             session_warning: Duration::from_secs(19 * 60),
             session_limit: Duration::from_secs(20 * 60),
             clipboard_hold: Duration::from_millis(500),
+            remote_clipboard_hold: Duration::from_secs(5),
             level_interval: Duration::from_millis(33),
             hotkey_retry: Duration::from_secs(2),
             menu_paste_delay: Duration::from_millis(250),

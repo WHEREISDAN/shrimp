@@ -57,15 +57,26 @@ unsafe extern "C" {
     fn CFRelease(object: *const c_void);
 }
 
+/// `kVK_ANSI_A`, `kVK_ANSI_Z` and `kVK_ANSI_C` on a US layout.
+pub const ANSI_A: u16 = 0;
+pub const ANSI_Z: u16 = 6;
+pub const ANSI_C: u16 = 8;
+
 /// The key code for Cmd+V in the current layout, falling back to [`ANSI_V`].
 pub fn paste_key_code() -> u16 {
+    command_key_code('v', ANSI_V)
+}
+
+/// The key that types `letter` with Command held in the current layout, so
+/// Cmd+A, Cmd+C and Cmd+Z work on any layout; `fallback` is the US key.
+pub fn command_key_code(letter: char, fallback: u16) -> u16 {
     let source = unsafe { TISCopyCurrentKeyboardLayoutInputSource() };
     if source.is_null() {
-        return ANSI_V;
+        return fallback;
     }
-    let code = unsafe { command_key_for(source, 'v') };
+    let code = unsafe { command_key_for(source, letter, fallback) };
     unsafe { CFRelease(source) };
-    code.unwrap_or(ANSI_V)
+    code.unwrap_or(fallback)
 }
 
 /// Same lookup for an installed layout by ID, e.g. `com.apple.keylayout.Dvorak`.
@@ -82,20 +93,20 @@ fn paste_key_code_for_layout(layout_id: &str) -> Option<u16> {
     let code = unsafe {
         (CFArrayGetCount(sources) > 0)
             .then(|| CFArrayGetValueAtIndex(sources, 0) as TISInputSourceRef)
-            .and_then(|source| command_key_for(source, 'v'))
+            .and_then(|source| command_key_for(source, 'v', ANSI_V))
     };
     unsafe { CFRelease(sources) };
     code
 }
 
-unsafe fn command_key_for(source: TISInputSourceRef, wanted: char) -> Option<u16> {
+unsafe fn command_key_for(source: TISInputSourceRef, wanted: char, first: u16) -> Option<u16> {
     let data = unsafe { TISGetInputSourceProperty(source, kTISPropertyUnicodeKeyLayoutData) };
     if data.is_null() {
         return None;
     }
     let layout = unsafe { CFDataGetBytePtr(data) }.cast::<c_void>();
     let keyboard_type = u32::from(unsafe { LMGetKbdType() });
-    std::iter::once(ANSI_V)
+    std::iter::once(first)
         .chain(0..=HIGHEST_KEY_CODE)
         .find(|&code| unsafe { translate(layout, code, keyboard_type) } == Some(wanted))
 }

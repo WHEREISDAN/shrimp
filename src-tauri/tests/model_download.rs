@@ -24,6 +24,10 @@ fn serve_once(body: Vec<u8>) -> String {
         );
         stream.write_all(header.as_bytes()).unwrap();
         stream.write_all(&body).unwrap();
+        // Close gracefully: dropping a socket with unread input resets the
+        // connection, and the client would see an error instead of the body.
+        let _ = stream.shutdown(std::net::Shutdown::Write);
+        let _ = std::io::copy(&mut reader, &mut std::io::sink());
     });
     url
 }

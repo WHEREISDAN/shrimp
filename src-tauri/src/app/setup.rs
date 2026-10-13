@@ -87,6 +87,8 @@ pub fn setup(app: &mut App) -> Result<(), Box<dyn std::error::Error>> {
         }),
     );
 
+    #[cfg(debug_assertions)]
+    app.manage(crate::commands::dev::DevFocus(Arc::clone(&platform.focus)));
     let controller = dictation::spawn(Services {
         hotkeys: platform.hotkeys,
         bindings: platform.default_bindings,

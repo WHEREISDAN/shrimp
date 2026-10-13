@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { errorMessage, getAiOptions, getApiKeys, type AiOptions, type ApiKeys } from "../lib/ipc";
 import { AiProviderSection } from "./AiProviderSection";
 import { Page } from "./Page";
+import { PrivacySection } from "./PrivacySection";
 import { SpeechEngineSection } from "./SpeechEngineSection";
 import { useSettings } from "./useSettings";
 
@@ -50,6 +51,7 @@ export function SettingsPage() {
             onKeys={setKeys}
             update={update}
           />
+          <PrivacySection settings={settings} update={update} />
         </>
       ) : (
         !problem && <p className="muted">Loading…</p>

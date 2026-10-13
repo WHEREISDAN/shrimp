@@ -14,12 +14,13 @@ use super::state::{
     Timing,
 };
 use crate::audio::{AudioError, AudioSourceSpec, Recorder, level};
+use crate::context::{self, DictationContext, PendingContext};
 use crate::edit::Editor;
 use crate::hotkeys::{Action, Binding};
 use crate::notify::{Notice, NoticeAction};
 use crate::platform::{
-    AppIdentity, CopyReason, CuePlayer, FocusInspector, HotkeyBackend, Permission,
-    PermissionStatus, Permissions, PlatformError, TextInserter,
+    CopyReason, CuePlayer, FocusInspector, HotkeyBackend, Permission, PermissionStatus,
+    Permissions, PlatformError, TextInserter,
 };
 use crate::sounds::Cue;
 use crate::stt::SttEngine;
@@ -97,8 +98,9 @@ pub fn spawn(services: Services) -> ControllerHandle {
 struct Recording {
     recorder: Recorder,
     session: u64,
-    /// The app the user dictates into, for its style.
-    app: Option<AppIdentity>,
+    /// The app the user dictates into and its focused field, read while
+    /// recording (CTX-01).
+    context: PendingContext,
 }
 
 struct Controller {
@@ -140,6 +142,7 @@ impl Controller {
             inserter: Arc::clone(&services.inserter),
             languages: services.languages,
             clipboard_hold: services.timing.clipboard_hold,
+            remote_clipboard_hold: services.timing.remote_clipboard_hold,
         };
         Self {
             hotkeys: services.hotkeys,
@@ -272,10 +275,14 @@ impl Controller {
                 self.sessions += 1;
                 let session = self.sessions;
                 let app = self.focus.frontmost_app();
+                if let Some(app) = &app {
+                    log::info!("recording for {}", app.bundle_id);
+                }
+                let context = context::capture(Arc::clone(&self.focus), app);
                 self.recording = Some(Recording {
                     recorder,
                     session,
-                    app,
+                    context,
                 });
                 self.sounds.play(Cue::Start);
                 let editor = Arc::clone(&self.pipeline.editor);
@@ -336,12 +343,12 @@ impl Controller {
         let pipeline = self.pipeline.clone();
         let tx = self.tx.clone();
         tauri::async_runtime::spawn(async move {
-            let app = recording.app;
+            let context = recording.context;
             let clip = tokio::task::spawn_blocking(move || recording.recorder.finish()).await;
             let processed = match clip {
                 Ok(Ok(clip)) => {
                     pipeline
-                        .transcribe_and_insert(clip, app, Duration::ZERO)
+                        .transcribe_and_insert(clip, context, Duration::ZERO)
                         .await
                 }
                 Ok(Err(error)) => Outcome::RecordingFailed(error.to_string()).into(),
@@ -387,13 +394,17 @@ impl Controller {
         let tx = self.tx.clone();
         let retry = matches!(last.status, LastStatus::Failed | LastStatus::Cancelled);
         let app = self.focus.frontmost_app();
+        let options = pipeline.insert_options(&DictationContext::new(app.clone(), None));
+        let context = PendingContext::without_field(app);
         let work: std::pin::Pin<Box<dyn Future<Output = Processed> + Send>> =
             match (last.clip, last.text) {
                 (Some(clip), _) if retry => {
-                    Box::pin(async move { pipeline.transcribe_and_insert(clip, app, delay).await })
+                    Box::pin(
+                        async move { pipeline.transcribe_and_insert(clip, context, delay).await },
+                    )
                 }
                 (_, Some(text)) => {
-                    Box::pin(async move { pipeline.insert(text, delay).await.into() })
+                    Box::pin(async move { pipeline.insert(text, options, delay).await.into() })
                 }
                 _ => return,
             };

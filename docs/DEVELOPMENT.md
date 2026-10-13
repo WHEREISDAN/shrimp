@@ -253,6 +253,7 @@ Two more debug-only commands help with AI edits:
 | ---------------------- | ------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `dev_edit_text`        | `{ "text": "…", "appId": "com.apple.TextEdit" }` (`appId` optional)      | Runs the edit pipeline on `text` as if dictated into that app, with the current settings, dictionary and snippets. Returns `plain`, `html`, `formatted`, `notice`, `llmMs`. |
 | `dev_set_app_category` | `{ "appId": "com.apple.TextEdit", "category": "email" }` (`null` resets) | Treats that bundle ID as `personal`, `work`, `email`, `other` or `ai` (an AI assistant), so one app can test every style.                                                   |
+| `dev_read_context`     | `{ "delayMs": 0 }` (optional)                                            | Reads the frontmost app's field as a dictation would: app kind, field kind, selection, text around it, URL, category, names, identifiers, file names and read time.         |
 
 A typical end-to-end check: make a TextEdit document frontmost, set the audio source to a
 `say` WAV, call `flow_bar_control` `start`, and read the result back with
@@ -344,6 +345,14 @@ down`, or a helper that does the same) leaves Command looking held until the nex
   may draw its own bar where the Flow Bar is. Real clicks on the Flow Bar can land on it.
 - Esc exits full screen in many apps, so do not use it as a reset key while testing in a
   full-screen Space.
+
+- Check which app is frontmost before every synthetic key or dictation. A crash report
+  dialog, a permission prompt or an IDE's chat panel can hold focus; Cursor often
+  focuses its AI chat input (`AXDOMClassList` `aislash-editor-input`) when a window
+  opens, so click into the editor first and confirm with `dev_read_context`.
+- TextEdit saves new documents to iCloud Drive (`~/Library/Mobile
+Documents/com~apple~TextEdit/Documents/Untitled*.rtf`) as soon as they change. Close
+  test documents with `close every document saving no` and delete those files afterwards.
 
 A WAV source needs no microphone permission. Everything from recording to transcription
 and AI edits can therefore be tested without privacy grants. Only the hotkey and the paste

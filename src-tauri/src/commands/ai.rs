@@ -8,6 +8,7 @@ use serde::Serialize;
 use tauri::State;
 
 use super::CommandError;
+use crate::context::DictationContext;
 use crate::edit::{Editor, RAW_INSERTED};
 use crate::llm::catalog::{self, AiOptions};
 use crate::llm::{LlmError, ollama};
@@ -122,7 +123,9 @@ pub async fn test_ai_provider(
         bundle_id: "com.shrimp.test".into(),
         name: "Shrimp".into(),
     };
-    let edited = editor.edit(TEST_DICTATION, Some(&app)).await;
+    let edited = editor
+        .edit(TEST_DICTATION, &DictationContext::new(Some(app), None))
+        .await;
     Ok(AiTestResult {
         ok: edited.formatted,
         latency_ms: edited

@@ -28,6 +28,13 @@ pub fn change_count() -> isize {
     NSPasteboard::generalPasteboard().changeCount()
 }
 
+/// The clipboard's plain text, if it has any.
+pub fn read_text() -> Option<String> {
+    NSPasteboard::generalPasteboard()
+        .stringForType(unsafe { NSPasteboardTypeString })
+        .map(|text| text.to_string())
+}
+
 pub fn snapshot() -> Snapshot {
     let pasteboard = NSPasteboard::generalPasteboard();
     let items = pasteboard

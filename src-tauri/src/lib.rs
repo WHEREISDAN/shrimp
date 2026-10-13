@@ -3,6 +3,7 @@
 mod app;
 pub mod audio;
 mod commands;
+pub mod context;
 pub mod dictation;
 pub mod edit;
 pub mod hotkeys;
@@ -71,7 +72,8 @@ pub fn run() {
         commands::dev::dev_get_audio_source,
         commands::dev::dev_set_audio_source,
         commands::dev::dev_set_app_category,
-        commands::dev::dev_edit_text
+        commands::dev::dev_edit_text,
+        commands::dev::dev_read_context
     );
     #[cfg(not(debug_assertions))]
     let handler: fn(tauri::ipc::Invoke) -> bool = handler!();

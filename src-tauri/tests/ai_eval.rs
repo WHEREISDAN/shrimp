@@ -18,6 +18,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use serde::Deserialize;
+use shrimp_lib::context::DictationContext;
 use shrimp_lib::edit::{CleanupLevel, EditTimeout, Edited, Editor, FixedLibrary, Snapshot, Style};
 use shrimp_lib::llm::{LlmProviderId, Providers, http};
 use shrimp_lib::platform::AppIdentity;
@@ -306,12 +307,16 @@ async fn ai_edits_pass_the_eval_set() {
         if index == 0 {
             // Loads a local model and opens connections; not measured.
             editor.warm_up().await;
-            let _ = editor.edit("warm up", Some(&app)).await;
+            let _ = editor
+                .edit("warm up", &DictationContext::new(Some(app.clone()), None))
+                .await;
         }
         let mut latencies = Vec::new();
         let mut last = None;
         for _ in 0..runs {
-            let edited = editor.edit(&case.input, Some(&app)).await;
+            let edited = editor
+                .edit(&case.input, &DictationContext::new(Some(app.clone()), None))
+                .await;
             latencies.extend(edited.llm_ms);
             last = Some(edited);
         }

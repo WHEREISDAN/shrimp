@@ -56,6 +56,8 @@ pub const NAMES: &[&str] = &[
     "dev_set_app_category",
     #[cfg(debug_assertions)]
     "dev_edit_text",
+    #[cfg(debug_assertions)]
+    "dev_read_context",
 ];
 
 /// The error every command returns. Mirrors `CommandError` in src/lib/ipc.ts.

@@ -5,10 +5,22 @@ use std::time::{Duration, Instant};
 
 use super::state::{Delivered, Outcome, Processed};
 use crate::audio::{AudioClip, level};
+use crate::context::{AppKind, DictationContext, PendingContext};
 use crate::edit::Editor;
 use crate::notify::Notice;
-use crate::platform::{AppIdentity, InsertOutcome, InsertText, TextInserter};
+use crate::platform::{
+    FieldKind, InsertOptions, InsertOutcome, InsertText, PasteSplit, TextInserter,
+};
 use crate::stt::{SttEngine, SttEngineId, SttError, SttOptions, Transcript};
+
+/// Parts small enough that AI coding CLIs show them inline: Claude Code
+/// collapses a paste over 800 characters or 2 line breaks, Codex over 1,000
+/// characters (INS-09).
+const TERMINAL_SPLIT: PasteSplit = PasteSplit {
+    max_chars: 700,
+    max_breaks: 2,
+    pause: Duration::from_millis(150),
+};
 
 #[derive(Clone)]
 pub struct Pipeline {
@@ -21,18 +33,20 @@ pub struct Pipeline {
     /// Languages the user speaks; the dictionary is added per dictation.
     pub languages: Vec<String>,
     pub clipboard_hold: Duration,
+    /// Remote desktops read the clipboard late (INS-10).
+    pub remote_clipboard_hold: Duration,
 }
 
 impl Pipeline {
     pub async fn transcribe_and_insert(
         &self,
         clip: AudioClip,
-        app: Option<AppIdentity>,
+        mut context: PendingContext,
         paste_delay: Duration,
     ) -> Processed {
         let options = SttOptions {
             languages: self.languages.clone(),
-            vocabulary: self.editor.vocabulary().await,
+            vocabulary: self.editor.vocabulary(&context.ready()).await,
         };
         let mut notices = Vec::new();
         let transcript = match transcribe(self.engine.as_ref(), &clip, &options).await {
@@ -70,7 +84,8 @@ impl Pipeline {
             }
         };
 
-        let edited = self.editor.edit(&raw, app.as_ref()).await;
+        let context = context.ready();
+        let edited = self.editor.edit(&raw, &context).await;
         notices.extend(edited.notice);
         if edited.text.plain.trim().is_empty() {
             return Processed {
@@ -85,10 +100,32 @@ impl Pipeline {
             },
             formatted: edited.formatted,
         };
+        let options = self.insert_options(&context);
         Processed {
-            outcome: self.insert(delivered, paste_delay).await,
+            outcome: self.insert(delivered, options, paste_delay).await,
             notices,
         }
+    }
+
+    /// Terminals paste without a field check and in parts; remote desktops
+    /// hold the clipboard longer (INS-09..11).
+    pub fn insert_options(&self, context: &DictationContext) -> InsertOptions {
+        let mut options = InsertOptions::new(self.clipboard_hold);
+        match context.app_kind() {
+            AppKind::RemoteDesktop => {
+                options.hold = self.remote_clipboard_hold;
+                options.require_field = false;
+            }
+            AppKind::Terminal => {
+                options.require_field = false;
+                options.split = Some(TERMINAL_SPLIT);
+            }
+            _ if context.field_kind() == FieldKind::Terminal => {
+                options.split = Some(TERMINAL_SPLIT);
+            }
+            _ => {}
+        }
+        options
     }
 
     /// Transcribes with local Whisper when the chosen cloud engine failed.
@@ -109,14 +146,18 @@ impl Pipeline {
         Some(transcribe(fallback.as_ref(), clip, options).await)
     }
 
-    pub async fn insert(&self, delivered: Delivered, paste_delay: Duration) -> Outcome {
+    pub async fn insert(
+        &self,
+        delivered: Delivered,
+        options: InsertOptions,
+        paste_delay: Duration,
+    ) -> Outcome {
         if !paste_delay.is_zero() {
             tokio::time::sleep(paste_delay).await;
         }
         let inserter = Arc::clone(&self.inserter);
-        let hold = self.clipboard_hold;
         let text = delivered.text.clone();
-        let result = tokio::task::spawn_blocking(move || inserter.insert(&text, hold)).await;
+        let result = tokio::task::spawn_blocking(move || inserter.insert(&text, &options)).await;
         match result {
             Ok(Ok(InsertOutcome::Pasted)) => Outcome::Inserted(delivered),
             Ok(Ok(InsertOutcome::Copied(reason))) => Outcome::Copied(delivered, reason),

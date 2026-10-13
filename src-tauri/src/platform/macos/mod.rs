@@ -1,6 +1,8 @@
 //! macOS backend. Permissions: Accessibility for the keyboard hook and for
 //! posting Cmd+V; Microphone for live capture.
 
+mod ax;
+mod context;
 pub mod flow_bar;
 mod focus;
 mod globe;
