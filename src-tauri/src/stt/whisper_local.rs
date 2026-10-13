@@ -150,7 +150,7 @@ fn run(
         [only] if whisper_rs::get_lang_id(only).is_some() => only.as_str(),
         _ => "auto",
     };
-    let prompt = options.vocabulary.join(", ");
+    let prompt = vocabulary_prompt(&options.vocabulary);
     let mut params = FullParams::new(SamplingStrategy::Greedy { best_of: 1 });
     params.set_language(Some(language));
     params.set_n_threads(threads());
@@ -178,6 +178,20 @@ fn run(
     }
     let language = whisper_rs::get_lang_str(state.full_lang_id_from_state()).map(str::to_owned);
     Ok(Transcript { text, language })
+}
+
+/// The dictionary terms as Whisper's initial prompt. Whisper copies the
+/// prompt's style, so it ends with a period: without one, transcripts lose
+/// their sentence punctuation.
+pub fn vocabulary_prompt(terms: &[String]) -> String {
+    if terms.is_empty() {
+        return String::new();
+    }
+    let mut prompt = terms.join(", ");
+    if !prompt.ends_with(['.', '!', '?']) {
+        prompt.push('.');
+    }
+    prompt
 }
 
 fn threads() -> i32 {
@@ -213,6 +227,13 @@ mod tests {
             0,
             "detection needs the full window"
         );
+    }
+
+    #[test]
+    fn the_vocabulary_prompt_ends_like_a_sentence() {
+        assert_eq!(vocabulary_prompt(&[]), "");
+        let terms = vec!["Nguyen".to_owned(), "Tauri".to_owned()];
+        assert_eq!(vocabulary_prompt(&terms), "Nguyen, Tauri.");
     }
 
     #[test]

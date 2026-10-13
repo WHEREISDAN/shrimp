@@ -4,11 +4,13 @@ mod app;
 pub mod audio;
 mod commands;
 pub mod dictation;
+pub mod edit;
 pub mod hotkeys;
 pub mod llm;
 pub mod notify;
 pub mod platform;
 pub mod secrets;
+pub mod settings;
 pub mod sounds;
 pub mod storage;
 pub mod stt;
@@ -39,6 +41,27 @@ pub fn run() {
                 commands::models::download_default_model,
                 commands::permissions::get_permissions,
                 commands::permissions::open_permission_settings,
+                commands::settings::get_settings,
+                commands::settings::update_settings,
+                commands::ai::get_ai_options,
+                commands::ai::get_api_keys,
+                commands::ai::set_api_key,
+                commands::ai::delete_api_key,
+                commands::ai::list_ollama_models,
+                commands::ai::test_ai_provider,
+                commands::library::list_dictionary,
+                commands::library::add_dictionary_entry,
+                commands::library::update_dictionary_entry,
+                commands::library::set_dictionary_pinned,
+                commands::library::delete_dictionary_entries,
+                commands::library::preview_dictionary_import,
+                commands::library::import_dictionary,
+                commands::library::list_snippets,
+                commands::library::add_snippet,
+                commands::library::update_snippet,
+                commands::library::delete_snippets,
+                commands::library::preview_snippet_import,
+                commands::library::import_snippets,
                 $($dev)*
             ]
         };
@@ -46,7 +69,9 @@ pub fn run() {
     #[cfg(debug_assertions)]
     let handler: fn(tauri::ipc::Invoke) -> bool = handler!(
         commands::dev::dev_get_audio_source,
-        commands::dev::dev_set_audio_source
+        commands::dev::dev_set_audio_source,
+        commands::dev::dev_set_app_category,
+        commands::dev::dev_edit_text
     );
     #[cfg(not(debug_assertions))]
     let handler: fn(tauri::ipc::Invoke) -> bool = handler!();

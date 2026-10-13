@@ -5,16 +5,22 @@ use std::sync::Arc;
 
 use tauri::{App, AppHandle, Emitter, Manager};
 
-use super::events::{MODELS_EVENT, TauriUi};
+use super::events::{MODELS_EVENT, SETTINGS_EVENT, TauriUi};
 use super::{flow_bar, tray};
 use crate::audio::AudioSourceSpec;
+use crate::commands::ai::HttpClient;
 use crate::commands::dictation::{ShortcutInfo, Shortcuts};
 use crate::commands::permissions::AppPermissions;
 use crate::dictation::{self, DictationUi, Services, Timing};
+use crate::edit::{EditTimeout, Editor, Library};
 use crate::hotkeys::Action;
+use crate::llm::{Providers, http};
 use crate::notify::{Notice, NoticeAction};
 use crate::platform::{self, MainThread};
-use crate::stt::{EngineSlot, ModelManager, SttOptions};
+use crate::secrets::{Keychain, Secrets};
+use crate::settings::SettingsStore;
+use crate::storage::Database;
+use crate::stt::{EngineSlot, ModelManager, SttEngine, SttRouter};
 
 pub fn setup(app: &mut App) -> Result<(), Box<dyn std::error::Error>> {
     let handle = app.handle().clone();
@@ -45,12 +51,36 @@ pub fn setup(app: &mut App) -> Result<(), Box<dyn std::error::Error>> {
             .with_action(NoticeAction::OpenKeyboardSettings),
         );
     }
+    let data_dir = app.path().app_data_dir()?;
+    let settings = Arc::new(SettingsStore::load(data_dir.join("settings.json")));
+    let emitter = handle.clone();
+    settings.on_change(Box::new(move |settings| {
+        let _ = emitter.emit(SETTINGS_EVENT, settings);
+    }));
+    let secrets = Arc::new(Secrets::new(Box::new(Keychain::new(
+        app.config().identifier.clone(),
+    ))));
+    let database = Arc::new(open_database(&data_dir, ui.as_ref()));
+    let client = http::client();
+    let editor = Arc::new(Editor::new(
+        Arc::clone(&settings),
+        Arc::new(Providers::new(client.clone(), Arc::clone(&secrets))),
+        Arc::clone(&database) as Arc<dyn Library>,
+        EditTimeout::default(),
+    ));
+
     let slot = Arc::new(EngineSlot::new(
         "The speech model is getting ready. Try again in a moment.",
     ));
+    let router = SttRouter::new(
+        Arc::clone(&slot),
+        Arc::clone(&settings),
+        Arc::clone(&secrets),
+        client.clone(),
+    );
     let emitter = handle.clone();
     let models = ModelManager::new(
-        app.path().app_data_dir()?.join("models"),
+        data_dir.join("models"),
         Arc::clone(&slot),
         Box::new(move |statuses| {
             let _ = emitter.emit(MODELS_EVENT, statuses);
@@ -62,19 +92,24 @@ pub fn setup(app: &mut App) -> Result<(), Box<dyn std::error::Error>> {
         bindings: platform.default_bindings,
         push_to_talk_label,
         inserter: platform.inserter,
+        focus: platform.focus,
         permissions: Arc::clone(&platform.permissions),
         sounds: platform.sounds,
-        engine: slot,
-        stt_options: SttOptions {
-            languages: platform.language.into_iter().collect(),
-            vocabulary: Vec::new(),
-        },
+        engine: Arc::new(router),
+        fallback_engine: Some(slot as Arc<dyn SttEngine>),
+        languages: platform.language.into_iter().collect(),
+        editor: Arc::clone(&editor),
         ui: Arc::clone(&ui) as Arc<dyn DictationUi>,
         source: audio_source(),
         timing: Timing::default(),
     });
 
     app.manage(controller);
+    app.manage(settings);
+    app.manage(secrets);
+    app.manage(database);
+    app.manage(editor);
+    app.manage(HttpClient(client));
     app.manage(Arc::clone(&models));
     app.manage(ui);
     app.manage(AppPermissions(platform.permissions));
@@ -84,6 +119,19 @@ pub fn setup(app: &mut App) -> Result<(), Box<dyn std::error::Error>> {
     flow_bar::create(&handle)?;
     tauri::async_runtime::spawn(models.prepare_default());
     Ok(())
+}
+
+/// The dictionary and snippets database; an unreadable file is set aside for
+/// this run (in memory instead) with a notice, so dictation keeps working.
+fn open_database(dir: &std::path::Path, ui: &TauriUi) -> Database {
+    let path = dir.join("shrimp.db");
+    Database::open(&path).unwrap_or_else(|error| {
+        log::error!("could not open {}: {error}", path.display());
+        ui.notice(Notice::error(
+            "Shrimp couldn't open its dictionary and snippets. Changes this session won't be saved.",
+        ));
+        Database::open_in_memory().expect("an in-memory database always opens")
+    })
 }
 
 fn main_thread(handle: &AppHandle) -> MainThread {

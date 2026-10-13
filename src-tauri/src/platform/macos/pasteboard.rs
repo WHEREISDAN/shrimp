@@ -3,8 +3,13 @@
 
 use objc2::rc::Retained;
 use objc2::runtime::ProtocolObject;
-use objc2_app_kit::{NSPasteboard, NSPasteboardItem, NSPasteboardTypeString, NSPasteboardWriting};
+use objc2_app_kit::{
+    NSPasteboard, NSPasteboardItem, NSPasteboardTypeHTML, NSPasteboardTypeString,
+    NSPasteboardWriting,
+};
 use objc2_foundation::{NSArray, NSData, NSString};
+
+use crate::platform::InsertText;
 
 /// Clipboard managers skip entries carrying these markers (nspasteboard.org).
 const TRANSIENT_TYPES: [&str; 2] = [
@@ -42,11 +47,17 @@ fn item_data(item: &NSPasteboardItem) -> Vec<(String, Vec<u8>)> {
         .collect()
 }
 
-/// Replaces the clipboard with `text` and returns the new change count.
-pub fn write_text(text: &str, transient: bool) -> isize {
+/// Replaces the clipboard with `text` (plain, plus HTML when given) and
+/// returns the new change count.
+pub fn write_text(text: &InsertText, transient: bool) -> isize {
     let pasteboard = NSPasteboard::generalPasteboard();
     pasteboard.clearContents();
-    pasteboard.setString_forType(&NSString::from_str(text), unsafe { NSPasteboardTypeString });
+    pasteboard.setString_forType(&NSString::from_str(&text.plain), unsafe {
+        NSPasteboardTypeString
+    });
+    if let Some(html) = &text.html {
+        pasteboard.setString_forType(&NSString::from_str(html), unsafe { NSPasteboardTypeHTML });
+    }
     if transient {
         let empty = NSData::new();
         for kind in TRANSIENT_TYPES {

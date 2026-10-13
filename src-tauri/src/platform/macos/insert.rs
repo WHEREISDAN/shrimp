@@ -10,7 +10,9 @@ use objc2_core_graphics::{
 
 use super::focus::{self, FocusedField};
 use super::{keymap, pasteboard, permissions};
-use crate::platform::{CopyReason, InsertOutcome, MainThread, PlatformError, TextInserter};
+use crate::platform::{
+    CopyReason, InsertOutcome, InsertText, MainThread, PlatformError, TextInserter,
+};
 
 /// Marks key events Shrimp posts itself ("SHRP"), so they can be told apart
 /// from the user's own typing.
@@ -39,14 +41,18 @@ impl MacInserter {
             .map_err(|_| PlatformError::Failed("the main thread did not respond".into()))
     }
 
-    fn copy_instead(&self, text: &str, reason: CopyReason) -> Result<InsertOutcome, PlatformError> {
+    fn copy_instead(
+        &self,
+        text: &InsertText,
+        reason: CopyReason,
+    ) -> Result<InsertOutcome, PlatformError> {
         self.copy(text)?;
         Ok(InsertOutcome::Copied(reason))
     }
 }
 
 impl TextInserter for MacInserter {
-    fn insert(&self, text: &str, hold: Duration) -> Result<InsertOutcome, PlatformError> {
+    fn insert(&self, text: &InsertText, hold: Duration) -> Result<InsertOutcome, PlatformError> {
         if !permissions::accessibility_trusted() {
             return self.copy_instead(text, CopyReason::AccessibilityMissing);
         }
@@ -55,7 +61,7 @@ impl TextInserter for MacInserter {
             return self.copy_instead(text, CopyReason::NoTextField);
         }
 
-        let text = text.to_owned();
+        let text = text.clone();
         let (snapshot, written) = self.on_main(move || {
             let snapshot = pasteboard::snapshot();
             let written = pasteboard::write_text(&text, true);
@@ -78,8 +84,8 @@ impl TextInserter for MacInserter {
         Ok(InsertOutcome::Pasted)
     }
 
-    fn copy(&self, text: &str) -> Result<(), PlatformError> {
-        let text = text.to_owned();
+    fn copy(&self, text: &InsertText) -> Result<(), PlatformError> {
+        let text = text.clone();
         self.on_main(move || {
             pasteboard::write_text(&text, false);
         })

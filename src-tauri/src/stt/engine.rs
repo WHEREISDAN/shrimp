@@ -3,12 +3,24 @@ use serde::{Deserialize, Serialize};
 
 use crate::audio::AudioClip;
 
+/// Mirrors `SttEngineId` in src/lib/ipc.ts.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum SttEngineId {
     LocalWhisper,
+    #[serde(rename = "openai")]
     OpenAi,
     Groq,
+}
+
+impl SttEngineId {
+    pub fn label(self) -> &'static str {
+        match self {
+            Self::LocalWhisper => "Whisper",
+            Self::OpenAi => "OpenAI",
+            Self::Groq => "Groq",
+        }
+    }
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]

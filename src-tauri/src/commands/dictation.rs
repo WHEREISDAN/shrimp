@@ -1,12 +1,12 @@
 use std::sync::Arc;
 
 use serde::Serialize;
-use tauri::{AppHandle, State};
+use tauri::{AppHandle, Emitter, State};
 
 use super::CommandError;
 use super::permissions::AppPermissions;
-use crate::app::events::TauriUi;
-use crate::app::flow_bar;
+use crate::app::events::{NAVIGATE_EVENT, TauriUi};
+use crate::app::{flow_bar, window};
 use crate::dictation::gestures::BarControl;
 use crate::dictation::{ControllerHandle, ControllerInput, DictationState};
 use crate::hotkeys::Action;
@@ -50,6 +50,7 @@ pub fn flow_bar_layout(width: f64, height: f64, app: AppHandle) {
 #[tauri::command]
 pub fn run_notice_action(
     action: NoticeAction,
+    app: AppHandle,
     controller: State<'_, ControllerHandle>,
     permissions: State<'_, AppPermissions>,
     models: State<'_, Arc<ModelManager>>,
@@ -72,6 +73,11 @@ pub fn run_notice_action(
         }
         NoticeAction::RetryModelDownload => {
             tauri::async_runtime::spawn(Arc::clone(&models).prepare_default());
+            Ok(())
+        }
+        NoticeAction::OpenAiSettings => {
+            window::show_main(&app);
+            let _ = app.emit_to(window::MAIN_LABEL, NAVIGATE_EVENT, "settings");
             Ok(())
         }
     }

@@ -15,6 +15,7 @@ pub const LEVEL_EVENT: &str = "dictation://level";
 pub const NOTICE_EVENT: &str = "notify://notice";
 pub const MODELS_EVENT: &str = "models://status";
 pub const NAVIGATE_EVENT: &str = "app://navigate";
+pub const SETTINGS_EVENT: &str = "settings://changed";
 
 pub struct TauriUi {
     app: AppHandle,

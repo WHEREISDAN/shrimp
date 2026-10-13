@@ -52,13 +52,43 @@ pub enum CopyReason {
     AccessibilityMissing,
 }
 
+/// Text to paste: plain always, HTML too when it has lists or formatting.
+/// Apps that accept rich text take the HTML; the rest take the plain text.
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub struct InsertText {
+    pub plain: String,
+    pub html: Option<String>,
+}
+
+impl InsertText {
+    pub fn plain(text: impl Into<String>) -> Self {
+        Self {
+            plain: text.into(),
+            html: None,
+        }
+    }
+}
+
 pub trait TextInserter: Send + Sync {
     /// Pastes `text` into the focused field: snapshot the clipboard, write the
     /// text, send the paste keystroke and restore the clipboard after `hold`
     /// unless something else was copied meanwhile.
-    fn insert(&self, text: &str, hold: Duration) -> Result<InsertOutcome, PlatformError>;
+    fn insert(&self, text: &InsertText, hold: Duration) -> Result<InsertOutcome, PlatformError>;
     /// Puts `text` on the clipboard and leaves it there.
-    fn copy(&self, text: &str) -> Result<(), PlatformError>;
+    fn copy(&self, text: &InsertText) -> Result<(), PlatformError>;
+}
+
+/// The app a dictation is for.
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub struct AppIdentity {
+    /// Bundle ID on macOS, executable name on Windows.
+    pub bundle_id: String,
+    pub name: String,
+}
+
+/// What has focus. Phase 3 adds the selection and the text around the cursor.
+pub trait FocusInspector: Send + Sync {
+    fn frontmost_app(&self) -> Option<AppIdentity>;
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -92,6 +122,7 @@ pub trait CuePlayer: Send + Sync {
 pub struct Platform {
     pub hotkeys: Box<dyn HotkeyBackend>,
     pub inserter: Arc<dyn TextInserter>,
+    pub focus: Arc<dyn FocusInspector>,
     pub permissions: Arc<dyn Permissions>,
     pub sounds: Arc<dyn CuePlayer>,
     pub default_bindings: Vec<Binding>,

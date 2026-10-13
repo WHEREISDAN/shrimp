@@ -12,13 +12,17 @@ use shrimp_lib::dictation::gestures::BarControl;
 use shrimp_lib::dictation::{
     self, ControllerHandle, ControllerInput, DictationState, DictationUi, Mode, Services, Timing,
 };
+use shrimp_lib::edit::{CleanupLevel, EditTimeout, Editor, FixedLibrary, Snapshot};
 use shrimp_lib::hotkeys::{Action, Binding, ShortcutEvent, macos_defaults};
+use shrimp_lib::llm::{LlmError, LlmProvider, LlmProviderId, LlmRequest, LlmResponse, LlmSource};
 use shrimp_lib::notify::Notice;
 use shrimp_lib::platform::{
-    CuePlayer, HotkeyBackend, InsertOutcome, Permission, PermissionStatus, Permissions,
-    PlatformError, TextInserter,
+    AppIdentity, CuePlayer, FocusInspector, HotkeyBackend, InsertOutcome, InsertText, Permission,
+    PermissionStatus, Permissions, PlatformError, TextInserter,
 };
+use shrimp_lib::settings::{Settings, SettingsStore};
 use shrimp_lib::sounds::Cue;
+use shrimp_lib::storage::{DictionaryEntry, EntrySource, Snippet};
 use shrimp_lib::stt::{SttEngine, SttEngineId, SttError, SttOptions, Transcript};
 
 const TEXT: &str = "Hello from Shrimp.";
@@ -28,7 +32,10 @@ const WAIT: Duration = Duration::from_secs(5);
 struct Fakes {
     bindings: Mutex<Vec<Vec<Action>>>,
     inserted: Mutex<Vec<String>>,
+    inserted_html: Mutex<Vec<Option<String>>>,
     copied: Mutex<Vec<String>>,
+    vocabulary: Mutex<Vec<Vec<String>>>,
+    prompts: Mutex<Vec<LlmRequest>>,
     cues: Mutex<Vec<Cue>>,
     states: Mutex<Vec<DictationState>>,
     notices: Mutex<Vec<Notice>>,
@@ -81,14 +88,26 @@ impl HotkeyBackend for FakeHotkeys {
 struct FakeInserter(Arc<Fakes>);
 
 impl TextInserter for FakeInserter {
-    fn insert(&self, text: &str, _: Duration) -> Result<InsertOutcome, PlatformError> {
-        self.0.inserted.lock().unwrap().push(text.into());
+    fn insert(&self, text: &InsertText, _: Duration) -> Result<InsertOutcome, PlatformError> {
+        self.0.inserted.lock().unwrap().push(text.plain.clone());
+        self.0.inserted_html.lock().unwrap().push(text.html.clone());
         Ok(InsertOutcome::Pasted)
     }
 
-    fn copy(&self, text: &str) -> Result<(), PlatformError> {
-        self.0.copied.lock().unwrap().push(text.into());
+    fn copy(&self, text: &InsertText) -> Result<(), PlatformError> {
+        self.0.copied.lock().unwrap().push(text.plain.clone());
         Ok(())
+    }
+}
+
+struct FakeFocus;
+
+impl FocusInspector for FakeFocus {
+    fn frontmost_app(&self) -> Option<AppIdentity> {
+        Some(AppIdentity {
+            bundle_id: "com.tinyspeck.slackmacgap".into(),
+            name: "Slack".into(),
+        })
     }
 }
 
@@ -124,7 +143,16 @@ impl SttEngine for FakeEngine {
         SttEngineId::LocalWhisper
     }
 
-    async fn transcribe(&self, clip: &AudioClip, _: &SttOptions) -> Result<Transcript, SttError> {
+    async fn transcribe(
+        &self,
+        clip: &AudioClip,
+        options: &SttOptions,
+    ) -> Result<Transcript, SttError> {
+        self.0
+            .vocabulary
+            .lock()
+            .unwrap()
+            .push(options.vocabulary.clone());
         let delay = *self.0.stt_delay.lock().unwrap();
         tokio::time::sleep(delay).await;
         self.0
@@ -143,6 +171,83 @@ impl SttEngine for FakeEngine {
             text: TEXT.into(),
             language: Some("en".into()),
         })
+    }
+}
+
+/// A cloud engine that always fails, to exercise the Whisper fallback.
+struct FailingCloud;
+
+#[async_trait]
+impl SttEngine for FailingCloud {
+    fn id(&self) -> SttEngineId {
+        SttEngineId::Groq
+    }
+
+    async fn transcribe(&self, _: &AudioClip, _: &SttOptions) -> Result<Transcript, SttError> {
+        Err(SttError::Unavailable("Groq rate limit reached.".into()))
+    }
+}
+
+/// An LLM that answers from a script and records each request.
+struct FakeLlm {
+    fakes: Arc<Fakes>,
+    replies: Mutex<Vec<Result<String, LlmError>>>,
+    delay: Duration,
+}
+
+#[async_trait]
+impl LlmProvider for FakeLlm {
+    fn id(&self) -> LlmProviderId {
+        LlmProviderId::Anthropic
+    }
+
+    fn model(&self) -> &str {
+        "fake"
+    }
+
+    async fn complete(&self, request: &LlmRequest) -> Result<LlmResponse, LlmError> {
+        self.fakes.prompts.lock().unwrap().push(request.clone());
+        tokio::time::sleep(self.delay).await;
+        let mut replies = self.replies.lock().unwrap();
+        let reply = if replies.len() > 1 {
+            replies.remove(0)
+        } else {
+            replies[0].clone()
+        };
+        reply.map(|text| LlmResponse { text })
+    }
+}
+
+struct FakeLlmSource(Arc<FakeLlm>);
+
+#[async_trait]
+impl LlmSource for FakeLlmSource {
+    async fn provider(
+        &self,
+        _: &shrimp_lib::settings::AiSettings,
+    ) -> Result<Arc<dyn LlmProvider>, LlmError> {
+        Ok(Arc::clone(&self.0) as Arc<dyn LlmProvider>)
+    }
+}
+
+/// What the edit pipeline and STT look like in a test.
+struct Setup {
+    cleanup: CleanupLevel,
+    replies: Vec<Result<String, LlmError>>,
+    llm_delay: Duration,
+    library: Snapshot,
+    cloud_engine: bool,
+}
+
+impl Default for Setup {
+    fn default() -> Self {
+        Self {
+            cleanup: CleanupLevel::None,
+            replies: vec![Ok(String::new())],
+            llm_delay: Duration::ZERO,
+            library: Snapshot::default(),
+            cloud_engine: false,
+        }
     }
 }
 
@@ -169,19 +274,49 @@ struct Harness {
 impl Harness {
     /// `amplitude` 0 writes digital silence.
     fn new(seconds: f32, amplitude: f32, timing: Timing) -> Self {
+        Self::with(seconds, amplitude, timing, Setup::default())
+    }
+
+    fn with(seconds: f32, amplitude: f32, timing: Timing, setup: Setup) -> Self {
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join("source.wav");
         write_tone(&path, seconds, amplitude);
         let fakes = Arc::new(Fakes::default());
+        let mut settings = Settings::default();
+        settings.ai.cleanup = setup.cleanup;
+        let llm = Arc::new(FakeLlm {
+            fakes: Arc::clone(&fakes),
+            replies: Mutex::new(setup.replies),
+            delay: setup.llm_delay,
+        });
+        let editor = Arc::new(Editor::new(
+            Arc::new(SettingsStore::in_memory(settings)),
+            Arc::new(FakeLlmSource(llm)),
+            Arc::new(FixedLibrary(setup.library)),
+            EditTimeout {
+                base: Duration::from_millis(300),
+                per_word: Duration::ZERO,
+                max: Duration::from_millis(300),
+            },
+        ));
+        let local: Arc<dyn SttEngine> = Arc::new(FakeEngine(Arc::clone(&fakes)));
+        let (engine, fallback_engine) = if setup.cloud_engine {
+            (Arc::new(FailingCloud) as Arc<dyn SttEngine>, Some(local))
+        } else {
+            (local, None)
+        };
         let controller = dictation::spawn(Services {
             hotkeys: Box::new(FakeHotkeys(Arc::clone(&fakes))),
             bindings: macos_defaults(),
             push_to_talk_label: "fn".into(),
             inserter: Arc::new(FakeInserter(Arc::clone(&fakes))),
+            focus: Arc::new(FakeFocus),
             permissions: Arc::new(Granted),
             sounds: Arc::new(FakeSounds(Arc::clone(&fakes))),
-            engine: Arc::new(FakeEngine(Arc::clone(&fakes))),
-            stt_options: SttOptions::default(),
+            engine,
+            fallback_engine,
+            languages: vec!["en".into()],
+            editor,
             ui: Arc::new(FakeUi(Arc::clone(&fakes))),
             source: AudioSourceSpec::WavFile(path),
             timing,
@@ -473,4 +608,199 @@ fn a_missing_source_fails_with_a_notice_and_no_cue() {
     std::thread::sleep(Duration::from_millis(100));
     assert!(h.fakes.inserted().is_empty());
     assert_ne!(h.fakes.last_state(), Some(DictationState::Processing));
+}
+
+fn ai(cleanup: CleanupLevel, replies: Vec<Result<String, LlmError>>) -> Setup {
+    Setup {
+        cleanup,
+        replies,
+        ..Setup::default()
+    }
+}
+
+fn dictate(h: &Harness) {
+    h.hold(Action::PushToTalk, Duration::from_millis(700));
+}
+
+#[test]
+fn the_ai_edit_is_inserted_with_the_app_style() {
+    let h = Harness::with(
+        5.0,
+        0.3,
+        fast_timing(),
+        ai(
+            CleanupLevel::Light,
+            vec![Ok("Hello from Shrimp, team.".into())],
+        ),
+    );
+    dictate(&h);
+    // Slack is a work app; Formal keeps the period.
+    wait_until("insertion", || {
+        h.fakes.inserted() == ["Hello from Shrimp, team."]
+    });
+    let prompts = h.fakes.prompts.lock().unwrap().clone();
+    assert_eq!(
+        prompts[0].messages[0].content,
+        "<transcript>Hello from Shrimp.</transcript>"
+    );
+    assert!(prompts[0].system.contains("Style: standard capitalization"));
+    assert!(h.fakes.messages().is_empty(), "{:?}", h.fakes.messages());
+}
+
+#[test]
+fn a_list_from_the_model_pastes_as_rich_text() {
+    let h = Harness::with(
+        5.0,
+        0.3,
+        fast_timing(),
+        ai(
+            CleanupLevel::Light,
+            vec![Ok("Hello from:\n1. Shrimp".into())],
+        ),
+    );
+    dictate(&h);
+    wait_until("insertion", || {
+        h.fakes.inserted() == ["Hello from:\n1. Shrimp"]
+    });
+    let html = h.fakes.inserted_html.lock().unwrap()[0].clone().unwrap();
+    assert!(html.contains("<ol><li>Shrimp</li></ol>"), "{html}");
+}
+
+#[test]
+fn a_provider_error_inserts_the_raw_transcript_with_a_notice() {
+    let h = Harness::with(
+        5.0,
+        0.3,
+        fast_timing(),
+        ai(
+            CleanupLevel::Light,
+            vec![Err(LlmError::Quota(
+                "You have no credits remaining.".into(),
+            ))],
+        ),
+    );
+    dictate(&h);
+    wait_until("insertion", || h.fakes.inserted() == [TEXT]);
+    wait_until("the notice", || {
+        h.fakes.has_notice(
+            "Your Anthropic account is out of credits. Inserted the transcript without AI edits.",
+        )
+    });
+}
+
+#[test]
+fn a_slow_provider_times_out_and_the_raw_transcript_is_inserted() {
+    let h = Harness::with(
+        5.0,
+        0.3,
+        fast_timing(),
+        Setup {
+            llm_delay: Duration::from_secs(3),
+            ..ai(CleanupLevel::Light, vec![Ok("Too late.".into())])
+        },
+    );
+    dictate(&h);
+    wait_until("insertion", || h.fakes.inserted() == [TEXT]);
+    assert!(h.fakes.has_notice("Anthropic took too long."));
+}
+
+#[test]
+fn an_answer_instead_of_an_edit_is_discarded() {
+    let h = Harness::with(
+        5.0,
+        0.3,
+        fast_timing(),
+        ai(
+            CleanupLevel::Light,
+            vec![Ok("Sure! Here is a cheerful greeting for your team.".into())],
+        ),
+    );
+    dictate(&h);
+    wait_until("insertion", || h.fakes.inserted() == [TEXT]);
+}
+
+#[test]
+fn a_failed_cloud_engine_falls_back_to_whisper() {
+    let h = Harness::with(
+        5.0,
+        0.3,
+        fast_timing(),
+        Setup {
+            cloud_engine: true,
+            ..Setup::default()
+        },
+    );
+    dictate(&h);
+    wait_until("insertion", || h.fakes.inserted() == [TEXT]);
+    assert!(
+        h.fakes
+            .has_notice("Groq rate limit reached. Used Whisper on this Mac instead.")
+    );
+}
+
+fn entry(id: i64, term: &str, misspelling: Option<&str>) -> DictionaryEntry {
+    DictionaryEntry {
+        id,
+        term: term.into(),
+        misspelling: misspelling.map(Into::into),
+        source: EntrySource::Manual,
+        pinned: false,
+        uses: 0,
+        created_at: 0,
+    }
+}
+
+#[test]
+fn dictionary_terms_reach_stt_and_corrections_apply() {
+    let library = Snapshot {
+        dictionary: vec![entry(1, "Tauri", None), entry(2, "SHRIMP", Some("shrimp"))],
+        snippets: Vec::new(),
+    };
+    let h = Harness::with(
+        5.0,
+        0.3,
+        fast_timing(),
+        Setup {
+            library,
+            ..Setup::default()
+        },
+    );
+    dictate(&h);
+    wait_until("insertion", || h.fakes.inserted() == ["Hello from SHRIMP."]);
+    assert_eq!(h.fakes.vocabulary.lock().unwrap()[0], ["Tauri", "SHRIMP"]);
+}
+
+#[test]
+fn a_snippet_inside_a_sentence_expands() {
+    let library = Snapshot {
+        dictionary: Vec::new(),
+        snippets: vec![Snippet {
+            id: 1,
+            trigger: "from shrimp".into(),
+            expansion: "from **the Shrimp team**".into(),
+            created_at: 0,
+            updated_at: 0,
+        }],
+    };
+    let h = Harness::with(
+        5.0,
+        0.3,
+        fast_timing(),
+        Setup {
+            library,
+            ..ai(CleanupLevel::Light, vec![Ok("Hello from Shrimp!".into())])
+        },
+    );
+    dictate(&h);
+    wait_until("insertion", || {
+        h.fakes.inserted() == ["Hello from the Shrimp team!"]
+    });
+    let prompts = h.fakes.prompts.lock().unwrap().clone();
+    assert!(
+        prompts[0]
+            .system
+            .contains("word for word, in place: \"from shrimp\".")
+    );
+    let html = h.fakes.inserted_html.lock().unwrap()[0].clone().unwrap();
+    assert!(html.contains("<b>the Shrimp team</b>"), "{html}");
 }

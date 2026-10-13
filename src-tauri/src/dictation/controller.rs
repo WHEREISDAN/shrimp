@@ -10,17 +10,19 @@ use tokio::time::MissedTickBehavior;
 use super::gestures::{BarControl, CancelReason, Command, Gestures, Input, RecordingMode};
 use super::pipeline::Pipeline;
 use super::state::{
-    ControllerInput, DictationState, DictationUi, LastDictation, LastStatus, Outcome, Timing,
+    ControllerInput, DictationState, DictationUi, LastDictation, LastStatus, Outcome, Processed,
+    Timing,
 };
 use crate::audio::{AudioError, AudioSourceSpec, Recorder, level};
+use crate::edit::Editor;
 use crate::hotkeys::{Action, Binding};
 use crate::notify::{Notice, NoticeAction};
 use crate::platform::{
-    CopyReason, CuePlayer, HotkeyBackend, Permission, PermissionStatus, Permissions, PlatformError,
-    TextInserter,
+    AppIdentity, CopyReason, CuePlayer, FocusInspector, HotkeyBackend, Permission,
+    PermissionStatus, Permissions, PlatformError, TextInserter,
 };
 use crate::sounds::Cue;
-use crate::stt::{SttEngine, SttOptions};
+use crate::stt::SttEngine;
 
 /// Everything the controller needs, injected so tests can use fakes.
 pub struct Services {
@@ -29,10 +31,16 @@ pub struct Services {
     /// Display name of the push-to-talk shortcut, for the short-tap tip.
     pub push_to_talk_label: String,
     pub inserter: Arc<dyn TextInserter>,
+    pub focus: Arc<dyn FocusInspector>,
     pub permissions: Arc<dyn Permissions>,
     pub sounds: Arc<dyn CuePlayer>,
+    /// The engine the settings choose.
     pub engine: Arc<dyn SttEngine>,
-    pub stt_options: SttOptions,
+    /// Local Whisper, for when a cloud engine fails.
+    pub fallback_engine: Option<Arc<dyn SttEngine>>,
+    /// Languages the user speaks (ISO 639-1); empty means auto-detect.
+    pub languages: Vec<String>,
+    pub editor: Arc<Editor>,
     pub ui: Arc<dyn DictationUi>,
     pub source: AudioSourceSpec,
     pub timing: Timing,
@@ -89,6 +97,8 @@ pub fn spawn(services: Services) -> ControllerHandle {
 struct Recording {
     recorder: Recorder,
     session: u64,
+    /// The app the user dictates into, for its style.
+    app: Option<AppIdentity>,
 }
 
 struct Controller {
@@ -96,6 +106,7 @@ struct Controller {
     bindings: Vec<Binding>,
     push_to_talk_label: String,
     inserter: Arc<dyn TextInserter>,
+    focus: Arc<dyn FocusInspector>,
     permissions: Arc<dyn Permissions>,
     sounds: Arc<dyn CuePlayer>,
     ui: Arc<dyn DictationUi>,
@@ -124,8 +135,10 @@ impl Controller {
     ) -> Self {
         let pipeline = Pipeline {
             engine: services.engine,
+            fallback: services.fallback_engine,
+            editor: services.editor,
             inserter: Arc::clone(&services.inserter),
-            options: services.stt_options,
+            languages: services.languages,
             clipboard_hold: services.timing.clipboard_hold,
         };
         Self {
@@ -133,6 +146,7 @@ impl Controller {
             bindings: services.bindings,
             push_to_talk_label: services.push_to_talk_label,
             inserter: services.inserter,
+            focus: services.focus,
             permissions: services.permissions,
             sounds: services.sounds,
             ui: services.ui,
@@ -257,8 +271,15 @@ impl Controller {
             Ok(recorder) => {
                 self.sessions += 1;
                 let session = self.sessions;
-                self.recording = Some(Recording { recorder, session });
+                let app = self.focus.frontmost_app();
+                self.recording = Some(Recording {
+                    recorder,
+                    session,
+                    app,
+                });
                 self.sounds.play(Cue::Start);
+                let editor = Arc::clone(&self.pipeline.editor);
+                tauri::async_runtime::spawn(async move { editor.warm_up().await });
                 self.bind_cancel(true);
                 self.send_after(
                     self.timing.session_warning,
@@ -315,13 +336,18 @@ impl Controller {
         let pipeline = self.pipeline.clone();
         let tx = self.tx.clone();
         tauri::async_runtime::spawn(async move {
+            let app = recording.app;
             let clip = tokio::task::spawn_blocking(move || recording.recorder.finish()).await;
-            let outcome = match clip {
-                Ok(Ok(clip)) => pipeline.transcribe_and_insert(clip, Duration::ZERO).await,
-                Ok(Err(error)) => Outcome::RecordingFailed(error.to_string()),
-                Err(error) => Outcome::RecordingFailed(error.to_string()),
+            let processed = match clip {
+                Ok(Ok(clip)) => {
+                    pipeline
+                        .transcribe_and_insert(clip, app, Duration::ZERO)
+                        .await
+                }
+                Ok(Err(error)) => Outcome::RecordingFailed(error.to_string()).into(),
+                Err(error) => Outcome::RecordingFailed(error.to_string()).into(),
             };
-            let _ = tx.send(ControllerInput::Processed(outcome));
+            let _ = tx.send(ControllerInput::Processed(processed));
         });
     }
 
@@ -360,12 +386,15 @@ impl Controller {
         let delay = self.paste_delay;
         let tx = self.tx.clone();
         let retry = matches!(last.status, LastStatus::Failed | LastStatus::Cancelled);
-        let work: std::pin::Pin<Box<dyn Future<Output = Outcome> + Send>> =
+        let app = self.focus.frontmost_app();
+        let work: std::pin::Pin<Box<dyn Future<Output = Processed> + Send>> =
             match (last.clip, last.text) {
                 (Some(clip), _) if retry => {
-                    Box::pin(async move { pipeline.transcribe_and_insert(clip, delay).await })
+                    Box::pin(async move { pipeline.transcribe_and_insert(clip, app, delay).await })
                 }
-                (_, Some(text)) => Box::pin(async move { pipeline.insert(text, delay).await }),
+                (_, Some(text)) => {
+                    Box::pin(async move { pipeline.insert(text, delay).await.into() })
+                }
                 _ => return,
             };
         self.gestures.begin_busy();
@@ -379,6 +408,7 @@ impl Controller {
         let Some(text) = self.last.as_ref().and_then(|last| last.text.clone()) else {
             return;
         };
+        let text = text.text;
         let inserter = Arc::clone(&self.inserter);
         let ui = Arc::clone(&self.ui);
         tauri::async_runtime::spawn_blocking(move || match inserter.copy(&text) {
@@ -387,9 +417,13 @@ impl Controller {
         });
     }
 
-    fn processed(&mut self, outcome: Outcome) {
+    fn processed(&mut self, processed: Processed) {
         self.gestures.reset();
         self.set_state(DictationState::Idle);
+        for notice in processed.notices {
+            self.ui.notice(notice);
+        }
+        let outcome = processed.outcome;
         let remember = |status, text, clip| Some(LastDictation { status, text, clip });
         match outcome {
             Outcome::Inserted(text) => {
@@ -409,6 +443,7 @@ impl Controller {
                 });
             }
             Outcome::NoSpeech => self.ui.notice(Notice::info("No speech detected")),
+            Outcome::NothingToInsert => self.ui.notice(Notice::info("Nothing to insert")),
             Outcome::RecordingFailed(message) => {
                 self.ui
                     .notice(Notice::error(format!("Recording failed: {message}")));

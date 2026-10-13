@@ -1,5 +1,5 @@
-//! Whether the frontmost app has an editable text field focused, read through
-//! Accessibility. Used to decide between pasting and leaving the transcript on
+//! The frontmost app, and whether it has an editable text field focused (read
+//! through Accessibility). Used to decide between pasting and leaving the transcript on
 //! the clipboard (INS-04).
 
 use std::collections::HashSet;
@@ -10,6 +10,8 @@ use std::time::Duration;
 use objc2_app_kit::NSWorkspace;
 use objc2_application_services::{AXError, AXUIElement};
 use objc2_core_foundation::{CFBoolean, CFRetained, CFString, CFType};
+
+use crate::platform::{AppIdentity, FocusInspector};
 
 const MESSAGING_TIMEOUT_SECONDS: f32 = 0.25;
 const RETRY_DELAY: Duration = Duration::from_millis(80);
@@ -44,6 +46,24 @@ pub enum FocusedField {
 
 /// Pids whose Chromium/Electron accessibility tree Shrimp has switched on.
 static MANUAL_ACCESSIBILITY: Mutex<Option<HashSet<i32>>> = Mutex::new(None);
+
+/// The frontmost app's bundle ID and name, from `NSWorkspace`.
+pub struct MacFocus;
+
+impl FocusInspector for MacFocus {
+    fn frontmost_app(&self) -> Option<AppIdentity> {
+        let app = NSWorkspace::sharedWorkspace().frontmostApplication()?;
+        let bundle_id = app
+            .bundleIdentifier()
+            .map(|id| id.to_string())
+            .unwrap_or_default();
+        let name = app
+            .localizedName()
+            .map(|name| name.to_string())
+            .unwrap_or_default();
+        Some(AppIdentity { bundle_id, name })
+    }
+}
 
 pub fn frontmost_pid() -> Option<i32> {
     let workspace = NSWorkspace::sharedWorkspace();

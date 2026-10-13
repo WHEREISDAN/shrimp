@@ -77,7 +77,7 @@ async fn transcribes_the_fixture_offline() {
         let mut text = String::new();
         for _ in 0..3 {
             let started = Instant::now();
-            text = transcribe(&engine, &clip, &options).await.unwrap();
+            text = transcribe(&engine, &clip, &options).await.unwrap().text;
             latencies.push(started.elapsed().as_millis());
         }
         println!("{name}: {text:?}; latency per run (ms): {latencies:?}");
@@ -119,6 +119,30 @@ async fn leading_and_trailing_silence_is_trimmed_before_stt() {
     );
     assert!(trimmed.duration() < plain.duration() + Duration::from_millis(700));
 
-    let text = transcribe(&engine, &padded, &english()).await.unwrap();
+    let text = transcribe(&engine, &padded, &english()).await.unwrap().text;
     assert!(words(&text).contains("hello from shrimp"), "{text}");
+}
+
+/// DIC-02: `ask-nguyen.wav` ("Ask Nguyen to deploy Shrimp with Tauri.", from
+/// macOS `say`) comes out as "Ask Wyn to deploy shrimp with Tory." until the
+/// dictionary terms reach Whisper's initial prompt.
+#[tokio::test(flavor = "multi_thread")]
+#[ignore = "needs downloaded Whisper and VAD models"]
+async fn dictionary_terms_fix_misrecognised_words() {
+    let engine = engine();
+    let clip = clip("ask-nguyen.wav");
+    let plain = transcribe(&engine, &clip, &english()).await.unwrap().text;
+    let options = SttOptions {
+        languages: vec!["en".into()],
+        vocabulary: vec!["Nguyen".into(), "Shrimp".into(), "Tauri".into()],
+    };
+    let biased = transcribe(&engine, &clip, &options).await.unwrap().text;
+    println!("without the dictionary: {plain}\nwith it: {biased}");
+    assert!(
+        !plain.contains("Nguyen") && !plain.contains("Tauri"),
+        "{plain}"
+    );
+    for term in ["Nguyen", "Shrimp", "Tauri"] {
+        assert!(biased.contains(term), "{biased}");
+    }
 }

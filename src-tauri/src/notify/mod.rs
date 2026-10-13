@@ -32,6 +32,8 @@ pub enum NoticeAction {
     OpenMicrophoneSettings,
     OpenKeyboardSettings,
     RetryModelDownload,
+    /// Opens Shrimp's settings at the AI provider section.
+    OpenAiSettings,
 }
 
 impl NoticeAction {
@@ -40,7 +42,8 @@ impl NoticeAction {
             Self::CopyLastTranscript => "Copy",
             Self::OpenAccessibilitySettings
             | Self::OpenMicrophoneSettings
-            | Self::OpenKeyboardSettings => "Open Settings",
+            | Self::OpenKeyboardSettings
+            | Self::OpenAiSettings => "Open Settings",
             Self::RetryModelDownload => "Retry",
         }
     }

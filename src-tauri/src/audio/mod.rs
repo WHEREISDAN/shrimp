@@ -15,6 +15,7 @@ mod spec;
 #[cfg(test)]
 mod test_support;
 mod wav;
+pub mod wav_encode;
 
 pub use clip::{AudioClip, STT_SAMPLE_RATE};
 pub use error::AudioError;

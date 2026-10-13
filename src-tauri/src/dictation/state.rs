@@ -6,7 +6,7 @@ use super::gestures::{BarControl, RecordingMode};
 use crate::audio::AudioClip;
 use crate::hotkeys::{Action, ShortcutEvent};
 use crate::notify::Notice;
-use crate::platform::CopyReason;
+use crate::platform::{CopyReason, InsertText};
 
 /// What the Flow Bar shows. Mirrors `DictationState` in src/lib/ipc.ts.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
@@ -82,23 +82,50 @@ pub enum ControllerInput {
     RetryHotkeys,
     /// A cancelled recording, kept so paste-last can transcribe it.
     Cancelled(AudioClip),
-    Processed(Outcome),
+    Processed(Processed),
+}
+
+/// A finished pipeline run and the notices it raised on the way (an AI
+/// edit that fell back, a cloud engine that failed over to Whisper).
+#[derive(Debug)]
+pub struct Processed {
+    pub outcome: Outcome,
+    pub notices: Vec<Notice>,
+}
+
+impl From<Outcome> for Processed {
+    fn from(outcome: Outcome) -> Self {
+        Self {
+            outcome,
+            notices: Vec::new(),
+        }
+    }
+}
+
+/// The final text of a dictation.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Delivered {
+    pub text: InsertText,
+    /// False when AI edits were off, skipped or failed (FMT-10).
+    pub formatted: bool,
 }
 
 /// How a transcription and insertion ended.
 #[derive(Debug)]
 pub enum Outcome {
-    Inserted(String),
+    Inserted(Delivered),
     /// The audio source failed while recording (e.g. the mic disconnected).
     RecordingFailed(String),
-    Copied(String, CopyReason),
+    Copied(Delivered, CopyReason),
     NoSpeech,
+    /// The edits left nothing to insert ("never mind").
+    NothingToInsert,
     SttFailed {
         clip: AudioClip,
         message: String,
         unavailable: bool,
     },
-    InsertFailed(String, String),
+    InsertFailed(Delivered, String),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -113,7 +140,7 @@ pub enum LastStatus {
 #[derive(Debug, Clone)]
 pub struct LastDictation {
     pub status: LastStatus,
-    pub text: Option<String>,
+    pub text: Option<Delivered>,
     /// Kept for failed and cancelled dictations, so paste-last can retry.
     pub clip: Option<AudioClip>,
 }

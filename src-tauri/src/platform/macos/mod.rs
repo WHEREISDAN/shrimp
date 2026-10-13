@@ -22,6 +22,7 @@ pub fn platform(main_thread: MainThread) -> Platform {
     Platform {
         hotkeys: Box::new(hotkeys::MacHotkeys::default()),
         inserter: Arc::new(insert::MacInserter::new(Arc::clone(&main_thread))),
+        focus: Arc::new(focus::MacFocus),
         permissions: Arc::new(permissions::MacPermissions),
         sounds: Arc::new(sound::MacCuePlayer::new(main_thread)),
         default_bindings: macos_defaults(),
