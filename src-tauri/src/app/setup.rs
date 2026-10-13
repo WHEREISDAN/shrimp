@@ -114,7 +114,7 @@ pub fn setup(app: &mut App) -> Result<(), Box<dyn std::error::Error>> {
         switchable
     };
     #[cfg(not(debug_assertions))]
-    let devices = platform.devices;
+    let devices: Arc<dyn DeviceProvider> = platform.devices;
     let emitter = handle.clone();
     let microphones = Microphones::new(
         devices,
@@ -141,7 +141,7 @@ pub fn setup(app: &mut App) -> Result<(), Box<dyn std::error::Error>> {
         switchable
     };
     #[cfg(not(debug_assertions))]
-    let permissions = platform.permissions;
+    let permissions: Arc<dyn Permissions> = platform.permissions;
     system::recheck_permissions(
         &settings,
         permissions.as_ref(),
