@@ -6,11 +6,13 @@ const FOCUSABLE =
 interface DialogProps {
   title: string;
   onClose: () => void;
+  /** Room for wider content such as the Shortcuts list. */
+  wide?: boolean;
   children: ReactNode;
 }
 
 /** A modal dialog: Esc closes it, Tab stays inside, and focus returns to where it came from. */
-export function Dialog({ title, onClose, children }: DialogProps) {
+export function Dialog({ title, onClose, wide = false, children }: DialogProps) {
   const titleId = useId();
   const dialogRef = useRef<HTMLDivElement>(null);
   const [opener] = useState(() => document.activeElement);
@@ -62,7 +64,7 @@ export function Dialog({ title, onClose, children }: DialogProps) {
     <div className="dialog-backdrop">
       <div
         ref={dialogRef}
-        className="dialog"
+        className={wide ? "dialog dialog-wide" : "dialog"}
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}

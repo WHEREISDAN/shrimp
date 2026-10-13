@@ -4,6 +4,7 @@ import { useTauriEvent } from "../lib/useTauriEvent";
 import { DictionaryPage } from "./DictionaryPage";
 import { HomePage } from "./HomePage";
 import { SettingsPage } from "./SettingsPage";
+import { ShortcutsDialog } from "./ShortcutsDialog";
 import { Sidebar, type PageId } from "./Sidebar";
 import { SnippetsPage } from "./SnippetsPage";
 import { StylePage } from "./StylePage";
@@ -11,13 +12,13 @@ import { TransformsPage } from "./TransformsPage";
 
 export function App() {
   const [page, setPage] = useState<PageId>("home");
-  const [revealShortcuts, setRevealShortcuts] = useState(0);
+  const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const [revealExperimental, setRevealExperimental] = useState(0);
+  const openShortcuts = () => setShortcutsOpen(true);
 
   useTauriEvent<string>(EVENTS.navigate, (section) => {
     if (section === "shortcuts") {
-      setPage("home");
-      setRevealShortcuts((count) => count + 1);
+      setShortcutsOpen(true);
     } else if (section === "settings") {
       setPage("settings");
     } else if (section === "dictionary") {
@@ -31,27 +32,28 @@ export function App() {
   return (
     <div className="shell">
       <Sidebar page={page} onSelect={setPage} />
-      <main className="content">
+      <main className="content" inert={shortcutsOpen}>
         <CurrentPage
           page={page}
-          revealShortcuts={revealShortcuts}
+          onOpenShortcuts={openShortcuts}
           revealExperimental={revealExperimental}
         />
       </main>
+      {shortcutsOpen && <ShortcutsDialog onClose={() => setShortcutsOpen(false)} />}
     </div>
   );
 }
 
 interface CurrentPageProps {
   page: PageId;
-  revealShortcuts: number;
+  onOpenShortcuts: () => void;
   revealExperimental: number;
 }
 
-function CurrentPage({ page, revealShortcuts, revealExperimental }: CurrentPageProps) {
+function CurrentPage({ page, onOpenShortcuts, revealExperimental }: CurrentPageProps) {
   switch (page) {
     case "home":
-      return <HomePage revealShortcuts={revealShortcuts} />;
+      return <HomePage onOpenShortcuts={onOpenShortcuts} />;
     case "dictionary":
       return <DictionaryPage />;
     case "snippets":
@@ -61,6 +63,8 @@ function CurrentPage({ page, revealShortcuts, revealExperimental }: CurrentPageP
     case "transforms":
       return <TransformsPage />;
     case "settings":
-      return <SettingsPage revealExperimental={revealExperimental} />;
+      return (
+        <SettingsPage revealExperimental={revealExperimental} onOpenShortcuts={onOpenShortcuts} />
+      );
   }
 }

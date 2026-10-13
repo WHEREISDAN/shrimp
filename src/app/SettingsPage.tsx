@@ -20,10 +20,14 @@ import { useSettings } from "./useSettings";
 interface SettingsPageProps {
   /** Increments each time Settings › Experimental should come into view. */
   revealExperimental?: number;
+  onOpenShortcuts?: () => void;
 }
 
-export function SettingsPage({ revealExperimental = 0 }: SettingsPageProps) {
-  const { settings, error, update, apply } = useSettings();
+export function SettingsPage({
+  revealExperimental = 0,
+  onOpenShortcuts = () => undefined,
+}: SettingsPageProps) {
+  const { settings, error, update } = useSettings();
   const [options, setOptions] = useState<AiOptions | null>(null);
   const [keys, setKeys] = useState<ApiKeys | null>(null);
   const [commandShortcut, setCommandShortcut] = useState("fn ⌃");
@@ -42,9 +46,10 @@ export function SettingsPage({ revealExperimental = 0 }: SettingsPageProps) {
       .catch((err: unknown) => !cancelled && setLoadError(errorMessage(err)));
     getShortcuts()
       .then((list) => {
-        const command = list.find((shortcut) => shortcut.action === "commandMode");
-        if (!cancelled && command) {
-          setCommandShortcut(command.shortcut);
+        const command = list.rows.find((row) => row.action === "commandMode");
+        const first = command?.shortcuts[0];
+        if (!cancelled && first) {
+          setCommandShortcut(first);
         }
       })
       .catch(() => undefined);
@@ -97,7 +102,7 @@ export function SettingsPage({ revealExperimental = 0 }: SettingsPageProps) {
             onKeys={setKeys}
             update={update}
           />
-          <ShortcutsSection settings={settings} onSaved={apply} />
+          <ShortcutsSection onOpenShortcuts={onOpenShortcuts} />
           <PrivacySection settings={settings} update={update} />
           <VibeCodingSection settings={settings} update={update} />
           <ExperimentalSection

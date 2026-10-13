@@ -81,7 +81,7 @@ describe("FlowBar", () => {
       id: 7,
       level: "warning",
       message: "No text field is focused. Your transcript is on the clipboard.",
-      action: "copyLastTranscript",
+      actions: ["copyLastTranscript"],
     };
     await act(async () => emit(EVENTS.notice, notice));
     expect(screen.getByRole("status")).toHaveTextContent("No text field is focused.");

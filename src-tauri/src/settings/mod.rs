@@ -3,6 +3,7 @@
 //! `update_settings(patch)`; Rust validates, saves and announces each change.
 
 mod model;
+pub mod shortcuts;
 pub mod transforms;
 
 use std::path::{Path, PathBuf};
@@ -12,8 +13,9 @@ use serde_json::Value;
 
 pub use model::{
     AiSettings, DictionarySettings, ExperimentalSettings, NoticeSettings, PrivacySettings,
-    SETTINGS_VERSION, Settings, ShortcutSettings, SttSettings, StyleSettings, VibeCodingSettings,
+    SETTINGS_VERSION, Settings, SttSettings, StyleSettings, VibeCodingSettings,
 };
+pub use shortcuts::ShortcutSettings;
 pub use transforms::{CustomTransform, PolishRules, TransformSettings};
 
 type OnChange = Box<dyn Fn(&Settings) + Send + Sync>;
@@ -44,7 +46,8 @@ impl SettingsStore {
     }
 
     /// Settings that live only in memory, for tests.
-    pub fn in_memory(settings: Settings) -> Self {
+    pub fn in_memory(mut settings: Settings) -> Self {
+        settings.normalize();
         Self {
             path: None,
             current: RwLock::new(settings),
@@ -73,8 +76,9 @@ impl SettingsStore {
         let mut merged = serde_json::to_value(&*current)
             .map_err(|err| SettingsError::Invalid(err.to_string()))?;
         merge(&mut merged, patch);
-        let next: Settings = serde_json::from_value(merged)
+        let mut next: Settings = serde_json::from_value(merged)
             .map_err(|err| SettingsError::Invalid(err.to_string()))?;
+        next.normalize();
         next.validate().map_err(SettingsError::Invalid)?;
         if let Some(path) = &self.path {
             write(path, &next)?;
@@ -96,8 +100,18 @@ impl SettingsStore {
 fn read(path: &Path) -> Option<Settings> {
     let text = std::fs::read_to_string(path).ok()?;
     match serde_json::from_str::<Settings>(&text) {
-        Ok(settings) if settings.validate().is_ok() => Some(settings),
-        Ok(_) | Err(_) => {
+        Ok(mut settings) => {
+            settings.normalize();
+            if let Err(error) = settings.validate() {
+                log::warn!(
+                    "{} is invalid ({error}); using the default settings",
+                    path.display()
+                );
+                return None;
+            }
+            Some(settings)
+        }
+        Err(_) => {
             log::warn!("{} is invalid; using the default settings", path.display());
             None
         }

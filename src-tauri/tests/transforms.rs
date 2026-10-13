@@ -86,7 +86,7 @@ fn polish_rewrites_the_selection_in_place() {
     );
     wait_until("the notice", || h.fakes.has_notice("Done."));
     let notice = h.fakes.notices.lock().unwrap().last().unwrap().clone();
-    assert_eq!(notice.action, Some(NoticeAction::ViewTransformChanges));
+    assert_eq!(notice.action(), Some(NoticeAction::ViewTransformChanges));
 
     h.controller
         .send(ControllerInput::Transform(TransformAction::View));

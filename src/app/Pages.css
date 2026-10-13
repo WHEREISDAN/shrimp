@@ -379,3 +379,100 @@
 .add-transform {
   align-self: flex-start;
 }
+
+.dialog-wide {
+  width: min(36rem, 100%);
+}
+
+.banner {
+  padding: 0.6rem 0.75rem;
+  border-radius: 8px;
+  background: var(--selected);
+  font-size: 0.85rem;
+  line-height: 1.4;
+}
+
+.warning {
+  color: var(--accent);
+  font-size: 0.85rem;
+}
+
+.grow {
+  flex: 1;
+}
+
+.shortcut-list {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.shortcut-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.45rem 0;
+}
+
+.shortcut-item + .shortcut-item {
+  border-top: 1px solid var(--border);
+}
+
+.shortcut-name {
+  font-size: 0.9rem;
+}
+
+.shortcut-bindings {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.35rem;
+}
+
+.binding {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.15rem;
+}
+
+.binding.recording {
+  padding: 0.2rem 0.3rem 0.2rem 0.6rem;
+  border: 1px solid var(--accent);
+  border-radius: 7px;
+  color: var(--accent);
+  font-size: 0.85rem;
+}
+
+.binding-key {
+  min-width: 3rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.binding-remove,
+.binding-add {
+  padding: 0.2rem 0.4rem;
+  border-color: transparent;
+  background: transparent;
+  color: var(--muted);
+}
+
+.binding-remove svg {
+  width: 0.85rem;
+  height: 0.85rem;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.binding-empty {
+  color: var(--muted);
+}
+
+.shortcut-status:empty {
+  display: none;
+}

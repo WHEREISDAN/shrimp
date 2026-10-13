@@ -1,10 +1,10 @@
 import { emit } from "@tauri-apps/api/event";
 import { mockIPC } from "@tauri-apps/api/mocks";
-import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { EVENTS, type ModelStatus, type PermissionsInfo, type ShortcutInfo } from "../lib/ipc";
+import { EVENTS, type ModelStatus, type PermissionsInfo } from "../lib/ipc";
 import { App } from "./App";
-import { AI_OPTIONS, SETTINGS } from "./testBackend";
+import { AI_OPTIONS, SETTINGS, SHORTCUTS } from "./testBackend";
 
 const model = (overrides: Partial<ModelStatus>): ModelStatus =>
   ({
@@ -18,10 +18,6 @@ const model = (overrides: Partial<ModelStatus>): ModelStatus =>
 
 function backend(models: ModelStatus[]) {
   const permissions: PermissionsInfo = { microphone: "notDetermined", accessibility: "granted" };
-  const shortcuts: ShortcutInfo[] = [
-    { action: "pushToTalk", name: "Push to talk", shortcut: "fn" },
-    { action: "pasteLast", name: "Paste last transcript", shortcut: "⌃⌘V" },
-  ];
   return (cmd: string) => {
     switch (cmd) {
       case "app_info":
@@ -31,7 +27,7 @@ function backend(models: ModelStatus[]) {
       case "get_permissions":
         return permissions;
       case "get_shortcuts":
-        return shortcuts;
+        return SHORTCUTS;
       case "list_dictionary":
         return [];
       case "get_settings":
@@ -163,7 +159,7 @@ describe("App", () => {
       );
     });
 
-    it("returns to Home and scrolls to Shortcuts from another page", async () => {
+    it("opens the Shortcuts dialog over the current page", async () => {
       mockIPC(backend([model({})]), { shouldMockEvents: true });
       render(<App />);
       await screen.findByTestId("app-info");
@@ -172,21 +168,14 @@ describe("App", () => {
 
       await act(async () => emit(EVENTS.navigate, "shortcuts"));
 
-      const heading = await screen.findByRole("heading", { name: "Shortcuts" });
-      await waitFor(() => expect(scrollIntoView).toHaveBeenCalledWith({ block: "start" }));
-      expect(heading).toHaveFocus();
-      expect(screen.getByRole("button", { name: "Home" })).toHaveAttribute("aria-current", "page");
-    });
-
-    it("scrolls to Shortcuts when Home is already open", async () => {
-      mockIPC(backend([model({})]), { shouldMockEvents: true });
-      render(<App />);
-      await screen.findByTestId("app-info");
-      expect(scrollIntoView).not.toHaveBeenCalled();
-
-      await act(async () => emit(EVENTS.navigate, "shortcuts"));
-
-      await waitFor(() => expect(scrollIntoView).toHaveBeenCalledTimes(1));
+      const dialog = await screen.findByRole("dialog", { name: "Shortcuts" });
+      expect(await within(dialog).findByText("Push to talk")).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Dictionary" })).toHaveAttribute(
+        "aria-current",
+        "page",
+      );
+      fireEvent.click(within(dialog).getByRole("button", { name: "Done" }));
+      expect(screen.queryByRole("dialog")).toBeNull();
     });
   });
 });

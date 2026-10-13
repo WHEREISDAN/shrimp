@@ -2,7 +2,7 @@ import { fireEvent, render, screen, waitFor, within } from "@testing-library/rea
 import { describe, expect, it } from "vitest";
 import type { CustomTransform, Settings, SettingsPatch } from "../lib/ipc";
 import { TransformsPage } from "./TransformsPage";
-import { mockBackend, SETTINGS } from "./testBackend";
+import { mockBackend, SETTINGS, SHORTCUTS } from "./testBackend";
 
 type TransformsPatch = NonNullable<SettingsPatch["transforms"]>;
 
@@ -29,16 +29,7 @@ function backend(initial: Settings = SETTINGS) {
       };
       return settings;
     },
-    set_shortcut: (args) => {
-      const action = args.action as { customTransform: number };
-      const custom = settings.transforms.custom.map((transform, index) =>
-        index === action.customTransform
-          ? { ...transform, shortcut: args.shortcut as string | null }
-          : transform,
-      );
-      settings = { ...settings, transforms: { ...settings.transforms, custom } };
-      return settings;
-    },
+    get_shortcuts: () => SHORTCUTS,
   });
 }
 

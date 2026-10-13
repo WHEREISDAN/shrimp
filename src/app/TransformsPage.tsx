@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { setShortcut, type CustomTransform, type Settings } from "../lib/ipc";
+import type { CustomTransform, Settings } from "../lib/ipc";
 import { CustomTransformCard } from "./CustomTransformCard";
 import { Page } from "./Page";
 import { PolishCard } from "./PolishCard";
@@ -11,18 +11,9 @@ import { useSettings } from "./useSettings";
 
 const MAX_CUSTOM = 8;
 
-/** Shortcuts come from the backend, which saves them on their own. */
-function withSavedShortcuts(
-  drafts: CustomTransform[],
-  saved: CustomTransform[],
-): CustomTransform[] {
-  return drafts.map((draft) => ({
-    ...draft,
-    shortcut: saved.find((transform) => transform.id === draft.id)?.shortcut ?? draft.shortcut,
-  }));
-}
-
-function newTransform(existing: CustomTransform[], taken: (string | null)[]): CustomTransform {
+/** The first custom transform suggests Opt+3 when nothing uses it; the backend stores it with the other shortcuts. */
+function newTransform(existing: CustomTransform[], settings: Settings): CustomTransform {
+  const taken = Object.values(settings.shortcuts.bindings).flat();
   return {
     id: crypto.randomUUID(),
     name: "",
@@ -33,7 +24,7 @@ function newTransform(existing: CustomTransform[], taken: (string | null)[]): Cu
 }
 
 export function TransformsPage() {
-  const { settings, error, update, apply } = useSettings();
+  const { settings, error, update } = useSettings();
   // Custom transforms being edited, until the saved list catches up (TRF-03).
   const [edits, setEdits] = useState<CustomTransform[] | null>(null);
 
@@ -41,16 +32,10 @@ export function TransformsPage() {
     if (!current || !settings) {
       return;
     }
-    const list = withSavedShortcuts(current, settings.transforms.custom);
-    void update({ transforms: { custom: list } }).then(() =>
+    void update({ transforms: { custom: current } }).then(() =>
       setEdits((now) => (now === current ? null : now)),
     );
   });
-
-  const applySaved = (saved: Settings) => {
-    apply(saved);
-    setEdits((current) => current && withSavedShortcuts(current, saved.transforms.custom));
-  };
 
   const drafts = edits ?? settings?.transforms.custom;
   if (!settings || !drafts) {
@@ -61,7 +46,6 @@ export function TransformsPage() {
     );
   }
   const transforms = settings.transforms;
-  const taken = [transforms.polish.shortcut, transforms.promptEngineer.shortcut];
 
   return (
     <Page title="Transforms">
@@ -80,14 +64,13 @@ export function TransformsPage() {
         />
       </section>
       <fieldset className="plain-fieldset stack" disabled={!transforms.enabled}>
-        <PolishCard settings={settings} update={update} apply={applySaved} />
-        <PromptEngineerCard settings={settings} update={update} apply={applySaved} />
+        <PolishCard settings={settings} update={update} />
+        <PromptEngineerCard settings={settings} update={update} />
         {drafts.map((transform, index) => (
           <CustomTransformCard
             key={transform.id}
             index={index}
             transform={transform}
-            apply={applySaved}
             onChange={(next) => setEdits(drafts.map((t) => (t.id === next.id ? next : t)))}
             onDelete={() => {
               const next = drafts.filter((t) => t.id !== transform.id);
@@ -105,7 +88,7 @@ export function TransformsPage() {
           <button
             type="button"
             className="add-transform"
-            onClick={() => setEdits([...drafts, newTransform(drafts, taken)])}
+            onClick={() => setEdits([...drafts, newTransform(drafts, settings)])}
           >
             New transform
           </button>
@@ -133,11 +116,7 @@ export function TransformsPage() {
             </select>
           </label>
           <p className="muted">If the transform fails, your dictation is pasted as it was.</p>
-          <ShortcutRecorder
-            label="See changes"
-            value={transforms.viewChangesShortcut}
-            onSave={async (shortcut) => applySaved(await setShortcut("viewChanges", shortcut))}
-          />
+          <ShortcutRecorder action="viewChanges" label="See changes" />
         </section>
       </fieldset>
     </Page>

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { setShortcut, type PolishRules, type Settings, type SettingsPatch } from "../lib/ipc";
+import type { PolishRules, Settings, SettingsPatch } from "../lib/ipc";
 import { ShortcutRecorder } from "./ShortcutRecorder";
 import { ToggleRow } from "./ToggleRow";
 
@@ -34,10 +34,9 @@ const words = (text: string) => text.trim().split(/\s+/).filter(Boolean).length;
 interface PolishCardProps {
   settings: Settings;
   update: (patch: SettingsPatch) => Promise<void>;
-  apply: (settings: Settings) => void;
 }
 
-export function PolishCard({ settings, update, apply }: PolishCardProps) {
+export function PolishCard({ settings, update }: PolishCardProps) {
   const polish = settings.transforms.polish;
   const [draft, setDraft] = useState("");
   const [problem, setProblem] = useState<string | null>(null);
@@ -74,11 +73,7 @@ export function PolishCard({ settings, update, apply }: PolishCardProps) {
       <p className="muted">
         Rewrites the selected text, or the text box, or your last dictation from the past minute.
       </p>
-      <ShortcutRecorder
-        label="Polish"
-        value={polish.shortcut}
-        onSave={async (shortcut) => apply(await setShortcut("polish", shortcut))}
-      />
+      <ShortcutRecorder action="polish" label="Polish" />
       {RULES.map((rule) => (
         <ToggleRow
           key={rule.key}

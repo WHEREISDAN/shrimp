@@ -3,8 +3,6 @@
 
 use serde::{Deserialize, Serialize};
 
-use crate::hotkeys::{Action, validation};
-
 pub const MAX_CUSTOM_TRANSFORMS: usize = 8;
 pub const MAX_CUSTOM_INSTRUCTIONS: usize = 5;
 pub const MAX_INSTRUCTION_WORDS: usize = 50;
@@ -22,7 +20,7 @@ the writer gave and invent no new requirements.";
 pub const POLISH: &str = "polish";
 pub const PROMPT_ENGINEER: &str = "promptEngineer";
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", default)]
 pub struct TransformSettings {
     /// Turned on from the Transforms page; until then no shortcut is bound.
@@ -30,45 +28,22 @@ pub struct TransformSettings {
     pub polish: PolishSettings,
     pub prompt_engineer: PromptEngineerSettings,
     pub custom: Vec<CustomTransform>,
-    /// Opens the last transform's changes (Opt+O). Shortcuts default to
-    /// unbound field by field, so a merge patch's `null` clears them.
-    #[serde(default)]
+    /// Phase 3's View changes shortcut, moved into `shortcuts.bindings` on load.
+    #[serde(default, skip_serializing)]
     pub view_changes_shortcut: Option<String>,
     /// "polish", "promptEngineer" or a custom transform's id; runs after
     /// every dictation (TRF-05).
     pub auto_apply: Option<String>,
 }
 
-impl Default for TransformSettings {
-    fn default() -> Self {
-        Self {
-            enabled: false,
-            polish: PolishSettings::default(),
-            prompt_engineer: PromptEngineerSettings::default(),
-            custom: Vec::new(),
-            view_changes_shortcut: Some("Opt+O".into()),
-            auto_apply: None,
-        }
-    }
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", default)]
 pub struct PolishSettings {
     pub rules: PolishRules,
     pub instructions: Vec<String>,
-    #[serde(default)]
+    /// Phase 3's shortcut, moved into `shortcuts.bindings` on load.
+    #[serde(default, skip_serializing)]
     pub shortcut: Option<String>,
-}
-
-impl Default for PolishSettings {
-    fn default() -> Self {
-        Self {
-            rules: PolishRules::default(),
-            instructions: Vec::new(),
-            shortcut: Some("Opt+1".into()),
-        }
-    }
 }
 
 /// Wispr Flow's five base Polish rules.
@@ -98,7 +73,8 @@ impl Default for PolishRules {
 #[serde(rename_all = "camelCase", default)]
 pub struct PromptEngineerSettings {
     pub prompt: String,
-    #[serde(default)]
+    /// Phase 3's shortcut, moved into `shortcuts.bindings` on load.
+    #[serde(default, skip_serializing)]
     pub shortcut: Option<String>,
 }
 
@@ -106,7 +82,7 @@ impl Default for PromptEngineerSettings {
     fn default() -> Self {
         Self {
             prompt: DEFAULT_PROMPT_ENGINEER.into(),
-            shortcut: Some("Opt+2".into()),
+            shortcut: None,
         }
     }
 }
@@ -117,6 +93,8 @@ pub struct CustomTransform {
     pub id: String,
     pub name: String,
     pub prompt: String,
+    /// A shortcut sent with a new transform, moved into `shortcuts.bindings`.
+    #[serde(skip_serializing)]
     pub shortcut: Option<String>,
     /// Writing samples whose style the result follows.
     pub samples: Vec<String>,
@@ -134,24 +112,22 @@ fn words(text: &str) -> usize {
 }
 
 impl TransformSettings {
-    /// Every transform shortcut with the action it triggers.
-    pub fn shortcuts(&self) -> Vec<(Action, &str)> {
-        let mut shortcuts = Vec::new();
-        if let Some(shortcut) = &self.polish.shortcut {
-            shortcuts.push((Action::Polish, shortcut.as_str()));
-        }
-        if let Some(shortcut) = &self.prompt_engineer.shortcut {
-            shortcuts.push((Action::PromptEngineer, shortcut.as_str()));
-        }
-        for (index, transform) in self.custom.iter().enumerate() {
-            if let Some(shortcut) = &transform.shortcut {
-                shortcuts.push((Action::CustomTransform(index as u8), shortcut.as_str()));
+    /// Shortcuts still in phase 3's fields, by their `shortcuts.bindings` key.
+    /// Taking them clears the fields.
+    pub fn take_legacy_shortcuts(&mut self) -> Vec<(String, String)> {
+        let mut taken = Vec::new();
+        let mut take = |key: String, field: &mut Option<String>| {
+            if let Some(shortcut) = field.take() {
+                taken.push((key, shortcut));
             }
+        };
+        take(POLISH.into(), &mut self.polish.shortcut);
+        take(PROMPT_ENGINEER.into(), &mut self.prompt_engineer.shortcut);
+        take("viewChanges".into(), &mut self.view_changes_shortcut);
+        for transform in &mut self.custom {
+            take(custom_key(&transform.id), &mut transform.shortcut);
         }
-        if let Some(shortcut) = &self.view_changes_shortcut {
-            shortcuts.push((Action::ViewChanges, shortcut.as_str()));
-        }
-        shortcuts
+        taken
     }
 
     pub fn validate(&self) -> Result<(), String> {
@@ -206,18 +182,6 @@ impl TransformSettings {
                 return Err(format!("Use at most {MAX_SAMPLES} writing samples."));
             }
         }
-        let mut seen: Vec<&str> = Vec::new();
-        for (action, shortcut) in self.shortcuts() {
-            validation::validate(shortcut, action, &[])?;
-            let normalized = shortcut;
-            if seen
-                .iter()
-                .any(|other| other.eq_ignore_ascii_case(normalized))
-            {
-                return Err(format!("{normalized} is used by two transforms."));
-            }
-            seen.push(normalized);
-        }
         if let Some(choice) = &self.auto_apply {
             let known = choice == POLISH
                 || choice == PROMPT_ENGINEER
@@ -230,6 +194,11 @@ impl TransformSettings {
     }
 }
 
+/// The `shortcuts.bindings` key of a custom transform.
+pub fn custom_key(id: &str) -> String {
+    format!("transform:{id}")
+}
+
 /// Whether a writing sample has a usable length.
 pub fn sample_fits(sample: &str) -> bool {
     SAMPLE_WORDS.contains(&words(sample))
@@ -240,12 +209,9 @@ mod tests {
     use super::*;
 
     #[test]
-    fn defaults_are_off_with_wispr_shortcuts() {
+    fn defaults_are_off() {
         let settings = TransformSettings::default();
         assert!(!settings.enabled);
-        assert_eq!(settings.polish.shortcut.as_deref(), Some("Opt+1"));
-        assert_eq!(settings.prompt_engineer.shortcut.as_deref(), Some("Opt+2"));
-        assert_eq!(settings.view_changes_shortcut.as_deref(), Some("Opt+O"));
         assert!(settings.polish.rules.concise && settings.polish.rules.tone);
         settings.validate().unwrap();
     }
@@ -268,9 +234,6 @@ mod tests {
             .collect();
         assert!(settings.validate().is_err(), "at most 8");
         settings.custom.truncate(1);
-        settings.custom[0].shortcut = Some("Opt+1".into());
-        assert!(settings.validate().is_err(), "shortcut used twice");
-        settings.custom[0].shortcut = Some("Opt+3".into());
         settings.auto_apply = Some("t0".into());
         settings.validate().unwrap();
         settings.auto_apply = Some("gone".into());
@@ -278,13 +241,26 @@ mod tests {
     }
 
     #[test]
-    fn a_null_patch_clears_a_shortcut_and_a_missing_section_restores_defaults() {
-        let mut json = serde_json::to_value(TransformSettings::default()).unwrap();
-        json["polish"].as_object_mut().unwrap().remove("shortcut");
-        let settings: TransformSettings = serde_json::from_value(json).unwrap();
-        assert_eq!(settings.polish.shortcut, None);
-        let settings: TransformSettings = serde_json::from_value(serde_json::json!({})).unwrap();
-        assert_eq!(settings.polish.shortcut.as_deref(), Some("Opt+1"));
+    fn phase_3_shortcuts_are_taken_once_and_never_written() {
+        let json = serde_json::json!({
+            "polish": {"shortcut": "Opt+1"},
+            "viewChangesShortcut": "Opt+O",
+            "custom": [{"id": "pirate", "shortcut": "Opt+3"}],
+        });
+        let mut settings: TransformSettings = serde_json::from_value(json).unwrap();
+        let taken = settings.take_legacy_shortcuts();
+        assert_eq!(
+            taken,
+            vec![
+                ("polish".to_owned(), "Opt+1".to_owned()),
+                ("viewChanges".to_owned(), "Opt+O".to_owned()),
+                ("transform:pirate".to_owned(), "Opt+3".to_owned()),
+            ]
+        );
+        assert!(settings.take_legacy_shortcuts().is_empty());
+        let written = serde_json::to_value(&settings).unwrap();
+        assert!(written["polish"].get("shortcut").is_none());
+        assert!(written["custom"][0].get("shortcut").is_none());
     }
 
     #[test]

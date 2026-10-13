@@ -7,7 +7,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use tauri::{AppHandle, Emitter};
 
 use super::flow_bar::FLOW_BAR_LABEL;
-use crate::dictation::{Answer, DictationState, DictationUi, TransformView};
+use crate::dictation::{Answer, DictationState, DictationUi, RecordingStatus, TransformView};
 use crate::notify::Notice;
 
 pub const STATE_EVENT: &str = "dictation://state";
@@ -18,6 +18,7 @@ pub const NAVIGATE_EVENT: &str = "app://navigate";
 pub const SETTINGS_EVENT: &str = "settings://changed";
 pub const ANSWER_EVENT: &str = "command://answer";
 pub const CHANGES_EVENT: &str = "transform://changes";
+pub const RECORDING_EVENT: &str = "shortcuts://recording";
 
 pub struct TauriUi {
     app: AppHandle,
@@ -75,6 +76,12 @@ impl DictationUi for TauriUi {
     fn changes(&self, view: TransformView) {
         if let Err(error) = self.app.emit_to(FLOW_BAR_LABEL, CHANGES_EVENT, view) {
             log::warn!("could not show the changes: {error}");
+        }
+    }
+
+    fn shortcut_recording(&self, status: RecordingStatus) {
+        if let Err(error) = self.app.emit(RECORDING_EVENT, status) {
+            log::warn!("could not report the shortcut recording: {error}");
         }
     }
 

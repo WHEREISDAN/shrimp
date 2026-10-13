@@ -1,4 +1,4 @@
-import { setShortcut, type CustomTransform, type Settings } from "../lib/ipc";
+import type { CustomTransform } from "../lib/ipc";
 import { ShortcutRecorder } from "./ShortcutRecorder";
 
 const MAX_SAMPLES = 5;
@@ -9,7 +9,6 @@ interface CustomTransformCardProps {
   transform: CustomTransform;
   onChange: (transform: CustomTransform) => void;
   onDelete: () => void;
-  apply: (settings: Settings) => void;
 }
 
 /** One custom transform; edits save on their own (TRF-03). */
@@ -18,7 +17,6 @@ export function CustomTransformCard({
   transform,
   onChange,
   onDelete,
-  apply,
 }: CustomTransformCardProps) {
   const name = transform.name || `Transform ${index + 1}`;
   const setSample = (at: number, text: string) =>
@@ -40,11 +38,7 @@ export function CustomTransformCard({
           Delete
         </button>
       </div>
-      <ShortcutRecorder
-        label={name}
-        value={transform.shortcut}
-        onSave={async (shortcut) => apply(await setShortcut({ customTransform: index }, shortcut))}
-      />
+      <ShortcutRecorder action={{ customTransform: index }} label={name} />
       <label className="field">
         <span>Prompt</span>
         <textarea

@@ -9,12 +9,10 @@ use super::events::{MODELS_EVENT, SETTINGS_EVENT, TauriUi};
 use super::{flow_bar, tray};
 use crate::audio::AudioSourceSpec;
 use crate::commands::ai::HttpClient;
-use crate::commands::dictation::{ShortcutInfo, Shortcuts};
 use crate::commands::permissions::AppPermissions;
-use crate::commands::settings::DefaultBindings;
+use crate::commands::shortcuts::DefaultBindings;
 use crate::dictation::{self, ControllerInput, DictationUi, Services, Timing};
 use crate::edit::{EditTimeout, Editor, Library};
-use crate::hotkeys::Action;
 use crate::llm::{Providers, http};
 use crate::notify::{Notice, NoticeAction};
 use crate::platform::{self, MainThread};
@@ -26,25 +24,6 @@ use crate::stt::{EngineSlot, ModelManager, SttEngine, SttRouter};
 pub fn setup(app: &mut App) -> Result<(), Box<dyn std::error::Error>> {
     let handle = app.handle().clone();
     let platform = platform::native(main_thread(&handle));
-
-    let shortcuts: Vec<ShortcutInfo> = platform
-        .default_bindings
-        .iter()
-        .map(|binding| ShortcutInfo {
-            action: binding.action,
-            name: binding.action.label(),
-            shortcut: (platform.label)(&binding.hotkey),
-        })
-        .collect();
-    let label_of = |action| {
-        shortcuts
-            .iter()
-            .find(|info: &&ShortcutInfo| info.action == action)
-            .map(|info| info.shortcut.clone())
-            .unwrap_or_default()
-    };
-    let push_to_talk_label = label_of(Action::PushToTalk);
-    let command_mode_label = label_of(Action::CommandMode);
 
     let ui = Arc::new(TauriUi::new(handle.clone()));
     if let Some(conflict) = platform.globe_key.conflict() {
@@ -94,12 +73,14 @@ pub fn setup(app: &mut App) -> Result<(), Box<dyn std::error::Error>> {
 
     #[cfg(debug_assertions)]
     app.manage(crate::commands::dev::DevFocus(Arc::clone(&platform.focus)));
-    app.manage(DefaultBindings(platform.default_bindings.clone()));
+    app.manage(DefaultBindings {
+        bindings: platform.default_bindings.clone(),
+        label: platform.label,
+    });
     let controller = dictation::spawn(Services {
         hotkeys: platform.hotkeys,
         bindings: platform.default_bindings,
-        push_to_talk_label,
-        command_mode_label,
+        label: platform.label,
         inserter: platform.inserter,
         focus: platform.focus,
         permissions: Arc::clone(&platform.permissions),
@@ -120,7 +101,7 @@ pub fn setup(app: &mut App) -> Result<(), Box<dyn std::error::Error>> {
         shortcuts_changed.send(ControllerInput::SettingsChanged);
     }));
     app.manage(controller);
-    app.manage(settings);
+    app.manage(Arc::clone(&settings));
     app.manage(secrets);
     app.manage(database);
     app.manage(editor);
@@ -129,7 +110,6 @@ pub fn setup(app: &mut App) -> Result<(), Box<dyn std::error::Error>> {
     app.manage(Arc::clone(&slot));
     app.manage(ui);
     app.manage(AppPermissions(platform.permissions));
-    app.manage(Shortcuts(shortcuts));
 
     tray::create(&handle)?;
     flow_bar::create(&handle)?;

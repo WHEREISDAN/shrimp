@@ -1,24 +1,24 @@
-import { useEffect, useRef, useState } from "react";
-import { getShortcuts, type ShortcutInfo } from "../lib/ipc";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { EVENTS, getShortcuts, type ShortcutList } from "../lib/ipc";
+import { useTauriEvent } from "../lib/useTauriEvent";
 
 interface ShortcutsCardProps {
+  onOpenShortcuts: () => void;
   /** Increments each time the card should scroll into view and take focus. */
-  reveal: number;
+  reveal?: number;
 }
 
-export function ShortcutsCard({ reveal }: ShortcutsCardProps) {
-  const [shortcuts, setShortcuts] = useState<ShortcutInfo[]>([]);
+export function ShortcutsCard({ onOpenShortcuts, reveal = 0 }: ShortcutsCardProps) {
+  const [list, setList] = useState<ShortcutList | null>(null);
   const headingRef = useRef<HTMLHeadingElement>(null);
 
-  useEffect(() => {
-    let cancelled = false;
+  const load = useCallback(() => {
     getShortcuts()
-      .then((list) => !cancelled && setShortcuts(list))
+      .then(setList)
       .catch(() => undefined);
-    return () => {
-      cancelled = true;
-    };
   }, []);
+  useEffect(load, [load]);
+  useTauriEvent(EVENTS.settings, load);
 
   useEffect(() => {
     if (reveal === 0) {
@@ -34,16 +34,23 @@ export function ShortcutsCard({ reveal }: ShortcutsCardProps) {
 
   return (
     <section className="card" id="shortcuts" aria-labelledby="shortcuts-heading">
-      <h2 id="shortcuts-heading" ref={headingRef} tabIndex={-1}>
-        Shortcuts
-      </h2>
+      <div className="row">
+        <h2 id="shortcuts-heading" ref={headingRef} tabIndex={-1}>
+          Shortcuts
+        </h2>
+        <button type="button" onClick={onOpenShortcuts}>
+          Change
+        </button>
+      </div>
       <ul className="rows">
-        {shortcuts.map((shortcut) => (
-          <li key={shortcut.action} className="row">
-            <span>{shortcut.name}</span>
-            <kbd>{shortcut.shortcut}</kbd>
-          </li>
-        ))}
+        {list?.rows
+          .filter((row) => row.shortcuts.length > 0)
+          .map((row) => (
+            <li key={row.name} className="row">
+              <span>{row.name}</span>
+              <kbd>{row.shortcuts.join(" / ")}</kbd>
+            </li>
+          ))}
       </ul>
       <p className="muted">
         Double-tap push to talk to keep recording hands-free. Esc cancels while you dictate.

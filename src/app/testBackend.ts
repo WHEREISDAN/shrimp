@@ -1,6 +1,6 @@
 import { mockIPC } from "@tauri-apps/api/mocks";
 import { fireEvent } from "@testing-library/react";
-import type { AiOptions, DictionaryEntry, Settings, Snippet } from "../lib/ipc";
+import type { AiOptions, DictionaryEntry, Settings, ShortcutList, Snippet } from "../lib/ipc";
 
 export type Args = Record<string, unknown>;
 export type Handler = (args: Args) => unknown;
@@ -82,7 +82,11 @@ export const snippet = (overrides: Partial<Snippet> & { id: number }): Snippet =
 
 export const SETTINGS: Settings = {
   version: 1,
-  stt: { engine: "local-whisper", openaiModel: "whisper-1", groqModel: "whisper-large-v3-turbo" },
+  stt: {
+    engine: "local-whisper",
+    openaiModel: "whisper-1",
+    groqModel: "whisper-large-v3-turbo",
+  },
   ai: {
     provider: "anthropic",
     cleanup: "light",
@@ -95,22 +99,45 @@ export const SETTINGS: Settings = {
   styles: { personal: "veryCasual", work: "formal", email: "formal", other: "casual" },
   privacy: { contextAwareness: true },
   experimental: { commandMode: false, commandModeIntroSeen: false, pressEnterCommand: false },
-  shortcuts: { pressEnter: null },
+  shortcuts: { bindings: {} },
   notices: { commandModeOffCount: 0, commandModeOffDay: "" },
   transforms: {
     enabled: false,
     polish: {
       rules: { concise: true, clarity: true, reorder: true, structure: true, tone: true },
       instructions: [],
-      shortcut: "Opt+1",
     },
-    promptEngineer: { prompt: "Turn the text into a clear prompt.", shortcut: "Opt+2" },
+    promptEngineer: { prompt: "Turn the text into a clear prompt." },
     custom: [],
-    viewChangesShortcut: "Opt+O",
     autoApply: null,
   },
   vibeCoding: { fileTagging: true },
   dictionary: { autoLearn: true },
+};
+
+export const SHORTCUTS: ShortcutList = {
+  rows: [
+    { action: "pushToTalk", name: "Push to talk", shortcuts: ["fn"], max: 4, required: true },
+    {
+      action: "handsFree",
+      name: "Hands-free mode",
+      shortcuts: ["fn Space"],
+      max: 4,
+      required: false,
+    },
+    { action: "commandMode", name: "Command Mode", shortcuts: ["fn ⌃"], max: 4, required: true },
+    {
+      action: "pasteLast",
+      name: "Paste last transcript",
+      shortcuts: ["⌃⌘V"],
+      max: 4,
+      required: true,
+    },
+    { action: "cancel", name: "Cancel dictation", shortcuts: ["Esc"], max: 1, required: true },
+    { action: "pressEnter", name: "Press Enter", shortcuts: [], max: 4, required: false },
+  ],
+  warning: null,
+  secureInput: null,
 };
 
 export const AI_OPTIONS: AiOptions = {

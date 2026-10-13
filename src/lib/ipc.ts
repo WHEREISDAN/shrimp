@@ -28,14 +28,16 @@ export type NoticeAction =
   | "openAiSettings"
   | "openExperimentalSettings"
   | "viewTransformChanges"
-  | "openDictionary";
+  | "openDictionary"
+  | "undoCancel";
 
 /** Mirrors `notify::Notice`. */
 export interface Notice {
   id: number;
   level: "info" | "warning" | "error";
   message: string;
-  action: NoticeAction | null;
+  /** Buttons, in order. */
+  actions: NoticeAction[];
 }
 
 /** Mirrors `dictation::Answer`: a Command Mode answer shown in the Flow Bar. */
@@ -45,9 +47,54 @@ export interface Answer {
   text: string;
 }
 
-/** Mirrors `hotkeys::Action` for the shortcuts the user can set. */
+/** Mirrors `hotkeys::Action`: everything a shortcut can trigger. */
 export type ShortcutAction =
-  "pressEnter" | "polish" | "promptEngineer" | "viewChanges" | { customTransform: number };
+  | "pushToTalk"
+  | "handsFree"
+  | "commandMode"
+  | "pasteLast"
+  | "copyLast"
+  | "cancel"
+  | "pressEnter"
+  | "polish"
+  | "promptEngineer"
+  | "viewChanges"
+  | { customTransform: number };
+
+/** Whether two actions are the same (custom transforms are objects). */
+export function sameAction(a: ShortcutAction, b: ShortcutAction): boolean {
+  if (typeof a === "string" || typeof b === "string") {
+    return a === b;
+  }
+  return a.customTransform === b.customTransform;
+}
+
+/** Mirrors `commands::shortcuts::ShortcutRow`: one action in the Shortcuts dialog. */
+export interface ShortcutRow {
+  action: ShortcutAction;
+  name: string;
+  /** Each binding, formatted ("fn", "⌃⌘V", "Mouse 4"). */
+  shortcuts: string[];
+  max: number;
+  /** Must keep at least one binding. */
+  required: boolean;
+}
+
+/** Mirrors `commands::shortcuts::ShortcutList`. */
+export interface ShortcutList {
+  rows: ShortcutRow[];
+  /** Hands-free sits inside push to talk. */
+  warning: string | null;
+  /** The app whose Secure Keyboard Entry blocks keyed shortcuts. */
+  secureInput: string | null;
+}
+
+/** Mirrors `dictation::RecordingStatus`: a shortcut being recorded through the hooks. */
+export type RecordingStatus =
+  | { state: "recording"; action: ShortcutAction; preview: string | null }
+  | { state: "saved"; action: ShortcutAction; shortcut: string; warning: string | null }
+  | { state: "failed"; action: ShortcutAction; message: string }
+  | { state: "cancelled"; action: ShortcutAction };
 
 /** Mirrors `dictation::TransformView`: what the last transform changed. */
 export interface TransformView {
@@ -74,17 +121,17 @@ export interface CustomTransform {
   id: string;
   name: string;
   prompt: string;
-  shortcut: string | null;
+  /** Only sent with a new transform; the backend moves it into `shortcuts.bindings`. */
+  shortcut?: string | null;
   samples: string[];
 }
 
 /** Mirrors `settings::TransformSettings`. */
 export interface TransformSettings {
   enabled: boolean;
-  polish: { rules: PolishRules; instructions: string[]; shortcut: string | null };
-  promptEngineer: { prompt: string; shortcut: string | null };
+  polish: { rules: PolishRules; instructions: string[] };
+  promptEngineer: { prompt: string };
   custom: CustomTransform[];
-  viewChangesShortcut: string | null;
   /** "polish", "promptEngineer" or a custom transform's id. */
   autoApply: string | null;
 }
@@ -115,13 +162,6 @@ export type Permission = "microphone" | "accessibility";
 export interface PermissionsInfo {
   microphone: PermissionStatus;
   accessibility: PermissionStatus;
-}
-
-/** Mirrors `commands::dictation::ShortcutInfo`. */
-export interface ShortcutInfo {
-  action: string;
-  name: string;
-  shortcut: string;
 }
 
 /** Mirrors `stt::SttEngineId`. */
@@ -159,8 +199,8 @@ export interface Settings {
   styles: Record<AppCategory, Style>;
   privacy: { contextAwareness: boolean };
   experimental: { commandMode: boolean; commandModeIntroSeen: boolean; pressEnterCommand: boolean };
-  /** Shortcuts in handy-keys notation, e.g. "Opt+Return"; set with `setShortcut`. */
-  shortcuts: { pressEnter: string | null };
+  /** Bindings per action ("pushToTalk", "transform:<id>"), e.g. ["Fn", "Mouse4"]; missing means the defaults. */
+  shortcuts: { bindings: Record<string, string[]> };
   notices: { commandModeOffCount: number; commandModeOffDay: string };
   transforms: TransformSettings;
   vibeCoding: { fileTagging: boolean };
@@ -320,7 +360,18 @@ export const flowBarLayout = (width: number, height: number): Promise<void> =>
 export const runNoticeAction = (action: NoticeAction): Promise<void> =>
   invoke("run_notice_action", { action });
 
-export const getShortcuts = (): Promise<ShortcutInfo[]> => invoke<ShortcutInfo[]>("get_shortcuts");
+export const getShortcuts = (): Promise<ShortcutList> => invoke<ShortcutList>("get_shortcuts");
+
+/** Records a binding through the keyboard and mouse hooks; progress arrives as `EVENTS.recording`. */
+export const recordShortcut = (action: ShortcutAction, index: number | null): Promise<void> =>
+  invoke("record_shortcut", { action, index });
+
+export const cancelShortcutRecording = (): Promise<void> => invoke("cancel_shortcut_recording");
+
+export const removeShortcut = (action: ShortcutAction, index: number): Promise<void> =>
+  invoke("remove_shortcut", { action, index });
+
+export const resetShortcuts = (): Promise<void> => invoke("reset_shortcuts");
 
 export const getModels = (): Promise<ModelStatus[]> => invoke<ModelStatus[]>("get_models");
 
@@ -336,9 +387,6 @@ export const getSettings = (): Promise<Settings> => invoke<Settings>("get_settin
 
 export const updateSettings = (patch: SettingsPatch): Promise<Settings> =>
   invoke<Settings>("update_settings", { patch });
-
-export const setShortcut = (action: ShortcutAction, shortcut: string | null): Promise<Settings> =>
-  invoke<Settings>("set_shortcut", { action, shortcut });
 
 export const transformAction = (action: TransformAction): Promise<void> =>
   invoke("transform_action", { action });
@@ -407,6 +455,7 @@ export const EVENTS = {
   settings: "settings://changed",
   answer: "command://answer",
   changes: "transform://changes",
+  recording: "shortcuts://recording",
 } as const;
 
 export function onEvent<T>(name: string, handler: (payload: T) => void): Promise<UnlistenFn> {

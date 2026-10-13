@@ -11,7 +11,7 @@ use serde::{Deserialize, Serialize};
 
 use handy_keys::Modifiers;
 
-use crate::hotkeys::{Binding, ShortcutEvent};
+use crate::hotkeys::{Action, Binding, HotkeyEvent, Recording};
 use crate::sounds::Cue;
 
 #[derive(Debug, thiserror::Error)]
@@ -28,16 +28,24 @@ pub enum PlatformError {
 /// and sound calls go through it.
 pub type MainThread = Arc<dyn Fn(Box<dyn FnOnce() + Send>) + Send + Sync>;
 
-/// Global shortcuts, including Fn and modifier-only chords, with press and release.
+/// Global shortcuts with press and release: keys, Fn and modifier-only
+/// chords, and mouse buttons.
 pub trait HotkeyBackend: Send {
-    /// Starts the OS keyboard hook; matched shortcuts are passed to `on_event`
-    /// from the hook's thread.
+    /// Starts the OS hooks; what they see is passed to `on_event` from the
+    /// hooks' thread.
     fn start(
         &mut self,
-        on_event: Box<dyn Fn(ShortcutEvent) + Send + Sync>,
+        on_event: Box<dyn Fn(HotkeyEvent) + Send + Sync>,
     ) -> Result<(), PlatformError>;
     /// Replaces the active bindings. Bound input is swallowed, so it never reaches other apps.
     fn set_bindings(&mut self, bindings: &[Binding]);
+    /// Actions a running dictation holds, which stuck-key recovery leaves
+    /// alone (CORE-14).
+    fn set_protected(&mut self, _actions: &[Action]) {}
+    /// Starts recording a new shortcut, or stops with `None`. While
+    /// recording, no shortcut fires and input is reported as
+    /// `HotkeyEvent::Recording` (KEYS-01).
+    fn set_recording(&mut self, _recording: Option<Recording>) {}
     fn stop(&mut self);
 }
 
@@ -311,7 +319,7 @@ pub struct Platform {
     pub launcher: Arc<dyn Launcher>,
     pub default_bindings: Vec<Binding>,
     /// Formats a binding for display, e.g. "fn Space" or "⌃⌘V".
-    pub label: fn(&handy_keys::Hotkey) -> String,
+    pub label: fn(&crate::hotkeys::Trigger) -> String,
     /// The user's preferred language (ISO 639-1), the dictation language
     /// until the language settings arrive.
     pub language: Option<String>,

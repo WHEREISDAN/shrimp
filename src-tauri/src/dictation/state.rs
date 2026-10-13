@@ -6,7 +6,7 @@ use super::gestures::{BarControl, RecordingMode};
 use super::learn::{LearnTarget, LearnTiming};
 use super::transform::{TransformRun, TransformView};
 use crate::audio::AudioClip;
-use crate::hotkeys::{Action, ShortcutEvent};
+use crate::hotkeys::{Action, RecordUpdate, ShortcutEvent};
 use crate::notify::Notice;
 use crate::platform::{CopyReason, InsertText};
 
@@ -49,6 +49,34 @@ pub trait DictationUi: Send + Sync {
     fn answer(&self, _answer: Answer) {}
     /// What the last transform changed (TRF-04).
     fn changes(&self, _view: TransformView) {}
+    /// Progress of a shortcut being recorded (KEYS-01).
+    fn shortcut_recording(&self, _status: RecordingStatus) {}
+}
+
+/// A shortcut being recorded, for the Shortcuts dialog. Mirrors
+/// `RecordingStatus` in src/lib/ipc.ts.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase", tag = "state")]
+pub enum RecordingStatus {
+    /// Waiting for keys; `preview` is what is held so far.
+    Recording {
+        action: Action,
+        preview: Option<String>,
+    },
+    Saved {
+        action: Action,
+        shortcut: String,
+        /// Saved, but it may conflict (KEYS-07).
+        warning: Option<String>,
+    },
+    /// Rejected; the previous binding is unchanged (KEYS-03).
+    Failed {
+        action: Action,
+        message: String,
+    },
+    Cancelled {
+        action: Action,
+    },
 }
 
 /// A Command Mode answer for the Flow Bar's panel. Mirrors `Answer` in src/lib/ipc.ts.
@@ -99,6 +127,20 @@ impl Default for Timing {
 #[derive(Debug)]
 pub enum ControllerInput {
     Shortcut(ShortcutEvent),
+    /// A key that is no shortcut went down during a held shortcut (CORE-12).
+    OtherKey,
+    /// Record a shortcut for `action`, replacing the one at `index` or adding one.
+    RecordShortcut {
+        action: Action,
+        index: Option<usize>,
+    },
+    /// The dialog's ✕, a click or closing it.
+    CancelRecording,
+    Recording(RecordUpdate),
+    /// Another app turned Secure Keyboard Entry on (its name) or off.
+    SecureInput(Option<String>),
+    /// The cancel notice's Undo: transcribe and insert the cancelled audio (CORE-11).
+    UndoCancel,
     Bar(BarControl),
     /// Paste or copy last transcript from the tray menu.
     Menu(Action),

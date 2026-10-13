@@ -46,6 +46,8 @@ pub enum CancelReason {
     User,
     /// Push to talk was tapped instead of held (CORE-03).
     ShortTap,
+    /// Another app's shortcut was pressed early in a held dictation (CORE-12).
+    Interrupted,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

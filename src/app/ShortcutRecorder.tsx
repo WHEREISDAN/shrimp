@@ -1,73 +1,42 @@
-import { useRef, useState, type KeyboardEvent } from "react";
-import { errorMessage } from "../lib/ipc";
-import { isModifierCode, keyName, shortcutLabel, shortcutText } from "../lib/shortcuts";
+import { useCallback, useEffect, useState } from "react";
+import {
+  errorMessage,
+  EVENTS,
+  getShortcuts,
+  removeShortcut,
+  sameAction,
+  type ShortcutAction,
+  type ShortcutRow,
+} from "../lib/ipc";
+import { useTauriEvent } from "../lib/useTauriEvent";
+import { useShortcutRecording } from "./useShortcutRecording";
 
 interface ShortcutRecorderProps {
+  action: ShortcutAction;
   label: string;
-  value: string | null;
-  /** Saves a shortcut, or clears it with null; rejects with the message to show. */
-  onSave: (shortcut: string | null) => Promise<void>;
 }
 
-/** Click, then press the keys: the shortcut saves when they are released. Esc alone cancels. */
-export function ShortcutRecorder({ label, value, onSave }: ShortcutRecorderProps) {
-  const [recording, setRecording] = useState(false);
-  const [preview, setPreview] = useState<string | null>(null);
+/** An action's first shortcut: click, then press the keys or a mouse button. More are in the Shortcuts dialog. */
+export function ShortcutRecorder({ action, label }: ShortcutRecorderProps) {
+  const [row, setRow] = useState<ShortcutRow | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const candidate = useRef<string | null>(null);
 
-  const stop = () => {
-    setRecording(false);
-    setPreview(null);
-    candidate.current = null;
-  };
+  const load = useCallback(() => {
+    getShortcuts()
+      .then((list) =>
+        setRow(list.rows.find((candidate) => sameAction(candidate.action, action)) ?? null),
+      )
+      .catch(() => undefined);
+  }, [action]);
+  useEffect(load, [load]);
+  useTauriEvent(EVENTS.settings, load);
+  const recording = useShortcutRecording((other) => sameAction(other, action), load);
 
-  const save = (shortcut: string | null) => {
-    stop();
-    onSave(shortcut)
-      .then(() => setError(null))
-      .catch((err: unknown) => setError(errorMessage(err)));
-  };
-
-  const onKeyDown = (event: KeyboardEvent<HTMLButtonElement>) => {
-    if (!recording) {
-      return;
-    }
-    event.preventDefault();
-    event.stopPropagation();
-    const plain = !event.ctrlKey && !event.altKey && !event.shiftKey && !event.metaKey;
-    if (event.code === "Escape" && plain) {
-      stop();
-      return;
-    }
-    const modifier = isModifierCode(event.code);
-    const key = modifier ? null : keyName(event.code);
-    if (!modifier && key === null) {
-      setError("That key can't be used in a shortcut.");
-      return;
-    }
-    candidate.current = shortcutText(event, key);
-    setPreview(candidate.current);
-  };
-
-  const onKeyUp = (event: KeyboardEvent<HTMLButtonElement>) => {
-    if (!recording || candidate.current === null) {
-      return;
-    }
-    event.preventDefault();
-    const released = !event.ctrlKey && !event.altKey && !event.shiftKey && !event.metaKey;
-    if (!isModifierCode(event.code) || released) {
-      save(candidate.current);
-    }
-  };
-
-  const shown = recording
-    ? preview
-      ? shortcutLabel(preview)
-      : "Press keys…"
-    : value
-      ? shortcutLabel(value)
-      : "Not set";
+  const value = row?.shortcuts[0] ?? null;
+  const shown = recording.active
+    ? (recording.active.preview ?? "Press key or mouse button")
+    : (value ?? "Not set");
+  const problem = error ?? (recording.result?.kind === "failed" ? recording.result.text : null);
 
   return (
     <div className="shortcut-row">
@@ -76,33 +45,38 @@ export function ShortcutRecorder({ label, value, onSave }: ShortcutRecorderProps
         <div className="row-end">
           <button
             type="button"
-            className={recording ? "recorder recording" : "recorder"}
+            className={recording.active ? "recorder recording" : "recorder"}
             aria-label={`${label} shortcut: ${shown}`}
-            aria-pressed={recording}
+            aria-pressed={recording.active !== null}
             onClick={() => {
               setError(null);
-              setRecording(true);
+              if (recording.active) {
+                recording.cancel();
+              } else {
+                recording.start(action, value ? 0 : null);
+              }
             }}
-            onKeyDown={onKeyDown}
-            onKeyUp={onKeyUp}
-            onBlur={stop}
           >
             {shown}
           </button>
-          {value && !recording && (
+          {value && !recording.active && (
             <button
               type="button"
               aria-label={`Remove ${label} shortcut`}
-              onClick={() => save(null)}
+              onClick={() =>
+                void removeShortcut(action, 0)
+                  .then(load)
+                  .catch((err: unknown) => setError(errorMessage(err)))
+              }
             >
               Remove
             </button>
           )}
         </div>
       </div>
-      {error && (
+      {problem && (
         <p className="error" role="alert">
-          {error}
+          {problem}
         </p>
       )}
     </div>

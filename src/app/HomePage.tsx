@@ -8,11 +8,10 @@ type InfoState =
   { status: "loading" } | { status: "ready"; info: AppInfo } | { status: "error"; message: string };
 
 interface HomePageProps {
-  /** Increments each time the Shortcuts card should be scrolled into view. */
-  revealShortcuts: number;
+  onOpenShortcuts: () => void;
 }
 
-export function HomePage({ revealShortcuts }: HomePageProps) {
+export function HomePage({ onOpenShortcuts }: HomePageProps) {
   return (
     <div className="app">
       <header className="app-header">
@@ -21,7 +20,7 @@ export function HomePage({ revealShortcuts }: HomePageProps) {
       </header>
       <ModelCard />
       <PermissionsCard />
-      <ShortcutsCard reveal={revealShortcuts} />
+      <ShortcutsCard onOpenShortcuts={onOpenShortcuts} />
       <AppInfoLine />
     </div>
   );

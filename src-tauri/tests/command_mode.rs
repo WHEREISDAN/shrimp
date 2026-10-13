@@ -76,7 +76,10 @@ fn command_mode_is_off_until_turned_on() {
         h.fakes.has_notice("Command mode is toggled off")
     });
     let notice = h.fakes.notices.lock().unwrap()[0].clone();
-    assert_eq!(notice.action, Some(NoticeAction::OpenExperimentalSettings));
+    assert_eq!(
+        notice.action(),
+        Some(NoticeAction::OpenExperimentalSettings)
+    );
     assert!(h.fakes.cues().is_empty(), "nothing recorded");
     h.hold(Action::CommandMode, HOLD);
     std::thread::sleep(Duration::from_millis(200));

@@ -8,6 +8,7 @@ use handy_keys::Modifiers;
 
 use super::Controller;
 use crate::dictation::bindings::{self, Moment};
+use crate::hotkeys::Action;
 use crate::notify::{Notice, NoticeAction};
 use crate::platform::SyntheticKey;
 
@@ -61,6 +62,7 @@ impl Controller {
     /// Esc (and Backspace in Command Mode) is only swallowed while a session
     /// records (CORE-06, CMD-04), and until its key-up, so no half of the
     /// press reaches the app. The user's own shortcuts come from the settings.
+    /// A held dictation's shortcut is never released as stuck (CORE-14).
     pub(super) fn refresh_bindings(&mut self) {
         let moment = Moment {
             cancelable: self.recording.is_some() || self.cancel_held,
@@ -68,5 +70,11 @@ impl Controller {
         };
         let bindings = bindings::active(&self.bindings, &self.settings.get(), moment);
         self.hotkeys.set_bindings(&bindings);
+        let protected: &[Action] = if self.recording.is_some() {
+            &[Action::PushToTalk, Action::CommandMode]
+        } else {
+            &[]
+        };
+        self.hotkeys.set_protected(protected);
     }
 }

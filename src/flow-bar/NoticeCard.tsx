@@ -10,6 +10,7 @@ const ACTION_LABELS: Record<NoticeAction, string> = {
   openExperimentalSettings: "Go to settings",
   viewTransformChanges: "See changes",
   openDictionary: "View",
+  undoCancel: "Undo",
 };
 
 interface NoticeCardProps {
@@ -18,15 +19,15 @@ interface NoticeCardProps {
 }
 
 export function NoticeCard({ notice, onDismiss }: NoticeCardProps) {
-  const { action } = notice;
   return (
     <div
       className={`notice notice-${notice.level}`}
       role={notice.level === "error" ? "alert" : "status"}
     >
       <p className="notice-message">{notice.message}</p>
-      {action && (
+      {notice.actions.map((action) => (
         <button
+          key={action}
           type="button"
           className="notice-action"
           onClick={() => {
@@ -36,7 +37,7 @@ export function NoticeCard({ notice, onDismiss }: NoticeCardProps) {
         >
           {ACTION_LABELS[action]}
         </button>
-      )}
+      ))}
       <button type="button" className="notice-close" aria-label="Dismiss" onClick={onDismiss}>
         ×
       </button>

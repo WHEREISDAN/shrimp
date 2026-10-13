@@ -1,6 +1,7 @@
 //! The dictation actor: one task owns all session state and reacts to
 //! shortcuts, Flow Bar clicks, timers and pipeline results on one channel.
 
+mod recording;
 mod shortcuts;
 mod transforms;
 
@@ -24,7 +25,7 @@ use super::transform::TransformRun;
 use crate::audio::{AudioError, AudioSourceSpec, Recorder, level};
 use crate::context::{self, DictationContext, PendingContext};
 use crate::edit::Editor;
-use crate::hotkeys::{Action, Binding};
+use crate::hotkeys::{Action, Binding, HotkeyEvent, Trigger};
 use crate::notify::{Notice, NoticeAction};
 use crate::platform::{
     CuePlayer, FocusInspector, HotkeyBackend, Launcher, Permission, PermissionStatus, Permissions,
@@ -37,10 +38,10 @@ use crate::stt::SttEngine;
 /// Everything the controller needs, injected so tests can use fakes.
 pub struct Services {
     pub hotkeys: Box<dyn HotkeyBackend>,
+    /// The platform's default bindings.
     pub bindings: Vec<Binding>,
-    /// Display names of the push-to-talk and Command Mode shortcuts, for tips.
-    pub push_to_talk_label: String,
-    pub command_mode_label: String,
+    /// Formats a shortcut for tips and the Shortcuts dialog.
+    pub label: fn(&Trigger) -> String,
     pub inserter: Arc<dyn TextInserter>,
     pub focus: Arc<dyn FocusInspector>,
     pub permissions: Arc<dyn Permissions>,
@@ -65,6 +66,7 @@ pub struct ControllerHandle {
     tx: UnboundedSender<ControllerInput>,
     state: Arc<Mutex<DictationState>>,
     source: Arc<Mutex<AudioSourceSpec>>,
+    secure_input: Arc<Mutex<Option<String>>>,
 }
 
 impl ControllerHandle {
@@ -91,25 +93,38 @@ impl ControllerHandle {
         log::info!("audio source set to {spec}");
         *lock(&self.source) = spec;
     }
+
+    /// The app that has Secure Keyboard Entry on, if any (KEYS-09).
+    pub fn secure_input(&self) -> Option<String> {
+        lock(&self.secure_input).clone()
+    }
 }
 
 pub fn spawn(services: Services) -> ControllerHandle {
     let (tx, rx) = unbounded_channel();
     let state = Arc::new(Mutex::new(DictationState::Idle));
     let source = Arc::new(Mutex::new(services.source.clone()));
-    let controller = Controller::new(
+    let secure_input = Arc::new(Mutex::new(None));
+    let mut controller = Controller::new(
         services,
         tx.clone(),
         Arc::clone(&state),
         Arc::clone(&source),
     );
+    controller.secure_input = Arc::clone(&secure_input);
     tauri::async_runtime::spawn(controller.run(rx));
-    ControllerHandle { tx, state, source }
+    ControllerHandle {
+        tx,
+        state,
+        source,
+        secure_input,
+    }
 }
 
 struct Recording {
     recorder: Recorder,
     session: u64,
+    started: Instant,
     /// The app the user dictates into and its focused field, read while
     /// recording (CTX-01).
     context: PendingContext,
@@ -118,8 +133,7 @@ struct Recording {
 struct Controller {
     hotkeys: Box<dyn HotkeyBackend>,
     bindings: Vec<Binding>,
-    push_to_talk_label: String,
-    command_mode_label: String,
+    label: fn(&Trigger) -> String,
     inserter: Arc<dyn TextInserter>,
     focus: Arc<dyn FocusInspector>,
     permissions: Arc<dyn Permissions>,
@@ -150,6 +164,9 @@ struct Controller {
     /// Moves on with every recording, which stops the auto-learn watcher.
     generation: Arc<AtomicU64>,
     learn_timing: LearnTiming,
+    /// The action and binding position of a shortcut being recorded.
+    shortcut_target: Option<(Action, Option<usize>)>,
+    secure_input: Arc<Mutex<Option<String>>>,
 }
 
 impl Controller {
@@ -171,8 +188,7 @@ impl Controller {
         Self {
             hotkeys: services.hotkeys,
             bindings: services.bindings,
-            push_to_talk_label: services.push_to_talk_label,
-            command_mode_label: services.command_mode_label,
+            label: services.label,
             inserter: services.inserter,
             focus: services.focus,
             permissions: services.permissions,
@@ -198,6 +214,8 @@ impl Controller {
             retrying: false,
             generation: Arc::new(AtomicU64::new(0)),
             learn_timing: services.timing.learn,
+            shortcut_target: None,
+            secure_input: Arc::new(Mutex::new(None)),
         }
     }
 
@@ -244,6 +262,14 @@ impl Controller {
                     self.gesture(Input::Release(event.action));
                 }
             }
+            ControllerInput::OtherKey => self.interrupted(),
+            ControllerInput::RecordShortcut { action, index } => {
+                self.record_shortcut(action, index);
+            }
+            ControllerInput::CancelRecording => self.cancel_recording(),
+            ControllerInput::Recording(update) => self.recording_update(update),
+            ControllerInput::SecureInput(owner) => self.secure_input_changed(owner),
+            ControllerInput::UndoCancel => self.undo_cancel(),
             ControllerInput::SettingsChanged => self.refresh_bindings(),
             ControllerInput::Transform(action) => self.transform_action(action),
             ControllerInput::Bar(control) => self.gesture(Input::Bar(control)),
@@ -341,6 +367,7 @@ impl Controller {
                 self.recording = Some(Recording {
                     recorder,
                     session,
+                    started: Instant::now(),
                     context,
                 });
                 self.sounds.play(Cue::Start);
@@ -454,11 +481,11 @@ impl Controller {
         match reason {
             CancelReason::User => {
                 self.sounds.play(Cue::Cancel);
-                self.ui.notice(Notice::info(if command {
-                    "Command cancelled"
+                self.ui.notice(if command {
+                    Notice::info("Command cancelled")
                 } else {
-                    "Dictation cancelled"
-                }));
+                    Notice::info("Dictation cancelled").with_action(NoticeAction::UndoCancel)
+                });
                 let tx = self.tx.clone();
                 tauri::async_runtime::spawn_blocking(move || {
                     if let Ok(clip) = recording.recorder.finish() {
@@ -466,18 +493,25 @@ impl Controller {
                     }
                 });
             }
+            CancelReason::Interrupted => {
+                drop(recording);
+                self.sounds.play(Cue::Cancel);
+                self.ui.notice(Notice::info(
+                    "Dictation cancelled because another shortcut was pressed.",
+                ));
+            }
             CancelReason::ShortTap if command => {
                 drop(recording);
                 self.ui.notice(Notice::info(format!(
                     "Hold {} while you speak a command, or double-press it for hands-free.",
-                    self.command_mode_label
+                    self.label_of(Action::CommandMode)
                 )));
             }
             CancelReason::ShortTap => {
                 drop(recording);
                 self.ui.notice(Notice::info(format!(
                     "Hold {} to dictate, or double-tap it for hands-free.",
-                    self.push_to_talk_label
+                    self.label_of(Action::PushToTalk)
                 )));
             }
         }
@@ -588,7 +622,13 @@ impl Controller {
         self.refresh_bindings();
         let tx = self.tx.clone();
         let on_event = Box::new(move |event| {
-            let _ = tx.send(ControllerInput::Shortcut(event));
+            let input = match event {
+                HotkeyEvent::Shortcut(event) => ControllerInput::Shortcut(event),
+                HotkeyEvent::OtherKey => ControllerInput::OtherKey,
+                HotkeyEvent::Recording(update) => ControllerInput::Recording(update),
+                HotkeyEvent::SecureInput(owner) => ControllerInput::SecureInput(owner),
+            };
+            let _ = tx.send(input);
         });
         match self.hotkeys.start(on_event) {
             Ok(()) => {

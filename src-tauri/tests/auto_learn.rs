@@ -53,7 +53,7 @@ fn a_respelled_word_is_added_with_a_notice() {
         h.fakes.has_notice("Added “Nguyen” to your dictionary")
     });
     let notice = h.fakes.notices.lock().unwrap().last().unwrap().clone();
-    assert_eq!(notice.action, Some(NoticeAction::OpenDictionary));
+    assert_eq!(notice.action(), Some(NoticeAction::OpenDictionary));
 }
 
 #[test]

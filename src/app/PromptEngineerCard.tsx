@@ -1,15 +1,14 @@
 import { useState } from "react";
-import { setShortcut, type Settings, type SettingsPatch } from "../lib/ipc";
+import type { Settings, SettingsPatch } from "../lib/ipc";
 import { ShortcutRecorder } from "./ShortcutRecorder";
 import { useAutosave } from "./useAutosave";
 
 interface PromptEngineerCardProps {
   settings: Settings;
   update: (patch: SettingsPatch) => Promise<void>;
-  apply: (settings: Settings) => void;
 }
 
-export function PromptEngineerCard({ settings, update, apply }: PromptEngineerCardProps) {
+export function PromptEngineerCard({ settings, update }: PromptEngineerCardProps) {
   const saved = settings.transforms.promptEngineer;
   // The text being edited, until the saved prompt catches up.
   const [draft, setDraft] = useState<string | null>(null);
@@ -35,11 +34,7 @@ export function PromptEngineerCard({ settings, update, apply }: PromptEngineerCa
         </button>
       </div>
       <p className="muted">Turns rough thoughts into a structured prompt for an AI assistant.</p>
-      <ShortcutRecorder
-        label="Prompt Engineer"
-        value={saved.shortcut}
-        onSave={async (shortcut) => apply(await setShortcut("promptEngineer", shortcut))}
-      />
+      <ShortcutRecorder action="promptEngineer" label="Prompt Engineer" />
       <label className="field">
         <span>Prompt</span>
         <textarea rows={4} value={prompt} onChange={(event) => setDraft(event.target.value)} />

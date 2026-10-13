@@ -1,6 +1,5 @@
 use std::sync::Arc;
 
-use serde::Serialize;
 use tauri::{AppHandle, Emitter, State};
 
 use super::CommandError;
@@ -13,17 +12,6 @@ use crate::hotkeys::Action;
 use crate::notify::NoticeAction;
 use crate::platform::{self, Permission};
 use crate::stt::ModelManager;
-
-/// One row of the shortcuts list. Mirrors `ShortcutInfo` in src/lib/ipc.ts.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct ShortcutInfo {
-    pub action: Action,
-    pub name: &'static str,
-    pub shortcut: String,
-}
-
-pub struct Shortcuts(pub Vec<ShortcutInfo>);
 
 #[tauri::command]
 pub fn get_dictation_state(controller: State<'_, ControllerHandle>) -> DictationState {
@@ -89,6 +77,10 @@ pub fn run_notice_action(
             controller.send(ControllerInput::Transform(TransformAction::View));
             Ok(())
         }
+        NoticeAction::UndoCancel => {
+            controller.send(ControllerInput::UndoCancel);
+            Ok(())
+        }
         NoticeAction::OpenExperimentalSettings => {
             window::show_main(&app);
             let _ = app.emit_to(window::MAIN_LABEL, NAVIGATE_EVENT, "experimental");
@@ -103,27 +95,9 @@ pub fn transform_action(action: TransformAction, controller: State<'_, Controlle
     controller.send(ControllerInput::Transform(action));
 }
 
-#[tauri::command]
-pub fn get_shortcuts(shortcuts: State<'_, Shortcuts>) -> Vec<ShortcutInfo> {
-    shortcuts.0.clone()
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn shortcut_info_serializes_in_camel_case() {
-        let info = ShortcutInfo {
-            action: Action::PushToTalk,
-            name: "Push to talk",
-            shortcut: "fn".into(),
-        };
-        assert_eq!(
-            serde_json::to_value(info).unwrap(),
-            serde_json::json!({"action": "pushToTalk", "name": "Push to talk", "shortcut": "fn"})
-        );
-    }
 
     #[test]
     fn bar_controls_deserialize_from_camel_case() {

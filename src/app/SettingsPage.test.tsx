@@ -2,7 +2,7 @@ import { fireEvent, render, screen, waitFor, within } from "@testing-library/rea
 import { describe, expect, it } from "vitest";
 import type { ApiKeys, Settings, SettingsPatch } from "../lib/ipc";
 import { SettingsPage } from "./SettingsPage";
-import { AI_OPTIONS, mockBackend, SETTINGS, type Args } from "./testBackend";
+import { AI_OPTIONS, mockBackend, SETTINGS, SHORTCUTS, type Args } from "./testBackend";
 
 function backend(
   extra: Record<string, (args: Args) => unknown> = {},
@@ -14,15 +14,7 @@ function backend(
     get_settings: () => settings,
     get_ai_options: () => AI_OPTIONS,
     get_api_keys: () => keys,
-    get_shortcuts: () => [{ action: "commandMode", name: "Command Mode", shortcut: "fn ⌃" }],
-    set_shortcut: (args) => {
-      const shortcut = args.shortcut as string | null;
-      if (shortcut === "Cmd+V") {
-        throw { code: "invalid", message: "This shortcut is not allowed" };
-      }
-      settings = { ...settings, shortcuts: { pressEnter: shortcut } };
-      return settings;
-    },
+    get_shortcuts: () => SHORTCUTS,
     update_settings: (args) => {
       const patch = args.patch as SettingsPatch;
       settings = {
@@ -313,37 +305,14 @@ describe("SettingsPage experimental", () => {
 });
 
 describe("SettingsPage shortcuts", () => {
-  it("records a Press Enter shortcut when the keys are released", async () => {
-    const { argsOf } = backend();
-    render(<SettingsPage />);
-    const recorder = await screen.findByRole("button", { name: "Press Enter shortcut: Not set" });
-    fireEvent.click(recorder);
-    fireEvent.keyDown(recorder, { code: "AltLeft", altKey: true });
-    fireEvent.keyDown(recorder, { code: "Enter", altKey: true });
-    fireEvent.keyUp(recorder, { code: "Enter", altKey: true });
-    await waitFor(() =>
-      expect(argsOf("set_shortcut")).toEqual([{ action: "pressEnter", shortcut: "Opt+Return" }]),
-    );
-    expect(
-      await screen.findByRole("button", { name: "Press Enter shortcut: ⌥↩" }),
-    ).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Remove Press Enter shortcut" }));
-    await waitFor(() =>
-      expect(argsOf("set_shortcut")[1]).toEqual({ action: "pressEnter", shortcut: null }),
-    );
-  });
-
-  it("shows why a shortcut was refused, and Esc cancels recording", async () => {
+  it("shows push to talk and opens the Shortcuts dialog", async () => {
     backend();
-    render(<SettingsPage />);
-    const recorder = await screen.findByRole("button", { name: "Press Enter shortcut: Not set" });
-    fireEvent.click(recorder);
-    fireEvent.keyDown(recorder, { code: "KeyV", metaKey: true });
-    fireEvent.keyUp(recorder, { code: "KeyV", metaKey: true });
-    expect(await screen.findByRole("alert")).toHaveTextContent("This shortcut is not allowed");
-    fireEvent.click(recorder);
-    fireEvent.keyDown(recorder, { code: "Escape" });
-    expect(recorder).toHaveAccessibleName("Press Enter shortcut: Not set");
+    const opened: string[] = [];
+    render(<SettingsPage onOpenShortcuts={() => opened.push("shortcuts")} />);
+    const section = await screen.findByRole("region", { name: "Shortcuts" });
+    expect(await within(section).findByText("fn")).toBeInTheDocument();
+    fireEvent.click(within(section).getByRole("button", { name: "Change" }));
+    expect(opened).toEqual(["shortcuts"]);
   });
 });
 

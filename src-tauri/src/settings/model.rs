@@ -3,9 +3,9 @@
 
 use serde::{Deserialize, Serialize};
 
+use super::shortcuts::ShortcutSettings;
 use super::transforms::TransformSettings;
 use crate::edit::{AppCategory, CleanupLevel, Style};
-use crate::hotkeys::{Action, validation};
 use crate::llm::{LlmProviderId, catalog};
 use crate::stt::SttEngineId;
 
@@ -85,14 +85,6 @@ impl Default for VibeCodingSettings {
     fn default() -> Self {
         Self { file_tagging: true }
     }
-}
-
-/// Shortcuts the user sets, in handy-keys notation ("Opt+Return").
-#[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase", default)]
-pub struct ShortcutSettings {
-    /// Unbound by default (CORE-15).
-    pub press_enter: Option<String>,
 }
 
 /// How often one-off notices have been shown.
@@ -211,6 +203,11 @@ impl StyleSettings {
 }
 
 impl Settings {
+    /// Moves values older versions stored elsewhere into place.
+    pub fn normalize(&mut self) {
+        self.shortcuts.normalize(&mut self.transforms);
+    }
+
     /// Rejects values the UI should never send.
     pub fn validate(&self) -> Result<(), String> {
         for (category, style) in [
@@ -239,9 +236,7 @@ impl Settings {
         if self.ai.ollama_model.len() > MAX_MODEL_LENGTH {
             return Err("Model names must be 1 to 120 characters.".into());
         }
-        if let Some(shortcut) = &self.shortcuts.press_enter {
-            validation::validate(shortcut, Action::PressEnter, &[])?;
-        }
+        self.shortcuts.validate(&self.transforms)?;
         self.transforms.validate()?;
         let url = self.ai.ollama_url.trim();
         if !(url.starts_with("http://") || url.starts_with("https://")) || url.len() > 200 {
@@ -276,15 +271,21 @@ mod tests {
         assert_eq!(json["styles"]["personal"], "formal");
         assert_eq!(json["privacy"]["contextAwareness"], true);
         assert_eq!(json["experimental"]["commandMode"], false);
-        assert_eq!(json["shortcuts"]["pressEnter"], serde_json::Value::Null);
+        assert_eq!(json["shortcuts"]["bindings"], serde_json::json!({}));
     }
 
     #[test]
-    fn a_press_enter_shortcut_must_be_valid() {
+    fn shortcuts_must_parse() {
         let mut settings = Settings::default();
-        settings.shortcuts.press_enter = Some("Opt+Return".into());
+        settings
+            .shortcuts
+            .bindings
+            .insert("pressEnter".into(), vec!["Opt+Return".into()]);
         settings.validate().unwrap();
-        settings.shortcuts.press_enter = Some("Return".into());
+        settings
+            .shortcuts
+            .bindings
+            .insert("pressEnter".into(), vec!["Opt+Nothing".into()]);
         assert!(settings.validate().is_err());
     }
 

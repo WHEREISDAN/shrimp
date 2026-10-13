@@ -12,11 +12,14 @@ pub use handy_keys::Modifiers;
 pub use shrimp_lib::audio::{AudioClip, AudioSourceSpec};
 pub use shrimp_lib::dictation::gestures::BarControl;
 pub use shrimp_lib::dictation::{
-    self, Answer, ControllerHandle, ControllerInput, DictationState, DictationUi, Mode, Services,
-    Timing, TransformAction, TransformView,
+    self, Answer, ControllerHandle, ControllerInput, DictationState, DictationUi, Mode,
+    RecordingStatus, Services, Timing, TransformAction, TransformView,
 };
 pub use shrimp_lib::edit::{CleanupLevel, EditTimeout, Editor, FixedLibrary, Snapshot};
-pub use shrimp_lib::hotkeys::{Action, Binding, ShortcutEvent, macos_defaults};
+pub use shrimp_lib::hotkeys::{
+    Action, Binding, HotkeyEvent, RecordUpdate, Recorded, Recording, ShortcutEvent, Trigger,
+    macos_defaults, macos_label,
+};
 pub use shrimp_lib::llm::{
     LlmError, LlmProvider, LlmProviderId, LlmRequest, LlmResponse, LlmSource,
 };
@@ -37,6 +40,12 @@ pub const WAIT: Duration = Duration::from_secs(5);
 #[derive(Default)]
 pub struct Fakes {
     pub bindings: Mutex<Vec<Vec<Action>>>,
+    /// The last bindings set, with their triggers.
+    pub bound: Mutex<Vec<Binding>>,
+    pub protected: Mutex<Vec<Action>>,
+    /// Whether a shortcut is being recorded through the hooks.
+    pub recording_shortcut: Mutex<bool>,
+    pub recording_statuses: Mutex<Vec<RecordingStatus>>,
     pub inserted: Mutex<Vec<String>>,
     pub inserted_html: Mutex<Vec<Option<String>>>,
     pub insert_options: Mutex<Vec<InsertOptions>>,
@@ -98,13 +107,22 @@ impl Fakes {
 pub struct FakeHotkeys(pub Arc<Fakes>);
 
 impl HotkeyBackend for FakeHotkeys {
-    fn start(&mut self, _: Box<dyn Fn(ShortcutEvent) + Send + Sync>) -> Result<(), PlatformError> {
+    fn start(&mut self, _: Box<dyn Fn(HotkeyEvent) + Send + Sync>) -> Result<(), PlatformError> {
         Ok(())
     }
 
     fn set_bindings(&mut self, bindings: &[Binding]) {
         let actions = bindings.iter().map(|binding| binding.action).collect();
         self.0.bindings.lock().unwrap().push(actions);
+        *self.0.bound.lock().unwrap() = bindings.to_vec();
+    }
+
+    fn set_protected(&mut self, actions: &[Action]) {
+        *self.0.protected.lock().unwrap() = actions.to_vec();
+    }
+
+    fn set_recording(&mut self, recording: Option<Recording>) {
+        *self.0.recording_shortcut.lock().unwrap() = recording.is_some();
     }
 
     fn stop(&mut self) {}
@@ -373,6 +391,10 @@ impl DictationUi for FakeUi {
     fn changes(&self, view: TransformView) {
         self.0.changes.lock().unwrap().push(view);
     }
+
+    fn shortcut_recording(&self, status: RecordingStatus) {
+        self.0.recording_statuses.lock().unwrap().push(status);
+    }
 }
 
 pub struct Harness {
@@ -424,9 +446,8 @@ impl Harness {
         };
         let controller = dictation::spawn(Services {
             hotkeys: Box::new(FakeHotkeys(Arc::clone(&fakes))),
-            bindings: macos_defaults(),
-            push_to_talk_label: "fn".into(),
-            command_mode_label: "fn ⌃".into(),
+            bindings: macos_defaults(true),
+            label: macos_label,
             inserter: Arc::new(FakeInserter(Arc::clone(&fakes))),
             focus: Arc::new(FakeFocus(Arc::clone(&fakes))),
             permissions: Arc::new(Granted),

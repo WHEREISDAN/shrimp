@@ -8,10 +8,13 @@ mod focus;
 mod globe;
 mod hotkeys;
 mod insert;
+mod iokit;
 mod keymap;
 mod launcher;
+mod mouse;
 mod pasteboard;
 mod permissions;
+mod secure_input;
 mod sound;
 
 use std::sync::Arc;
@@ -29,7 +32,7 @@ pub fn platform(main_thread: MainThread) -> Platform {
         permissions: Arc::new(permissions::MacPermissions),
         sounds: Arc::new(sound::MacCuePlayer::new(main_thread)),
         launcher: Arc::new(launcher::MacLauncher),
-        default_bindings: macos_defaults(),
+        default_bindings: macos_defaults(has_fn_key()),
         label: macos_label,
         language: preferred_language(),
         globe_key: globe::globe_key_action(),
@@ -37,6 +40,24 @@ pub fn platform(main_thread: MainThread) -> Platform {
 }
 
 pub use globe::open_keyboard_settings;
+
+/// Debug builds read this variable to pretend the keyboard has (1) or
+/// lacks (0) an Apple Fn key. See docs/DEVELOPMENT.md.
+const FN_KEY_ENV: &str = "SHRIMP_FN_KEY";
+
+/// Whether the defaults can use Fn (CORE-10).
+fn has_fn_key() -> bool {
+    let forced = cfg!(debug_assertions)
+        .then(|| std::env::var(FN_KEY_ENV).ok())
+        .flatten();
+    let has = match forced.as_deref() {
+        Some("0") => false,
+        Some("1") => true,
+        _ => iokit::has_apple_fn_key(),
+    };
+    log::info!("Apple Fn key: {has}");
+    has
+}
 
 /// The user's first preferred language as an ISO 639-1 code, e.g. "en".
 fn preferred_language() -> Option<String> {

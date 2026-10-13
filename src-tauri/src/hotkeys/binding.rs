@@ -3,6 +3,8 @@ use std::collections::HashSet;
 use handy_keys::{Hotkey, Key, Modifiers};
 use serde::{Deserialize, Serialize};
 
+use super::trigger::{MouseButton, Trigger};
+
 /// Everything a global shortcut can trigger.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -45,6 +47,39 @@ impl Action {
     }
 }
 
+impl Action {
+    /// The key a binding list is stored under in the settings; custom
+    /// transforms are stored by their id instead.
+    pub fn storage_key(self) -> Option<&'static str> {
+        Some(match self {
+            Self::PushToTalk => "pushToTalk",
+            Self::HandsFree => "handsFree",
+            Self::Cancel => "cancel",
+            Self::PasteLast => "pasteLast",
+            Self::CopyLast => "copyLast",
+            Self::CommandMode => "commandMode",
+            Self::PressEnter => "pressEnter",
+            Self::Polish => "polish",
+            Self::PromptEngineer => "promptEngineer",
+            Self::ViewChanges => "viewChanges",
+            Self::CustomTransform(_) => return None,
+        })
+    }
+
+    /// Up to 4 bindings per action; Cancel takes 1 (KEYS-02).
+    pub fn max_bindings(self) -> usize {
+        if self == Self::Cancel { 1 } else { 4 }
+    }
+
+    /// Actions that must keep at least one binding (KEYS-02).
+    pub fn required(self) -> bool {
+        matches!(
+            self,
+            Self::PushToTalk | Self::CommandMode | Self::PasteLast | Self::CopyLast | Self::Cancel
+        )
+    }
+}
+
 /// Modifier groups (either side) that can pass through a binding.
 const PASSTHROUGH_GROUPS: [Modifiers; 4] = [
     Modifiers::SHIFT,
@@ -56,7 +91,7 @@ const PASSTHROUGH_GROUPS: [Modifiers; 4] = [
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct Binding {
     pub action: Action,
-    pub hotkey: Hotkey,
+    pub trigger: Trigger,
     /// Also matches with extra Shift, Control, Option or Command held, which
     /// pass through to the app (Shift+Enter from Press Enter).
     pub passthrough: bool,
@@ -64,41 +99,37 @@ pub struct Binding {
 
 impl Binding {
     fn of(action: Action, modifiers: Modifiers, key: Option<Key>) -> Self {
-        Self::new(action, Hotkey { modifiers, key })
+        Self::new(action, Trigger::keys(modifiers, key))
     }
 
-    pub fn new(action: Action, hotkey: Hotkey) -> Self {
+    pub fn new(action: Action, trigger: impl Into<Trigger>) -> Self {
         Self {
             action,
-            hotkey,
+            trigger: trigger.into(),
             passthrough: false,
         }
     }
 
-    pub fn with_passthrough(action: Action, hotkey: Hotkey) -> Self {
+    pub fn with_passthrough(action: Action, trigger: impl Into<Trigger>) -> Self {
         Self {
             passthrough: true,
-            ..Self::new(action, hotkey)
+            ..Self::new(action, trigger)
         }
     }
 
     /// The modifiers held beyond the binding's own, when `modifiers` match it
     /// (always empty for bindings without pass-through).
     pub fn extra_modifiers(&self, modifiers: Modifiers) -> Option<Modifiers> {
-        if self.hotkey.modifiers.matches(modifiers) {
+        let own = self.trigger.modifiers();
+        if own.matches(modifiers) {
             return Some(Modifiers::empty());
         }
-        if !self.passthrough
-            || modifiers.contains(Modifiers::FN) != self.hotkey.modifiers.contains(Modifiers::FN)
-        {
+        if !self.passthrough || modifiers.contains(Modifiers::FN) != own.contains(Modifiers::FN) {
             return None;
         }
         let mut extra = Modifiers::empty();
         for group in PASSTHROUGH_GROUPS {
-            match (
-                self.hotkey.modifiers.intersects(group),
-                modifiers.intersects(group),
-            ) {
+            match (own.intersects(group), modifiers.intersects(group)) {
                 (true, false) => return None,
                 (false, true) => extra |= group,
                 _ => {}
@@ -107,15 +138,18 @@ impl Binding {
         Some(extra)
     }
 
-    /// Hotkeys the keyboard hook swallows for this binding: with pass-through,
-    /// every combination of extra modifiers too.
+    /// Key combinations the keyboard hook swallows for this binding: with
+    /// pass-through, every combination of extra modifiers too.
     fn blocked(&self) -> Vec<Hotkey> {
+        let Trigger::Keys(hotkey) = self.trigger else {
+            return Vec::new();
+        };
         if !self.passthrough {
-            return vec![self.hotkey];
+            return vec![hotkey];
         }
         let free: Vec<Modifiers> = PASSTHROUGH_GROUPS
             .into_iter()
-            .filter(|group| !self.hotkey.modifiers.intersects(*group))
+            .filter(|group| !hotkey.modifiers.intersects(*group))
             .collect();
         (0..1u32 << free.len())
             .map(|mask| {
@@ -125,8 +159,8 @@ impl Binding {
                     .filter(|(bit, _)| mask & (1 << bit) != 0)
                     .fold(Modifiers::empty(), |acc, (_, group)| acc | *group);
                 Hotkey {
-                    modifiers: self.hotkey.modifiers | extra,
-                    key: self.hotkey.key,
+                    modifiers: hotkey.modifiers | extra,
+                    key: hotkey.key,
                 }
             })
             .collect()
@@ -138,17 +172,35 @@ pub fn blocked_hotkeys(bindings: &[Binding]) -> HashSet<Hotkey> {
     bindings.iter().flat_map(Binding::blocked).collect()
 }
 
+/// Mouse buttons used by any binding. They never reach other apps, whatever
+/// modifiers are held (CORE-13).
+pub fn blocked_buttons(bindings: &[Binding]) -> HashSet<MouseButton> {
+    bindings
+        .iter()
+        .filter_map(|binding| binding.trigger.mouse())
+        .collect()
+}
+
 /// Backspace cancels Command Mode as well as Esc (CMD-04).
 pub fn backspace_cancel() -> Binding {
     Binding::of(Action::Cancel, Modifiers::empty(), Some(Key::Delete))
 }
 
 /// The macOS defaults from Wispr Flow: Fn to talk, Fn+Space hands-free,
-/// Ctrl+Cmd+V / Ctrl+Cmd+C for the last transcript, Fn+Ctrl for Command Mode.
-pub fn macos_defaults() -> Vec<Binding> {
+/// Fn+Ctrl for Command Mode, Ctrl+Cmd+V / Ctrl+Cmd+C for the last
+/// transcript. Without an Apple Fn key, Ctrl+Opt takes Fn's place (CORE-10).
+pub fn macos_defaults(fn_key: bool) -> Vec<Binding> {
+    let (talk, command) = if fn_key {
+        (Modifiers::FN, Modifiers::FN | Modifiers::CTRL)
+    } else {
+        (
+            Modifiers::CTRL | Modifiers::OPT,
+            Modifiers::CMD | Modifiers::CTRL | Modifiers::OPT,
+        )
+    };
     vec![
-        Binding::of(Action::PushToTalk, Modifiers::FN, None),
-        Binding::of(Action::HandsFree, Modifiers::FN, Some(Key::Space)),
+        Binding::of(Action::PushToTalk, talk, None),
+        Binding::of(Action::HandsFree, talk, Some(Key::Space)),
         Binding::of(Action::Cancel, Modifiers::empty(), Some(Key::Escape)),
         Binding::of(
             Action::PasteLast,
@@ -160,33 +212,46 @@ pub fn macos_defaults() -> Vec<Binding> {
             Modifiers::CMD | Modifiers::CTRL,
             Some(Key::C),
         ),
-        Binding::of(Action::CommandMode, Modifiers::FN | Modifiers::CTRL, None),
+        Binding::of(Action::CommandMode, command, None),
     ]
 }
 
-/// Human-readable shortcut in macOS notation, e.g. "fn", "fn Space", "⌃⌘V".
-pub fn macos_label(hotkey: &Hotkey) -> String {
+/// Human-readable shortcut in macOS notation, e.g. "fn", "fn Space", "⌃⌘V",
+/// "⌃ Mouse 4".
+pub fn macos_label(trigger: &Trigger) -> String {
     const SYMBOLS: [(Modifiers, &str); 4] = [
         (Modifiers::CTRL, "⌃"),
         (Modifiers::OPT, "⌥"),
         (Modifiers::SHIFT, "⇧"),
         (Modifiers::CMD, "⌘"),
     ];
+    let modifiers = trigger.modifiers();
     let mut label: String = SYMBOLS
         .iter()
-        .filter(|(modifier, _)| hotkey.modifiers.intersects(*modifier))
+        .filter(|(modifier, _)| modifiers.intersects(*modifier))
         .map(|(_, symbol)| *symbol)
         .collect();
-    if hotkey.modifiers.contains(Modifiers::FN) {
-        let spaced = hotkey.key.is_some() || !label.is_empty();
+    let has_input = trigger.key().is_some() || trigger.mouse().is_some();
+    if modifiers.contains(Modifiers::FN) {
+        let spaced = has_input || !label.is_empty();
         label.insert_str(0, if spaced { "fn " } else { "fn" });
     }
-    match hotkey.key {
-        Some(Key::Escape) => label.push_str("Esc"),
-        Some(Key::Return) => label.push('↩'),
-        Some(Key::Delete) => label.push('⌫'),
-        Some(key) => label.push_str(&key.to_string()),
-        None => {}
+    match trigger {
+        Trigger::Keys(hotkey) => match hotkey.key {
+            Some(Key::Escape) => label.push_str("Esc"),
+            Some(Key::Return) => label.push('↩'),
+            Some(Key::Delete) => label.push('⌫'),
+            Some(Key::ForwardDelete) => label.push('⌦'),
+            Some(Key::CapsLock) => label.push_str("Caps Lock"),
+            Some(key) => label.push_str(&key.to_string()),
+            None => {}
+        },
+        Trigger::Mouse { button, .. } => {
+            if !label.is_empty() && !label.ends_with(' ') {
+                label.push(' ');
+            }
+            label.push_str(&button.label());
+        }
     }
     label
 }
@@ -196,11 +261,11 @@ mod tests {
     use super::*;
 
     fn label_of(action: Action) -> String {
-        let binding = macos_defaults()
+        let binding = macos_defaults(true)
             .into_iter()
             .find(|binding| binding.action == action)
             .unwrap();
-        macos_label(&binding.hotkey)
+        macos_label(&binding.trigger)
     }
 
     #[test]
@@ -236,6 +301,7 @@ mod tests {
             "Fn never passes through"
         );
         let blocked = blocked_hotkeys(&[through]);
+        assert!(blocked_buttons(&[through]).is_empty());
         assert_eq!(blocked.len(), 8);
         assert!(blocked.contains(&Hotkey {
             modifiers: Modifiers::OPT | Modifiers::SHIFT,
@@ -244,8 +310,46 @@ mod tests {
     }
 
     #[test]
+    fn without_an_fn_key_ctrl_opt_takes_its_place() {
+        let label = |action| {
+            let binding = macos_defaults(false)
+                .into_iter()
+                .find(|binding: &Binding| binding.action == action)
+                .unwrap();
+            macos_label(&binding.trigger)
+        };
+        assert_eq!(label(Action::PushToTalk), "⌃⌥");
+        assert_eq!(label(Action::HandsFree), "⌃⌥Space");
+        assert_eq!(label(Action::CommandMode), "⌃⌥⌘");
+        assert_eq!(label(Action::PasteLast), "⌃⌘V");
+        assert_eq!(label(Action::Cancel), "Esc");
+    }
+
+    #[test]
+    fn labels_mouse_buttons_and_caps_lock() {
+        let label = |text: &str| macos_label(&text.parse::<Trigger>().unwrap());
+        assert_eq!(label("MouseMiddle"), "Middle Click");
+        assert_eq!(label("Ctrl+Mouse4"), "⌃ Mouse 4");
+        assert_eq!(label("Fn+Mouse10"), "fn Mouse 10");
+        assert_eq!(label("CapsLock"), "Caps Lock");
+    }
+
+    #[test]
+    fn mouse_bindings_block_their_button() {
+        let binding = Binding::new(
+            Action::PushToTalk,
+            "Ctrl+Mouse5".parse::<Trigger>().unwrap(),
+        );
+        assert!(blocked_hotkeys(&[binding]).is_empty());
+        assert_eq!(
+            blocked_buttons(&[binding]).into_iter().collect::<Vec<_>>(),
+            vec![MouseButton::new(4).unwrap()]
+        );
+    }
+
+    #[test]
     fn every_action_has_exactly_one_default() {
-        let defaults = macos_defaults();
+        let defaults = macos_defaults(true);
         for action in [
             Action::PushToTalk,
             Action::HandsFree,

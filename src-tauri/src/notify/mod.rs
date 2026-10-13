@@ -12,7 +12,8 @@ pub struct Notice {
     pub id: u64,
     pub level: NoticeLevel,
     pub message: String,
-    pub action: Option<NoticeAction>,
+    /// Buttons, in order.
+    pub actions: Vec<NoticeAction>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
@@ -40,6 +41,8 @@ pub enum NoticeAction {
     ViewTransformChanges,
     /// Opens the dictionary (words were learned, DIC-07).
     OpenDictionary,
+    /// Transcribes the cancelled dictation and inserts it (CORE-11).
+    UndoCancel,
 }
 
 impl NoticeAction {
@@ -54,6 +57,7 @@ impl NoticeAction {
             Self::OpenExperimentalSettings => "Go to settings",
             Self::ViewTransformChanges => "See changes",
             Self::OpenDictionary => "View",
+            Self::UndoCancel => "Undo",
         }
     }
 }
@@ -66,7 +70,7 @@ impl Notice {
             id: NEXT_ID.fetch_add(1, Ordering::Relaxed),
             level,
             message: message.into(),
-            action: None,
+            actions: Vec::new(),
         }
     }
 
@@ -83,8 +87,13 @@ impl Notice {
     }
 
     pub fn with_action(mut self, action: NoticeAction) -> Self {
-        self.action = Some(action);
+        self.actions.push(action);
         self
+    }
+
+    /// The first button, if any.
+    pub fn action(&self) -> Option<NoticeAction> {
+        self.actions.first().copied()
     }
 }
 
@@ -98,7 +107,7 @@ mod tests {
         let json = serde_json::to_value(&notice).unwrap();
         assert_eq!(json["level"], "warning");
         assert_eq!(json["message"], "No text field");
-        assert_eq!(json["action"], "copyLastTranscript");
+        assert_eq!(json["actions"], serde_json::json!(["copyLastTranscript"]));
         assert!(json["id"].as_u64().unwrap() > 0);
     }
 

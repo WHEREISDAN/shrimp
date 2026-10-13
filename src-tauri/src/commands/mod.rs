@@ -10,6 +10,7 @@ pub mod library;
 pub mod models;
 pub mod permissions;
 pub mod settings;
+pub mod shortcuts;
 
 use serde::Serialize;
 
@@ -24,13 +25,16 @@ pub const NAMES: &[&str] = &[
     "run_notice_action",
     "transform_action",
     "get_shortcuts",
+    "record_shortcut",
+    "cancel_shortcut_recording",
+    "remove_shortcut",
+    "reset_shortcuts",
     "get_models",
     "download_default_model",
     "get_permissions",
     "open_permission_settings",
     "get_settings",
     "update_settings",
-    "set_shortcut",
     "get_ai_options",
     "get_api_keys",
     "set_api_key",
