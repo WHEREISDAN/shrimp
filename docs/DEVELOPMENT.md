@@ -1,7 +1,8 @@
 # Development
 
 How to set up, run, test and drive Shrimp during development. Architecture lives in
-[ARCHITECTURE.md](ARCHITECTURE.md); feature progress lives in [PARITY.md](PARITY.md).
+[ARCHITECTURE.md](ARCHITECTURE.md); feature progress lives in [PARITY.md](PARITY.md);
+release builds and updates live in [RELEASING.md](RELEASING.md).
 
 ## Prerequisites
 
@@ -112,7 +113,8 @@ Details:
 inherit the privacy grants given to "Shrimp Dev". This exposure is the same as for any
 unlocked development certificate. Do not grant "Shrimp Dev" permissions on a shared
 machine, and run `scripts/macos/dev-identity.sh delete` when you no longer need it.
-Release builds use a Developer ID identity (phase 5), never this one.
+Release builds use the Developer ID identity, never this one (see
+[RELEASING.md](RELEASING.md)).
 
 ### One-time grants (from phase 1)
 
