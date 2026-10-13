@@ -22,6 +22,7 @@ const ACTION_LABELS: Record<NoticeAction, string> = {
   addDetectedLanguage: "Add language",
   dismissLanguageCard: "Don't show again",
   showFlowBar: "Undo",
+  openHistory: "Open History",
 };
 
 interface NoticeCardProps {

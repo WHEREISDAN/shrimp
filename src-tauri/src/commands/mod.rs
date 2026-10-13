@@ -6,6 +6,7 @@ pub mod app;
 #[cfg(debug_assertions)]
 pub mod dev;
 pub mod dictation;
+pub mod history;
 pub mod languages;
 pub mod library;
 pub mod microphones;
@@ -69,6 +70,14 @@ pub const NAMES: &[&str] = &[
     "delete_snippets",
     "preview_snippet_import",
     "import_snippets",
+    "list_history",
+    "copy_history",
+    "set_history_raw",
+    "retry_history",
+    "history_audio",
+    "extract_history_audio",
+    "delete_history",
+    "set_history_storage",
     #[cfg(debug_assertions)]
     "dev_get_audio_source",
     #[cfg(debug_assertions)]

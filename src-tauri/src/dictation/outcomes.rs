@@ -8,7 +8,14 @@ use crate::platform::{CopyReason, InsertText};
 /// Shows the notices or the answer for `outcome`. Returns what to remember
 /// for paste and copy last transcript, or None to keep the previous one.
 pub fn report(outcome: Outcome, ui: &dyn DictationUi) -> Option<LastDictation> {
-    let remember = |status, text, clip| Some(LastDictation { status, text, clip });
+    let remember = |status, text, clip| {
+        Some(LastDictation {
+            status,
+            text,
+            clip,
+            history_id: None,
+        })
+    };
     match outcome {
         Outcome::Inserted(text) => remember(LastStatus::Inserted, Some(text), None),
         Outcome::Copied(text, reason) => {
@@ -83,6 +90,11 @@ pub fn report(outcome: Outcome, ui: &dyn DictationUi) -> Option<LastDictation> {
         }
         Outcome::TransformUndone => {
             ui.notice(Notice::info("Undone"));
+            None
+        }
+        Outcome::Retried => None,
+        Outcome::RetryFailed(message) => {
+            ui.notice(Notice::error(message));
             None
         }
         Outcome::TransformCopied(text) => {

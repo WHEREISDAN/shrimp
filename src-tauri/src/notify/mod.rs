@@ -68,6 +68,8 @@ pub enum NoticeAction {
     DismissLanguageCard,
     /// Shows the Flow Bar again after Hide for 1 hour (BAR-04).
     ShowFlowBar,
+    /// Opens Home's history (HIS-06).
+    OpenHistory,
 }
 
 impl NoticeAction {
@@ -94,6 +96,7 @@ impl NoticeAction {
             Self::AddDetectedLanguage => "Add language",
             Self::DismissLanguageCard => "Don't show again",
             Self::ShowFlowBar => "Undo",
+            Self::OpenHistory => "Open History",
         }
     }
 }

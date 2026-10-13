@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { getAppInfo, type AppInfo } from "../lib/ipc";
+import { HistorySection } from "./HistorySection";
 import { ModelCard } from "./ModelCard";
 import { PermissionsCard } from "./PermissionsCard";
 import { ShortcutsCard } from "./ShortcutsCard";
@@ -12,15 +14,17 @@ interface HomePageProps {
 }
 
 export function HomePage({ onOpenShortcuts }: HomePageProps) {
+  const { t } = useTranslation();
   return (
     <div className="app">
       <header className="app-header">
         <h1>Shrimp</h1>
-        <p className="tagline">Speech to text, anywhere.</p>
+        <p className="tagline">{t("home.tagline")}</p>
       </header>
       <ModelCard />
       <PermissionsCard />
       <ShortcutsCard onOpenShortcuts={onOpenShortcuts} />
+      <HistorySection />
       <AppInfoLine />
     </div>
   );

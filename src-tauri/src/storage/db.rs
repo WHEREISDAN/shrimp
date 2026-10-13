@@ -22,8 +22,9 @@ pub enum StorageError {
 }
 
 static MIGRATIONS: LazyLock<Migrations<'static>> = LazyLock::new(|| {
-    Migrations::new(vec![M::up(
-        "CREATE TABLE dictionary (
+    Migrations::new(vec![
+        M::up(
+            "CREATE TABLE dictionary (
            id          INTEGER PRIMARY KEY,
            term        TEXT    NOT NULL,
            misspelling TEXT,
@@ -42,7 +43,62 @@ static MIGRATIONS: LazyLock<Migrations<'static>> = LazyLock::new(|| {
            created_at INTEGER NOT NULL,
            updated_at INTEGER NOT NULL
          );",
-    )])
+        ),
+        // History and the stats that outlive it (HIS-01..08, STA-01..05).
+        M::up(
+            "CREATE TABLE history (
+           id           INTEGER PRIMARY KEY,
+           created_at   INTEGER NOT NULL,
+           mode         TEXT    NOT NULL,
+           status       TEXT    NOT NULL,
+           app_id       TEXT,
+           app_name     TEXT,
+           raw_text     TEXT    NOT NULL DEFAULT '',
+           final_text   TEXT    NOT NULL DEFAULT '',
+           formatted    INTEGER NOT NULL DEFAULT 1,
+           show_raw     INTEGER NOT NULL DEFAULT 0,
+           language     TEXT,
+           stt_engine   TEXT,
+           llm_provider TEXT,
+           audio_ms     INTEGER NOT NULL DEFAULT 0,
+           stt_ms       INTEGER,
+           llm_ms       INTEGER,
+           word_count   INTEGER NOT NULL DEFAULT 0,
+           audio_path   TEXT,
+           error        TEXT
+         );
+         CREATE INDEX history_created_at ON history(created_at DESC);
+         CREATE TABLE daily_stats (
+           day              TEXT PRIMARY KEY,
+           dictations       INTEGER NOT NULL DEFAULT 0,
+           words            INTEGER NOT NULL DEFAULT 0,
+           audio_ms         INTEGER NOT NULL DEFAULT 0,
+           fixes            INTEGER NOT NULL DEFAULT 0,
+           dictionary_fixes INTEGER NOT NULL DEFAULT 0
+         );
+         CREATE TABLE app_usage (
+           day        TEXT    NOT NULL,
+           app_id     TEXT    NOT NULL,
+           app_name   TEXT    NOT NULL,
+           words      INTEGER NOT NULL DEFAULT 0,
+           dictations INTEGER NOT NULL DEFAULT 0,
+           PRIMARY KEY (day, app_id)
+         );
+         CREATE TABLE hourly_activity (
+           weekday INTEGER NOT NULL,
+           hour    INTEGER NOT NULL,
+           words   INTEGER NOT NULL DEFAULT 0,
+           PRIMARY KEY (weekday, hour)
+         );
+         CREATE TABLE recent_speed (
+           id         INTEGER PRIMARY KEY,
+           created_at INTEGER NOT NULL,
+           words      INTEGER NOT NULL,
+           speech_ms  INTEGER NOT NULL
+         );
+         CREATE TABLE meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);",
+        ),
+    ])
 });
 
 pub struct Database {

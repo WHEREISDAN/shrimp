@@ -64,7 +64,7 @@ impl Controller {
         let tx = self.tx.clone();
         tauri::async_runtime::spawn(async move {
             let outcome = runner.run(transform, pending, last).await;
-            let _ = tx.send(ControllerInput::Processed(outcome.into()));
+            let _ = tx.send(ControllerInput::Processed(Box::new(outcome.into())));
         });
     }
 
@@ -108,7 +108,7 @@ impl Controller {
                     } else {
                         runner.undo(&run).await
                     };
-                    let _ = tx.send(ControllerInput::Processed(outcome.into()));
+                    let _ = tx.send(ControllerInput::Processed(Box::new(outcome.into())));
                 });
             }
         }

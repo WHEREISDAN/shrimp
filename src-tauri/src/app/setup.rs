@@ -1,20 +1,23 @@
 //! Builds the app's services once at startup and hands them to Tauri's
 //! managed state.
 
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
+use std::time::Duration;
 
 use tauri::{App, AppHandle, Emitter, Manager};
 
-use super::events::{MICROPHONES_EVENT, MODELS_EVENT, SETTINGS_EVENT, TauriUi};
+use super::events::{HISTORY_EVENT, MICROPHONES_EVENT, MODELS_EVENT, SETTINGS_EVENT, TauriUi};
 use super::{flow_bar, tray};
 #[cfg(debug_assertions)]
 use crate::audio::SwitchableDevices;
 use crate::audio::{AudioSourceSpec, DeviceProvider};
 use crate::commands::ai::HttpClient;
+use crate::commands::history::Clipboard;
 use crate::commands::permissions::AppPermissions;
 use crate::commands::shortcuts::DefaultBindings;
 use crate::dictation::{self, ControllerInput, DictationUi, Services, Timing};
 use crate::edit::{EditTimeout, Editor, Library};
+use crate::history::History;
 use crate::lang;
 use crate::llm::{Providers, http};
 use crate::mic::Microphones;
@@ -51,6 +54,7 @@ pub fn setup(app: &mut App) -> Result<(), Box<dyn std::error::Error>> {
         app.config().identifier.clone(),
     ))));
     let database = Arc::new(open_database(&data_dir, ui.as_ref()));
+    let history = start_history(&handle, &database, &data_dir, &settings, ui.as_ref());
     let client = http::client();
     let editor = Arc::new(Editor::new(
         Arc::clone(&settings),
@@ -104,6 +108,7 @@ pub fn setup(app: &mut App) -> Result<(), Box<dyn std::error::Error>> {
         }),
     );
     Arc::clone(&microphones).watch();
+    app.manage(Clipboard(Arc::clone(&platform.inserter)));
     app.manage(DefaultBindings {
         bindings: platform.default_bindings.clone(),
         label: platform.label,
@@ -125,6 +130,7 @@ pub fn setup(app: &mut App) -> Result<(), Box<dyn std::error::Error>> {
         ui: dictation_ui,
         source: audio_source(),
         microphones: Some(Arc::clone(&microphones)),
+        history: Some(Arc::clone(&history)),
         timing: Timing::default(),
     });
 
@@ -136,6 +142,7 @@ pub fn setup(app: &mut App) -> Result<(), Box<dyn std::error::Error>> {
     app.manage(Arc::clone(&settings));
     app.manage(secrets);
     app.manage(database);
+    app.manage(history);
     app.manage(editor);
     app.manage(HttpClient(client));
     app.manage(Arc::clone(&models));
@@ -170,6 +177,54 @@ fn first_languages(settings: &SettingsStore, locale: Option<&str>) {
     if let Err(error) = settings.update(&serde_json::json!({"languages": {"selected": [id]}})) {
         log::warn!("could not set the first language: {error}");
     }
+}
+
+/// How often History deletes expired recordings and entries and backs up
+/// the database (HIS-04, HIS-07, HIS-08).
+const HISTORY_SWEEP: Duration = Duration::from_secs(60 * 60);
+
+/// History, with what a quit or crash left behind recovered, its hourly
+/// sweep, and Local data storage applied when it changes.
+fn start_history(
+    handle: &AppHandle,
+    database: &Arc<Database>,
+    data_dir: &std::path::Path,
+    settings: &Arc<SettingsStore>,
+    ui: &TauriUi,
+) -> Arc<History> {
+    let emitter = handle.clone();
+    let history = History::new(
+        Arc::clone(database),
+        data_dir,
+        Arc::clone(settings),
+        Box::new(move || {
+            let _ = emitter.emit(HISTORY_EVENT, ());
+        }),
+    );
+    if history.recover_interrupted() > 0 {
+        ui.notice(
+            Notice::info("Shrimp saved a dictation that was interrupted. Recover it in History.")
+                .with_action(NoticeAction::OpenHistory),
+        );
+    }
+    let sweeper = Arc::clone(&history);
+    tauri::async_runtime::spawn(async move {
+        loop {
+            let history = Arc::clone(&sweeper);
+            let _ = tauri::async_runtime::spawn_blocking(move || history.sweep()).await;
+            tokio::time::sleep(HISTORY_SWEEP).await;
+        }
+    });
+    let storage = Arc::clone(&history);
+    let previous = Mutex::new(settings.get().privacy.history);
+    settings.on_change(Box::new(move |settings| {
+        let mut previous = previous.lock().unwrap_or_else(|err| err.into_inner());
+        if *previous != settings.privacy.history {
+            *previous = settings.privacy.history;
+            storage.apply_storage();
+        }
+    }));
+    history
 }
 
 /// The dictionary and snippets database; an unreadable file is set aside for

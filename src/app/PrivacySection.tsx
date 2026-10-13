@@ -1,4 +1,5 @@
 import type { Settings, SettingsPatch } from "../lib/ipc";
+import { HistoryStorageSetting } from "./HistoryStorageSetting";
 import { ToggleRow } from "./ToggleRow";
 
 interface PrivacySectionProps {
@@ -16,6 +17,7 @@ export function PrivacySection({ settings, update }: PrivacySectionProps) {
         checked={settings.privacy.contextAwareness}
         onChange={(contextAwareness) => void update({ privacy: { contextAwareness } })}
       />
+      <HistoryStorageSetting value={settings.privacy.history} />
     </section>
   );
 }

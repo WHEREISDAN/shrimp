@@ -126,14 +126,30 @@ pub struct PrivacySettings {
     /// Names and terms from the screen may reach the speech engine and the
     /// AI provider (CTX-04). Casing and spacing use the context either way.
     pub context_awareness: bool,
+    /// How long transcripts are kept (HIS-07).
+    pub history: HistoryStorage,
 }
 
 impl Default for PrivacySettings {
     fn default() -> Self {
         Self {
             context_awareness: true,
+            history: HistoryStorage::Local,
         }
     }
+}
+
+/// Data and privacy › Local data storage. Mirrors `HistoryStorage` in src/lib/ipc.ts.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum HistoryStorage {
+    /// Transcripts stay until deleted; recordings 14 days.
+    #[default]
+    Local,
+    /// Transcripts older than 24 hours are deleted, checked hourly.
+    AutoDelete,
+    /// Nothing is stored; History reads "History disabled".
+    Never,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

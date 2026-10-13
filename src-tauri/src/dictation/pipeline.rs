@@ -9,13 +9,16 @@ use super::learn::LearnTarget;
 use super::state::{Delivered, Outcome, Processed};
 use crate::audio::{AudioClip, level};
 use crate::context::{AppKind, DictationContext, PendingContext};
-use crate::edit::Editor;
+use crate::edit::{CleanupLevel, Editor};
+use crate::history::{Dictation, History};
 use crate::lang;
 use crate::notify::Notice;
 use crate::settings::SettingsStore;
+use crate::storage::{HistoryStatus, now_ms};
 
 use crate::platform::{
-    FieldKind, InsertOptions, InsertOutcome, InsertText, PasteSplit, SyntheticKey, TextInserter,
+    AppIdentity, FieldKind, InsertOptions, InsertOutcome, InsertText, PasteSplit, SyntheticKey,
+    TextInserter,
 };
 use crate::stt::{SttEngine, SttEngineId, SttError, SttOptions, Transcript};
 
@@ -44,6 +47,8 @@ pub struct Pipeline {
     pub clipboard_hold: Duration,
     /// Remote desktops read the clipboard late (INS-10).
     pub remote_clipboard_hold: Duration,
+    /// Where finished dictations are stored (HIS-01).
+    pub history: Option<Arc<History>>,
 }
 
 impl Pipeline {
@@ -53,16 +58,36 @@ impl Pipeline {
         mut context: PendingContext,
         paste_delay: Duration,
     ) -> Processed {
-        let language_check = (!self.settings.get().languages.auto_detect).then(|| clip.clone());
-        let (raw, language, mut notices) = match self.transcribe_clip(clip, &context.ready()).await
-        {
+        let settings = self.settings.get();
+        let language_check = (!settings.languages.auto_detect).then(|| clip.clone());
+        let mut record = self.record(&clip, context.app().cloned());
+        let started = Instant::now();
+        let transcribed = self.transcribe_clip(clip, &context.ready()).await;
+        record.stt_ms = Some(started.elapsed().as_millis() as i64);
+        let (raw, language, mut notices) = match transcribed {
             Ok(transcribed) => transcribed,
-            Err(outcome) => return outcome.into(),
+            Err(outcome) => {
+                if let Outcome::SttFailed { message, .. } = &outcome {
+                    record.error = Some(message.clone());
+                }
+                return Processed {
+                    record: Some(record),
+                    ..outcome.into()
+                };
+            }
         };
         let mut context = context.ready();
-        context.language = language;
+        context.language = language.clone();
         let edited = self.editor.edit(&raw, &context).await;
-        notices.extend(edited.notice);
+        notices.extend(edited.notice.clone());
+        record.raw = raw;
+        record.text = edited.text.plain.trim().to_owned();
+        record.formatted = edited.formatted;
+        record.language = language;
+        record.llm_ms = edited.llm_ms.map(|ms| ms as i64);
+        record.llm_provider = (settings.ai.cleanup != CleanupLevel::None && edited.formatted)
+            .then_some(settings.ai.provider);
+        record.dictionary_fixes = edited.dictionary_fixes as i64;
         if edited.text.plain.trim().is_empty() {
             let outcome = if edited.press_enter {
                 self.press_enter(paste_delay).await
@@ -70,10 +95,8 @@ impl Pipeline {
                 Outcome::NothingToInsert
             };
             return Processed {
-                outcome,
                 notices,
-                learn: None,
-                language_check: None,
+                ..outcome.into()
             };
         }
         let delivered = Delivered {
@@ -107,10 +130,123 @@ impl Pipeline {
             _ => None,
         };
         Processed {
-            outcome,
             notices,
             learn,
             language_check,
+            record: Some(record),
+            ..outcome.into()
+        }
+    }
+
+    /// What History will store for `clip`, before it is transcribed.
+    fn record(&self, clip: &AudioClip, app: Option<AppIdentity>) -> Dictation {
+        let speech = level::trim_silence(clip).map_or(Duration::ZERO, |speech| speech.duration());
+        Dictation {
+            created_at: now_ms(),
+            app,
+            stt_engine: Some(self.engine.id()),
+            audio_ms: clip.duration().as_millis() as i64,
+            speech_ms: speech.as_millis() as i64,
+            clip: Some(clip.clone()),
+            ..Dictation::default()
+        }
+    }
+
+    /// Stores a finished dictation in History and deletes its journal
+    /// (HIS-01, HIS-06). Command Mode and transforms are not stored.
+    pub async fn store(&self, processed: &mut Processed) {
+        let journal = processed.journal.take();
+        let (Some(history), Some(record)) = (self.history.clone(), processed.record.take()) else {
+            if let Some(journal) = journal {
+                journal.delete();
+            }
+            return;
+        };
+        let status = match &processed.outcome {
+            Outcome::Inserted(_) => Some(HistoryStatus::Inserted),
+            Outcome::Copied(..) | Outcome::InsertFailed(..) => Some(HistoryStatus::Copied),
+            Outcome::SttFailed { .. } => Some(HistoryStatus::Failed),
+            Outcome::NoSpeech => Some(HistoryStatus::Empty),
+            _ => None,
+        };
+        processed.history_id = tokio::task::spawn_blocking(move || {
+            let id = status.and_then(|status| history.record(record, status));
+            if let Some(journal) = journal {
+                journal.delete();
+            }
+            id
+        })
+        .await
+        .ok()
+        .flatten();
+    }
+
+    /// History's Retry and Recover: transcribes an entry's audio again and
+    /// updates the entry; nothing is pasted (HIS-05, HIS-06).
+    pub async fn retry(&self, id: i64) -> Processed {
+        const FAILED: &str = "Retry failed. Please try again.";
+        let Some(history) = self.history.clone() else {
+            return Outcome::RetryFailed(FAILED.into()).into();
+        };
+        let loading = Arc::clone(&history);
+        let clip = match tokio::task::spawn_blocking(move || loading.retry_clip(id)).await {
+            Ok(Ok(clip)) => clip,
+            Ok(Err(error)) => return Outcome::RetryFailed(error.to_string()).into(),
+            Err(_) => return Outcome::RetryFailed(FAILED.into()).into(),
+        };
+        let mut record = Dictation {
+            replaces: Some(id),
+            clip: None,
+            ..self.record(&clip, None)
+        };
+        let started = Instant::now();
+        let transcribed = self
+            .transcribe_clip(clip, &DictationContext::default())
+            .await;
+        record.stt_ms = Some(started.elapsed().as_millis() as i64);
+        let (outcome, status, mut notices) = match transcribed {
+            Ok((raw, language, notices)) => {
+                let context = DictationContext {
+                    language: language.clone(),
+                    ..DictationContext::default()
+                };
+                let edited = self.editor.edit(&raw, &context).await;
+                record.raw = raw;
+                record.text = edited.text.plain.trim().to_owned();
+                record.formatted = edited.formatted;
+                record.language = language;
+                record.dictionary_fixes = edited.dictionary_fixes as i64;
+                let mut notices = notices;
+                notices.extend(edited.notice);
+                let status = if record.text.is_empty() {
+                    HistoryStatus::Empty
+                } else {
+                    HistoryStatus::Transcribed
+                };
+                (Outcome::Retried, status, notices)
+            }
+            Err(Outcome::NoSpeech) => (Outcome::NoSpeech, HistoryStatus::Empty, Vec::new()),
+            Err(Outcome::SttFailed { message, .. }) => {
+                record.error = Some(message);
+                (
+                    Outcome::RetryFailed(FAILED.into()),
+                    HistoryStatus::Failed,
+                    Vec::new(),
+                )
+            }
+            Err(_) => (
+                Outcome::RetryFailed(FAILED.into()),
+                HistoryStatus::Failed,
+                Vec::new(),
+            ),
+        };
+        let stored = tokio::task::spawn_blocking(move || history.record(record, status)).await;
+        if !matches!(stored, Ok(Some(_))) {
+            notices.push(Notice::error(FAILED));
+        }
+        Processed {
+            notices,
+            ..outcome.into()
         }
     }
 

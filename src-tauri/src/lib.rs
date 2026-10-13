@@ -6,6 +6,7 @@ mod commands;
 pub mod context;
 pub mod dictation;
 pub mod edit;
+pub mod history;
 pub mod hotkeys;
 pub mod lang;
 pub mod llm;
@@ -83,6 +84,14 @@ pub fn run() {
                 commands::library::delete_snippets,
                 commands::library::preview_snippet_import,
                 commands::library::import_snippets,
+                commands::history::list_history,
+                commands::history::copy_history,
+                commands::history::set_history_raw,
+                commands::history::retry_history,
+                commands::history::history_audio,
+                commands::history::extract_history_audio,
+                commands::history::delete_history,
+                commands::history::set_history_storage,
                 $($dev)*
             ]
         };

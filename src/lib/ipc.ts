@@ -40,7 +40,8 @@ export type NoticeAction =
   | "openLanguageSettings"
   | "addDetectedLanguage"
   | "dismissLanguageCard"
-  | "showFlowBar";
+  | "showFlowBar"
+  | "openHistory";
 
 /** Mirrors `notify::Notice`. */
 export interface Notice {
@@ -258,7 +259,7 @@ export interface Settings {
     ollamaUrl: string;
   };
   styles: Record<AppCategory, Style>;
-  privacy: { contextAwareness: boolean };
+  privacy: { contextAwareness: boolean; history: HistoryStorage };
   experimental: { commandMode: boolean; commandModeIntroSeen: boolean; pressEnterCommand: boolean };
   /** Bindings per action ("pushToTalk", "transform:<id>"), e.g. ["Fn", "Mouse4"]; missing means the defaults. */
   shortcuts: { bindings: Record<string, string[]> };
@@ -416,6 +417,45 @@ export interface SnippetImportPreview {
   added: SnippetInput[];
   duplicates: SnippetInput[];
   skipped: SkippedRow[];
+}
+
+/** Mirrors `settings::HistoryStorage`: Data and privacy › Local data storage. */
+export type HistoryStorage = "local" | "autoDelete" | "never";
+
+/** Mirrors `storage::HistoryStatus`. */
+export type HistoryStatus =
+  "inserted" | "copied" | "transcribed" | "failed" | "empty" | "interrupted";
+
+/** Mirrors `history::RetryKind`. */
+export type RetryKind = "retry" | "recover";
+
+/** Mirrors `history::HistoryItem`: one dictation in Home's history. */
+export interface HistoryItem {
+  id: number;
+  /** Unix milliseconds. */
+  createdAt: number;
+  status: HistoryStatus;
+  appName: string | null;
+  rawText: string;
+  finalText: string;
+  /** False when AI edits were off, skipped or failed. */
+  formatted: boolean;
+  /** Undo AI edit is on: the row shows the raw text. */
+  showRaw: boolean;
+  /** A Whisper language code. */
+  language: string | null;
+  audioMs: number;
+  wordCount: number;
+  error: string | null;
+  hasAudio: boolean;
+  retry: RetryKind | null;
+}
+
+/** Mirrors `history::HistoryList`. */
+export interface HistoryList {
+  entries: HistoryItem[];
+  /** "Never store data locally" is on. */
+  disabled: boolean;
 }
 
 /** Mirrors `commands::CommandError`: what a rejected command throws. */
@@ -576,6 +616,34 @@ export const previewSnippetImport = (json: string): Promise<SnippetImportPreview
 export const importSnippets = (json: string): Promise<number> =>
   invoke<number>("import_snippets", { json });
 
+export const listHistory = (query: string): Promise<HistoryList> =>
+  invoke<HistoryList>("list_history", { query });
+
+export const copyHistory = (id: number): Promise<void> => invoke("copy_history", { id });
+
+/** Undo AI edit (`raw`, also copies the raw text) or Redo AI edit. */
+export const setHistoryRaw = (id: number, raw: boolean): Promise<HistoryItem> =>
+  invoke<HistoryItem>("set_history_raw", { id, raw });
+
+/** Retry or Recover; the entry updates through `EVENTS.history`. */
+export const retryHistory = (id: number): Promise<void> => invoke("retry_history", { id });
+
+/** The recording as WAV bytes. */
+export const historyAudio = (id: number): Promise<ArrayBuffer> =>
+  invoke<ArrayBuffer>("history_audio", { id });
+
+/** Saves the recording to Downloads and returns its path. */
+export const extractHistoryAudio = (id: number): Promise<string> =>
+  invoke<string>("extract_history_audio", { id });
+
+export const deleteHistory = (id: number): Promise<void> => invoke("delete_history", { id });
+
+/** "never" needs `confirmation` to be "delete all". */
+export const setHistoryStorage = (
+  storage: HistoryStorage,
+  confirmation: string | null = null,
+): Promise<Settings> => invoke<Settings>("set_history_storage", { storage, confirmation });
+
 /** Event names emitted by src-tauri/src/app/events.rs. */
 export const EVENTS = {
   state: "dictation://state",
@@ -591,6 +659,7 @@ export const EVENTS = {
   micLevel: "mic://level",
   microphones: "mic://devices",
   flowBarHover: "flow-bar://hover",
+  history: "history://changed",
 } as const;
 
 export function onEvent<T>(name: string, handler: (payload: T) => void): Promise<UnlistenFn> {

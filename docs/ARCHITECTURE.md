@@ -63,7 +63,7 @@ context/                context awareness: what surrounds the cursor (CTX-01..04
   words.rs              everyday English words (SCOWL), common first names, acronyms   (built)
 commands/               thin IPC handlers, one file per area                           (built)
   app.rs, dictation.rs, models.rs, permissions.rs, settings.rs, shortcuts.rs, ai.rs,
-  library.rs, dev.rs (debug only)
+  library.rs, history.rs, dev.rs (debug only)
 audio/                  audio input                                                    (built)
   source.rs             AudioSource trait, AudioSink, AudioFormat                      (built)
   wav.rs                WavFileSource, read_wav                                        (built)
@@ -119,6 +119,13 @@ edit/                   AI edit pipeline                                        
   failure.rs            why an AI edit wasn't used, and its notice                     (built)
   command.rs            Command Mode prompt, tagged reply parsing (CMD-01..03)         (built)
   transforms.rs         Polish, Prompt Engineer, custom transforms, auto-apply         (built)
+history/                transcript history (HIS-01..08)                                (built)
+  mod.rs                History: store a dictation and count its stats, list, Undo AI
+                        edit, delete, retry audio, Play and Extract audio, Local data
+                        storage, the hourly sweep and daily backup                     (built)
+  journal.rs            the recording in progress saved as it arrives; leftovers of
+                        a quit or crash become "Interrupted" entries (HIS-06)          (built)
+  fixes.rs              words the AI edit corrected, for Insights                      (built)
 dictation/              orchestration                                                  (built)
   controller/           the dictation actor (state machine below); shortcuts.rs for
                         Press Enter and bindings, transforms.rs for transform runs,
@@ -127,7 +134,8 @@ dictation/              orchestration                                           
                         microphone.rs for the source and its warnings, language.rs
                         for the different-language card (LANG-04)                     (built)
   gestures.rs           hold / double-tap / short-tap / busy recognition, pure         (built)
-  pipeline.rs           trim, transcribe, insert, press Enter                          (built)
+  pipeline.rs           trim, transcribe, insert, press Enter; store in History, and
+                        History's Retry (no paste)                                     (built)
   command.rs            a Command Mode session: target, search, replace, answer        (built)
   transform.rs          a transform run: source text, replace in place, retry, undo    (built)
   learn.rs              dictionary auto-learn: watch the field, find respellings       (built)
@@ -151,12 +159,14 @@ platform/               OS integration behind traits (next section)             
                         media (mute, MediaRemote pause), insert, pasteboard, keymap,
                         focus, context, ax, permissions, sound, globe, flow_bar        (built)
   windows/              Windows backend                                                (P5)
-storage/                SQLite                                                         (built: dictionary, snippets)
+storage/                SQLite                                                         (built)
   db.rs                 open, WAL, migrations                                          (built)
   dictionary.rs         words and corrections, validation, CSV import                  (built)
   snippets.rs           triggers and expansions, validation, JSON import               (built)
   import.rs             CSV and JSON parsing, size and row limits                      (built)
-  history.rs, stats.rs, backups                                                        (P4)
+  history.rs            history rows: insert, search, Undo AI edit, expire, delete     (built)
+  stats.rs              daily, per-app, hourly and speed counts; key-value meta        (built)
+  backup.rs             daily `VACUUM INTO` copy, newest two kept                      (built)
 settings/               typed Settings, JSON file, merge-patch updates, change events;
                         shortcuts.rs for the bindings per action                      (built)
 secrets/                API keys in the OS keychain (keyring), cached in memory        (built)
@@ -183,7 +193,17 @@ src/
   lib/ipc.ts            typed wrappers for every command and event                     (built)
   lib/useTauriEvent.ts  event subscription hook                                        (built)
   lib/devBridge.ts      loads the tauri-plugin-mcp listeners in development builds     (built)
+  i18n/                 i18next setup and the interface text per language; English
+                        (`locales/en.ts`) is the source and defines the keys          (built)
 ```
+
+Interface text goes through i18next (`useTranslation`, `t("history.title")`). The keys
+are typed from the English catalog (`i18n/i18next.d.ts`), so a missing or misspelt key
+fails `tsc`. Home's history (`HistorySection`) lists dictations by day with search
+(Cmd+F or /), ↑/↓ or j/k between rows (one Tab stop for the list), Enter or a click to
+copy, Retry or Recover for failed and interrupted ones, and a row menu with Undo/Redo AI
+edit, Play audio (the WAV as an `ArrayBuffer`, played from a blob URL; the CSP allows
+`media-src blob:`), Extract audio (copied to Downloads) and Delete transcript.
 
 React 19 + TypeScript (strict, `noUncheckedIndexedAccess`, `exactOptionalPropertyTypes`),
 Vite 8, Vitest + Testing Library with `@tauri-apps/api/mocks` for IPC. Rust and TypeScript
@@ -208,6 +228,7 @@ Built so far:
 | Commands | `app_info`, `get_dictation_state`, `flow_bar_control`, `flow_bar_ready`, `flow_bar_layout`, `run_notice_action`, `get_models`, `get_permissions`, `open_permission_settings`                                                                                                                                                                                                                                                                                                                                                               |
 | Phase 3  | `transform_action` (the changes view's Copy, Retry and Undo)                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
 | Phase 4  | `get_shortcuts` (every action's bindings, the overlap warning, Secure Keyboard Entry), `record_shortcut` (records through the hooks; progress as `shortcuts://recording`), `cancel_shortcut_recording`, `remove_shortcut`, `reset_shortcuts`; `retry_model`, `download_model`, `delete_model`; `get_microphones`, `select_microphone`, `rank_microphone`, `forget_microphone`, `start_mic_preview`, `stop_mic_preview`; `get_languages`, `set_languages`, `set_active_language`; `flow_bar_drag`, `flow_bar_action` (the right-click menu) |
+| Phase 4b | `list_history`, `copy_history`, `set_history_raw` (Undo/Redo AI edit), `retry_history`, `history_audio` (raw WAV bytes), `extract_history_audio`, `delete_history`, `set_history_storage` ("never" needs "delete all")                                                                                                                                                                                                                                                                                                                     |
 | Phase 2  | `get_settings`, `update_settings`, `get_ai_options`, `get_api_keys`, `set_api_key`, `delete_api_key`, `list_ollama_models`, `test_ai_provider`; dictionary and snippet CRUD and imports (`list_dictionary`, `add_dictionary_entry`, `update_dictionary_entry`, `set_dictionary_pinned`, `delete_dictionary_entries`, `preview_dictionary_import`, `import_dictionary`, `list_snippets`, `add_snippet`, `update_snippet`, `delete_snippets`, `preview_snippet_import`, `import_snippets`)                                                   |
 | Dev only | `dev_get_audio_source`, `dev_set_audio_source`, `dev_set_app_category`, `dev_edit_text`, `dev_read_context`, `dev_set_microphones` (debug builds; see DEVELOPMENT.md)                                                                                                                                                                                                                                                                                                                                                                      |
 | Events   | `dictation://state`, `dictation://level` (Flow Bar only), `notify://notice`, `command://answer` and `transform://changes` (Flow Bar only), `models://status`, `app://navigate`, `settings://changed`, `shortcuts://recording`, `notify://dismiss` (a notice whose cause went away), `mic://devices`, `mic://level`, `flow-bar://hover` (Flow Bar only)                                                                                                                                                                                     |
@@ -281,8 +302,9 @@ Processing(Command) = Transcribing → reading the selection → search, or LLM 
 Processing ── any dictation shortcut ──▶ rejected, "Transcript currently processing" (CORE-07)
 ```
 
-Every step in this diagram runs except history storage (P4b). The last dictation (its text, or its audio
-when it failed or was cancelled) is kept in memory for paste and copy last transcript.
+Every step in this diagram runs. The last dictation (its text, or its audio when it
+failed or was cancelled, and its History entry) is kept in memory for paste and copy last
+transcript; pasting a failed one updates its History entry instead of adding one.
 
 Notes:
 
@@ -536,8 +558,14 @@ for usage.
   whispered fixture (`say -v Whisper`, -42 dBFS peak) transcribes word for word this way
   and as "you to Thursday afternoon…" without the raise. `FullParams::enable_vad` is not used: in
   testing, Whisper still turned 3 s of silence into "you" with it enabled.
-- Recordings for history are written as 16-bit WAV (hound) to `recordings/<id>.wav` and
-  deleted after 14 days (HIS-04).
+- Recordings for history are written as 16-bit 16 kHz WAV (hound) to `recordings/<id>.wav`
+  in the same database lock as the entry, and deleted after 14 days (HIS-04).
+- While recording, the controller also writes what each poll returns to
+  `recordings/active-<started>-<part>.wav` (32-bit float, the source's own format, a new
+  part when a fallback microphone changes it), flushed once a second
+  (`history::journal`). It is deleted once the dictation is stored, cancelled or
+  rejected; at the next launch any leftover becomes an "Interrupted" entry with Recover
+  and a notice (HIS-06). Nothing is journalled with "Never store".
 
 ### Microphones (MIC-02..10)
 
@@ -923,13 +951,13 @@ All files live in Tauri's `app_data_dir()`:
 `~/Library/Application Support/com.shrimp.desktop/` (dev: `com.shrimp.desktop.dev`) and
 `%APPDATA%\com.shrimp.desktop\` on Windows.
 
-| Path            | Contents                                                  |
-| --------------- | --------------------------------------------------------- |
-| `shrimp.db`     | SQLite in WAL mode: history, dictionary, snippets, stats. |
-| `settings.json` | Settings (JSON written by `settings/`).                   |
-| `models/`       | Whisper and VAD model files.                              |
-| `recordings/`   | WAV per history entry, kept 14 days.                      |
-| `backups/`      | One daily `VACUUM INTO` copy of the database (HIS-08).    |
+| Path            | Contents                                                                       |
+| --------------- | ------------------------------------------------------------------------------ |
+| `shrimp.db`     | SQLite in WAL mode: history, dictionary, snippets, stats.                      |
+| `settings.json` | Settings (JSON written by `settings/`).                                        |
+| `models/`       | Whisper and VAD model files.                                                   |
+| `recordings/`   | WAV per history entry, kept 14 days; the journal of the recording in progress. |
+| `backups/`      | A daily `VACUUM INTO` copy of the database, the newest two kept (HIS-08).      |
 
 ### SQLite
 
@@ -939,65 +967,54 @@ rusqlite 0.40 (`bundled`, so SQLite and FTS5 are compiled in) with rusqlite_migr
 is used from the blocking pool. tauri-plugin-sql is not used: it would expose SQL to the
 webview, and the data is written by the Rust pipeline anyway.
 
-Initial schema (each table arrives with the phase that needs it):
+Schema (migration 1 is phase 2, migration 2 phase 4):
 
 ```sql
 CREATE TABLE history (                                  -- P4
-  id            INTEGER PRIMARY KEY,
-  created_at    INTEGER NOT NULL,          -- unix ms
-  mode          TEXT    NOT NULL,          -- 'dictation' | 'command' | 'transform'
-  status        TEXT    NOT NULL,          -- 'inserted' | 'copied' | 'failed' | 'cancelled'
-  app_id        TEXT,                      -- bundle id / exe name
-  app_name      TEXT,
-  raw_text      TEXT    NOT NULL,          -- STT output
-  final_text    TEXT    NOT NULL,          -- what was inserted
-  formatted     INTEGER NOT NULL,          -- 0 when AI edits were skipped or failed
-  language      TEXT,
-  stt_engine    TEXT    NOT NULL,
-  llm_provider  TEXT,
-  audio_ms      INTEGER NOT NULL,
-  stt_ms        INTEGER,
-  llm_ms        INTEGER,
-  word_count    INTEGER NOT NULL,
-  audio_path    TEXT                       -- NULL once the recording is deleted
+  id INTEGER PRIMARY KEY, created_at INTEGER NOT NULL,   -- unix ms
+  mode TEXT NOT NULL,              -- 'dictation' (Command Mode and transforms aren't stored)
+  status TEXT NOT NULL,            -- inserted | copied | transcribed | failed | empty | interrupted
+  app_id TEXT, app_name TEXT,
+  raw_text TEXT NOT NULL DEFAULT '', final_text TEXT NOT NULL DEFAULT '',
+  formatted INTEGER NOT NULL DEFAULT 1,   -- 0 when AI edits were off, skipped or failed (FMT-10)
+  show_raw INTEGER NOT NULL DEFAULT 0,    -- Undo AI edit (FMT-12)
+  language TEXT, stt_engine TEXT, llm_provider TEXT,
+  audio_ms INTEGER NOT NULL DEFAULT 0, stt_ms INTEGER, llm_ms INTEGER,
+  word_count INTEGER NOT NULL DEFAULT 0,
+  audio_path TEXT,                        -- file in recordings/, NULL once deleted
+  error TEXT
 );
 CREATE INDEX history_created_at ON history(created_at DESC);
-CREATE VIRTUAL TABLE history_fts USING fts5(final_text, content='history', content_rowid='id');  -- P4
 
-CREATE TABLE dictionary (                               -- P2
-  id          INTEGER PRIMARY KEY,
-  term        TEXT    NOT NULL,            -- correct spelling
-  misspelling TEXT,                        -- set for replacement entries
-  source      TEXT    NOT NULL,            -- 'manual' | 'learned' | 'imported'
-  pinned      INTEGER NOT NULL DEFAULT 0,
-  uses        INTEGER NOT NULL DEFAULT 0,
-  created_at  INTEGER NOT NULL
-);
--- A word is unique among words, a misspelling among corrections (any case).
-CREATE UNIQUE INDEX dictionary_key
-  ON dictionary(misspelling IS NOT NULL, IFNULL(misspelling, term) COLLATE NOCASE);
-CREATE TABLE dictionary_rejected (term TEXT PRIMARY KEY COLLATE NOCASE);  -- deleted words; auto-learn never re-adds them (DIC-07)
+CREATE TABLE dictionary (…);  CREATE TABLE dictionary_rejected (…);  CREATE TABLE snippets (…);  -- P2
 
-CREATE TABLE snippets (                                 -- P2
-  id         INTEGER PRIMARY KEY,
-  trigger    TEXT    NOT NULL UNIQUE COLLATE NOCASE,
-  expansion  TEXT    NOT NULL,             -- markdown subset for rich text
-  created_at INTEGER NOT NULL,
-  updated_at INTEGER NOT NULL
-);
-
-CREATE TABLE daily_stats (                              -- P4; survives history deletion (STA-05)
-  day         TEXT PRIMARY KEY,            -- local date, YYYY-MM-DD
-  dictations  INTEGER NOT NULL,
-  words       INTEGER NOT NULL,
-  audio_ms    INTEGER NOT NULL,
-  fixes       INTEGER NOT NULL DEFAULT 0
-);
-CREATE TABLE app_usage (                                -- P4
-  day TEXT NOT NULL, app_id TEXT NOT NULL, words INTEGER NOT NULL,
-  PRIMARY KEY (day, app_id)
-);
+-- Stats live apart from history, so they survive its deletion (STA-05).
+CREATE TABLE daily_stats (day TEXT PRIMARY KEY, dictations, words, audio_ms, fixes, dictionary_fixes);
+CREATE TABLE app_usage (day, app_id, app_name, words, dictations, PRIMARY KEY (day, app_id));
+CREATE TABLE hourly_activity (weekday, hour, words, PRIMARY KEY (weekday, hour));
+CREATE TABLE recent_speed (id INTEGER PRIMARY KEY, created_at, words, speech_ms);  -- last 100
+CREATE TABLE meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
 ```
+
+History search is a `LIKE` over the final and raw text and the app name (with `%`, `_`
+and `\` escaped), not FTS5: history stays small, and FTS5's tokenizer doesn't split
+Chinese or Japanese.
+
+### History (HIS-01..08)
+
+Every finished dictation goes to `History::record` on the blocking pool, from the task
+that ran the pipeline, before the controller hears the result. The status comes from
+the outcome: pasted → inserted; on the clipboard or a failed paste → copied; failed STT
+→ failed; no speech → empty. Command Mode, transforms, cancelled dictations and
+"never mind" are not stored. A dictation with words is counted in the stats even with
+"Never store". History's Retry and Recover go through the controller (refused while
+recording: "Cannot retry while dictating."; while processing: "Transcript currently
+processing"), transcribe and edit the stored audio again and update the entry without
+pasting; Retry needs at least 5 s of audio under 14 days old, Recover any length. The
+hourly sweep (also run at startup) forgets recordings older than 14 days, deletes
+entries older than 24 hours with Auto-delete, deletes stray recordings and makes the
+day's backup. "Never store" (typed confirmation "delete all") deletes every entry,
+recording, journal and backup at once.
 
 ### Settings (built)
 
@@ -1016,7 +1033,8 @@ the next one.
 Built sections: `stt` (engine, the local Whisper model, OpenAI and Groq models), `ai`
 (provider, cleanup level, model per provider, Ollama model and address), `styles` (one per
 category, Formal by default), `privacy` (`contextAwareness`, on by default),
-`experimental` (`commandMode`, `commandModeIntroSeen`, `pressEnterCommand`), `shortcuts`
+`experimental` (`commandMode`, `commandModeIntroSeen`, `pressEnterCommand`), `privacy.history`
+(`local`, `autoDelete` or `never`, HIS-07), `shortcuts`
 (`bindings` per action, see Shortcuts), `notices` (how often one-off notices were shown),
 `transforms`, `vibeCoding` (`fileTagging`, on by default) and `dictionary` (`autoLearn`, on
 by default). Every change is announced to listeners: the webview's `settings://changed`,

@@ -107,7 +107,7 @@ export const SETTINGS: Settings = {
     ollamaUrl: "http://localhost:11434",
   },
   styles: { personal: "veryCasual", work: "formal", email: "formal", other: "casual" },
-  privacy: { contextAwareness: true },
+  privacy: { contextAwareness: true, history: "local" },
   experimental: { commandMode: false, commandModeIntroSeen: false, pressEnterCommand: false },
   shortcuts: { bindings: {} },
   notices: {

@@ -6,6 +6,8 @@ use super::gestures::{BarControl, RecordingMode};
 use super::learn::{LearnTarget, LearnTiming};
 use super::transform::{TransformRun, TransformView};
 use crate::audio::AudioClip;
+use crate::history::Dictation;
+use crate::history::journal::JournalFiles;
 use crate::hotkeys::{Action, RecordUpdate, ShortcutEvent};
 use crate::notify::Notice;
 use crate::platform::{CopyReason, InsertText};
@@ -163,7 +165,9 @@ pub enum ControllerInput {
     Transform(TransformAction),
     /// A cancelled recording, kept so paste-last can transcribe it.
     Cancelled(AudioClip),
-    Processed(Processed),
+    /// History's Retry or Recover for an entry (HIS-05, HIS-06).
+    RetryHistory(i64),
+    Processed(Box<Processed>),
 }
 
 /// What the user can do with the last transform.
@@ -186,6 +190,12 @@ pub struct Processed {
     pub learn: Option<LearnTarget>,
     /// The audio, to check afterwards whether another language was spoken (LANG-04).
     pub language_check: Option<AudioClip>,
+    /// What History stores (HIS-01).
+    pub record: Option<Dictation>,
+    /// The History entry it was stored as.
+    pub history_id: Option<i64>,
+    /// The recording saved as it happened, deleted once stored (HIS-06).
+    pub journal: Option<JournalFiles>,
 }
 
 impl From<Outcome> for Processed {
@@ -195,6 +205,9 @@ impl From<Outcome> for Processed {
             notices: Vec::new(),
             learn: None,
             language_check: None,
+            record: None,
+            history_id: None,
+            journal: None,
         }
     }
 }
@@ -239,6 +252,10 @@ pub enum Outcome {
     TransformUndone,
     /// The text moved before the result could replace it; it is on the clipboard.
     TransformCopied(Delivered),
+    /// A History entry was transcribed again; nothing was pasted (HIS-05).
+    Retried,
+    /// History's Retry could not run or failed; the message says why.
+    RetryFailed(String),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -256,6 +273,8 @@ pub struct LastDictation {
     pub text: Option<Delivered>,
     /// Kept for failed and cancelled dictations, so paste-last can retry.
     pub clip: Option<AudioClip>,
+    /// Its History entry, which a retry updates.
+    pub history_id: Option<i64>,
 }
 
 #[cfg(test)]

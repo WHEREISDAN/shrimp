@@ -75,6 +75,21 @@ pub struct Edited {
     pub llm_ms: Option<u64>,
     /// The dictation ended with "press enter" (CORE-16).
     pub press_enter: bool,
+    /// Dictionary corrections and snippets applied, for Insights (STA-01).
+    pub dictionary_fixes: usize,
+}
+
+impl Default for Edited {
+    fn default() -> Self {
+        Self {
+            text: Rendered::default(),
+            formatted: true,
+            notice: None,
+            llm_ms: None,
+            press_enter: false,
+            dictionary_fixes: 0,
+        }
+    }
 }
 
 /// The words the cleanup prompt lists: dictionary spellings, snippet
@@ -92,10 +107,7 @@ impl Edited {
     fn plain(text: String) -> Self {
         Self {
             text: markdown::render(&text),
-            formatted: true,
-            notice: None,
-            llm_ms: None,
-            press_enter: false,
+            ..Self::default()
         }
     }
 }
@@ -213,13 +225,7 @@ impl Editor {
         settings: &Settings,
     ) -> Edited {
         if raw.trim().is_empty() {
-            return Edited {
-                text: Rendered::default(),
-                formatted: true,
-                notice: None,
-                llm_ms: None,
-                press_enter: false,
-            };
+            return Edited::default();
         }
         let settings = settings.clone();
         let library = self.snapshot().await;
@@ -230,10 +236,8 @@ impl Editor {
                     "{SNIPPET_START}{}{SNIPPET_END}",
                     snippet.expansion
                 )),
-                formatted: true,
-                notice: None,
-                llm_ms: None,
-                press_enter: false,
+                dictionary_fixes: 1,
+                ..Edited::default()
             };
         }
 
@@ -241,6 +245,7 @@ impl Editor {
         let visible_names = context.names();
         let prepared = spoken::line_breaks(raw);
         let (prepared, mut used) = dictionary::correct(&prepared, &library.dictionary);
+        let corrections = used.len();
         let prepared = names::respell(&prepared, &visible_names, &terms);
         let dev = DevPass::new(context);
         let prepared = match &dev {
@@ -359,6 +364,7 @@ impl Editor {
             notice,
             llm_ms,
             press_enter: false,
+            dictionary_fixes: corrections + held.len(),
         }
     }
 

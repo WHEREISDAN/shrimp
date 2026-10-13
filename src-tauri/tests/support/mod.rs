@@ -19,6 +19,7 @@ pub use shrimp_lib::dictation::{
     RecordingStatus, Services, Timing, TransformAction, TransformView,
 };
 pub use shrimp_lib::edit::{CleanupLevel, EditTimeout, Editor, FixedLibrary, Snapshot};
+pub use shrimp_lib::history::{History, HistoryList, RetryKind};
 pub use shrimp_lib::hotkeys::{
     Action, Binding, HotkeyEvent, RecordUpdate, Recorded, Recording, ShortcutEvent, Trigger,
     macos_defaults, macos_label,
@@ -36,7 +37,7 @@ pub use shrimp_lib::platform::{
 pub use shrimp_lib::settings::{Settings, SettingsStore};
 pub use shrimp_lib::sounds::Cue;
 pub use shrimp_lib::sounds::{SettingsCues, SoundingNotices};
-pub use shrimp_lib::storage::{DictionaryEntry, EntrySource, Snippet};
+pub use shrimp_lib::storage::{Database, DictionaryEntry, EntrySource, HistoryStatus, Snippet};
 pub use shrimp_lib::stt::{SttEngine, SttEngineId, SttError, SttOptions, Transcript};
 
 pub const TEXT: &str = "Hello from Shrimp.";
@@ -395,6 +396,8 @@ pub struct Setup {
     /// Record from these fake microphones through the microphone chooser
     /// instead of a WAV file.
     pub microphones: Option<Arc<FakeDevices>>,
+    /// Store dictations in a History backed by a database in a temporary folder.
+    pub history: bool,
 }
 
 impl Default for Setup {
@@ -410,6 +413,7 @@ impl Default for Setup {
             settings: Settings::default(),
             transcript: None,
             microphones: None,
+            history: false,
         }
     }
 }
@@ -450,6 +454,7 @@ pub struct Harness {
     pub microphones: Option<Arc<Microphones>>,
     pub settings: Arc<SettingsStore>,
     pub library: Arc<FixedLibrary>,
+    pub history: Option<Arc<History>>,
     pub _dir: tempfile::TempDir,
 }
 
@@ -508,6 +513,10 @@ impl Harness {
                 Box::new(|_| {}),
             )
         });
+        let history = setup.history.then(|| {
+            let database = Arc::new(Database::open(&dir.path().join("shrimp.db")).unwrap());
+            History::new(database, dir.path(), Arc::clone(&settings), Box::new(|| {}))
+        });
         let source = if microphones.is_some() {
             AudioSourceSpec::Microphone { device: None }
         } else {
@@ -530,6 +539,7 @@ impl Harness {
             ui,
             source,
             microphones: microphones.clone(),
+            history: history.clone(),
             timing,
         });
         Self {
@@ -538,6 +548,7 @@ impl Harness {
             microphones,
             settings,
             library,
+            history,
             _dir: dir,
         }
     }

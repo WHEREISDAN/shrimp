@@ -57,6 +57,11 @@ impl Recorder {
     /// Moves delivered audio into the buffer without blocking and returns the
     /// samples of the current format this call added, e.g. for level metering.
     pub fn poll(&mut self) -> Result<&[f32], AudioError> {
+        self.poll_with_format().map(|(_, samples)| samples)
+    }
+
+    /// Like [`Recorder::poll`], with the format of the samples returned.
+    pub fn poll_with_format(&mut self) -> Result<(Option<AudioFormat>, &[f32]), AudioError> {
         let count = self.segments.len();
         let before = self
             .segments
@@ -66,14 +71,14 @@ impl Recorder {
             self.apply(event)?;
         }
         let Some(last) = self.segments.last() else {
-            return Ok(&[]);
+            return Ok((None, &[]));
         };
         let from = if self.segments.len() == count {
             before
         } else {
             0
         };
-        Ok(&last.samples[from..])
+        Ok((Some(last.format), &last.samples[from..]))
     }
 
     /// Blocks until the source ends by itself or `timeout` passes, and

@@ -171,10 +171,8 @@ impl CommandRunner {
             ));
         }
         Processed {
-            language_check: None,
-            outcome,
             notices,
-            learn: None,
+            ..outcome.into()
         }
     }
 

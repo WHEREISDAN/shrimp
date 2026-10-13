@@ -28,6 +28,8 @@ use super::transform::TransformRun;
 use crate::audio::{AudioError, AudioSourceSpec, Recorder, level};
 use crate::context::{self, DictationContext, PendingContext};
 use crate::edit::Editor;
+use crate::history::History;
+use crate::history::journal::Journal;
 use crate::hotkeys::{Action, Binding, HotkeyEvent, Trigger};
 use crate::mic::Microphones;
 use crate::notify::{Notice, NoticeAction};
@@ -63,6 +65,8 @@ pub struct Services {
     pub source: AudioSourceSpec,
     /// Chooses the microphone when `source` is the default microphone.
     pub microphones: Option<Arc<Microphones>>,
+    /// Stores finished dictations (HIS-01); tests may leave it out.
+    pub history: Option<Arc<History>>,
     pub timing: Timing,
 }
 
@@ -138,6 +142,17 @@ struct Recording {
     /// The app the user dictates into and its focused field, read while
     /// recording (CTX-01).
     context: PendingContext,
+    /// The audio saved as it arrives, in case Shrimp quits (HIS-06).
+    journal: Option<Journal>,
+}
+
+impl Recording {
+    /// Ends a recording that won't be transcribed; its saved audio goes too.
+    fn discard(self) {
+        if let Some(journal) = self.journal {
+            journal.finish().delete();
+        }
+    }
 }
 
 struct Controller {
@@ -198,6 +213,7 @@ impl Controller {
             settings: Arc::clone(&services.settings),
             clipboard_hold: services.timing.clipboard_hold,
             remote_clipboard_hold: services.timing.remote_clipboard_hold,
+            history: services.history,
         };
         Self {
             hotkeys: services.hotkeys,
@@ -321,9 +337,11 @@ impl Controller {
                     status: LastStatus::Cancelled,
                     text: None,
                     clip: Some(clip),
+                    history_id: None,
                 });
             }
-            ControllerInput::Processed(outcome) => self.processed(outcome),
+            ControllerInput::RetryHistory(id) => self.retry_history(id),
+            ControllerInput::Processed(outcome) => self.processed(*outcome),
         }
     }
 
@@ -396,6 +414,11 @@ impl Controller {
                 self.sounds.play(Cue::Start);
                 let media =
                     MediaSession::begin(&self.media, self.settings.get().media, QUIET_AFTER);
+                let journal = self
+                    .pipeline
+                    .history
+                    .as_ref()
+                    .and_then(|history| history.start_journal());
                 self.recording = Some(Recording {
                     recorder,
                     session,
@@ -403,6 +426,7 @@ impl Controller {
                     microphone: device.map(microphone::MicSession::new),
                     media,
                     context,
+                    journal,
                 });
                 let editor = Arc::clone(&self.pipeline.editor);
                 tauri::async_runtime::spawn(async move { editor.warm_up().await });
@@ -490,8 +514,9 @@ impl Controller {
         let tx = self.tx.clone();
         tauri::async_runtime::spawn(async move {
             let context = recording.context;
+            let journal = recording.journal.map(Journal::finish);
             let clip = tokio::task::spawn_blocking(move || recording.recorder.finish()).await;
-            let processed = match clip {
+            let mut processed = match clip {
                 Ok(Ok(clip)) => match &runner {
                     Some(runner) => runner.run(clip, context).await,
                     None => {
@@ -503,7 +528,9 @@ impl Controller {
                 Ok(Err(error)) => Outcome::RecordingFailed(error.to_string()).into(),
                 Err(error) => Outcome::RecordingFailed(error.to_string()).into(),
             };
-            let _ = tx.send(ControllerInput::Processed(processed));
+            processed.journal = journal;
+            pipeline.store(&mut processed).await;
+            let _ = tx.send(ControllerInput::Processed(Box::new(processed)));
         });
     }
 
@@ -524,28 +551,34 @@ impl Controller {
                     Notice::info("Dictation cancelled").with_action(NoticeAction::UndoCancel)
                 });
                 let tx = self.tx.clone();
+                let Recording {
+                    recorder, journal, ..
+                } = recording;
+                if let Some(journal) = journal {
+                    journal.finish().delete();
+                }
                 tauri::async_runtime::spawn_blocking(move || {
-                    if let Ok(clip) = recording.recorder.finish() {
+                    if let Ok(clip) = recorder.finish() {
                         let _ = tx.send(ControllerInput::Cancelled(clip));
                     }
                 });
             }
             CancelReason::Interrupted => {
-                drop(recording);
+                recording.discard();
                 self.sounds.play(Cue::Cancel);
                 self.ui.notice(Notice::info(
                     "Dictation cancelled because another shortcut was pressed.",
                 ));
             }
             CancelReason::ShortTap if command => {
-                drop(recording);
+                recording.discard();
                 self.ui.notice(Notice::info(format!(
                     "Hold {} while you speak a command, or double-press it for hands-free.",
                     self.label_of(Action::CommandMode)
                 )));
             }
             CancelReason::ShortTap => {
-                drop(recording);
+                recording.discard();
                 self.ui.notice(Notice::info(format!(
                     "Hold {} to dictate, or double-tap it for hands-free.",
                     self.label_of(Action::PushToTalk)
@@ -565,13 +598,19 @@ impl Controller {
         let app = self.focus.frontmost_app();
         let options = pipeline.insert_options(&DictationContext::new(app.clone(), None));
         let context = PendingContext::without_field(app);
+        let replaces = last.history_id;
         let work: std::pin::Pin<Box<dyn Future<Output = Processed> + Send>> =
             match (last.clip, last.text) {
-                (Some(clip), _) if retry => {
-                    Box::pin(
-                        async move { pipeline.transcribe_and_insert(clip, context, delay).await },
-                    )
-                }
+                (Some(clip), _) if retry => Box::pin(async move {
+                    let mut processed = pipeline.transcribe_and_insert(clip, context, delay).await;
+                    if let Some(record) = processed.record.as_mut() {
+                        record.replaces = replaces;
+                        // A failed entry already has its recording.
+                        record.clip = record.clip.take().filter(|_| replaces.is_none());
+                    }
+                    pipeline.store(&mut processed).await;
+                    processed
+                }),
                 (_, Some(text)) => {
                     Box::pin(async move { pipeline.insert(text, options, delay).await.into() })
                 }
@@ -580,7 +619,7 @@ impl Controller {
         self.gestures.begin_busy();
         self.set_state(DictationState::Processing);
         tauri::async_runtime::spawn(async move {
-            let _ = tx.send(ControllerInput::Processed(work.await));
+            let _ = tx.send(ControllerInput::Processed(Box::new(work.await)));
         });
     }
 
@@ -626,17 +665,44 @@ impl Controller {
                 self.learn_timing,
             ));
         }
-        if let Some(last) = outcomes::report(processed.outcome, self.ui.as_ref()) {
+        if let Some(mut last) = outcomes::report(processed.outcome, self.ui.as_ref()) {
+            last.history_id = processed.history_id;
             self.last = Some(last);
         }
+    }
+
+    /// History's Retry or Recover, unless a dictation is running (HIS-05).
+    fn retry_history(&mut self, id: i64) {
+        if self.gestures.is_recording() {
+            self.ui
+                .notice(Notice::warning("Cannot retry while dictating."));
+            return;
+        }
+        if self.gestures.is_busy() {
+            self.ui
+                .notice(Notice::warning("Transcript currently processing"));
+            return;
+        }
+        self.gestures.begin_busy();
+        self.set_state(DictationState::Processing);
+        let pipeline = self.pipeline.clone();
+        let tx = self.tx.clone();
+        tauri::async_runtime::spawn(async move {
+            let _ = tx.send(ControllerInput::Processed(Box::new(
+                pipeline.retry(id).await,
+            )));
+        });
     }
 
     fn poll_audio(&mut self) {
         let Some(recording) = self.recording.as_mut() else {
             return;
         };
-        match recording.recorder.poll() {
-            Ok(samples) => {
+        match recording.recorder.poll_with_format() {
+            Ok((format, samples)) => {
+                if let (Some(journal), Some(format)) = (recording.journal.as_mut(), format) {
+                    journal.write(format, samples);
+                }
                 let rms = (!samples.is_empty()).then(|| level::rms(samples));
                 self.ui.level(level::display_level(rms.unwrap_or(0.0)));
                 let open = recording.recorder.is_open();
@@ -655,7 +721,9 @@ impl Controller {
             Err(error) => {
                 log::warn!("recording failed: {error}");
                 self.release_devices();
-                self.recording = None;
+                if let Some(recording) = self.recording.take() {
+                    recording.discard();
+                }
                 self.gestures.reset();
                 self.refresh_bindings();
                 self.sounds.play(Cue::Cancel);

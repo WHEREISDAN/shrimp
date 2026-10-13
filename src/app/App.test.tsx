@@ -36,6 +36,8 @@ function backend(models: ModelStatus[]) {
         return AI_OPTIONS;
       case "get_api_keys":
         return { anthropic: false, openai: false, groq: false };
+      case "list_history":
+        return { entries: [], disabled: false };
       default:
         throw new Error(`unexpected command ${cmd}`);
     }
@@ -97,7 +99,7 @@ describe("App", () => {
       screen.getAllByRole("button").filter((button) => button.hasAttribute("aria-current")),
     ).toHaveLength(1);
     expect(new Set(commands.filter((cmd) => !cmd.startsWith("plugin:")))).toEqual(
-      new Set(["app_info", "get_models", "get_permissions", "get_shortcuts"]),
+      new Set(["app_info", "get_models", "get_permissions", "get_shortcuts", "list_history"]),
     );
   });
 
