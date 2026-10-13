@@ -123,6 +123,17 @@ impl Database {
         Ok(Self::from(connection))
     }
 
+    /// SQLite's quick integrity check (APP-09).
+    pub fn check(&self) -> Result<(), StorageError> {
+        let result: String =
+            self.with(|db| Ok(db.query_row("PRAGMA quick_check", [], |row| row.get(0))?))?;
+        if result == "ok" {
+            Ok(())
+        } else {
+            Err(StorageError::Invalid(result))
+        }
+    }
+
     /// Runs `work` with the connection. Call from the blocking pool.
     pub fn with<T>(
         &self,
@@ -167,5 +178,14 @@ mod tests {
             .with(|db| Ok(db.query_row("PRAGMA journal_mode", [], |row| row.get(0))?))
             .unwrap();
         assert_eq!(mode, "wal");
+        database.check().unwrap();
+    }
+
+    #[test]
+    fn a_file_that_isnt_a_database_fails_to_open() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("shrimp.db");
+        std::fs::write(&path, vec![0x42; 8192]).unwrap();
+        assert!(Database::open(&path).is_err());
     }
 }

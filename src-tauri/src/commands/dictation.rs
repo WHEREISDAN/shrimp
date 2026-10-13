@@ -126,7 +126,7 @@ pub fn run_notice_action(
         }
         NoticeAction::OpenAiSettings => {
             window::show_main(&app);
-            let _ = app.emit_to(window::MAIN_LABEL, NAVIGATE_EVENT, "settings");
+            let _ = app.emit_to(window::MAIN_LABEL, NAVIGATE_EVENT, "ai");
             Ok(())
         }
         NoticeAction::OpenDictionary => {

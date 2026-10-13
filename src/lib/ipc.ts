@@ -306,7 +306,16 @@ export interface Settings {
   };
   /** Settings › Notifications: the categories that can be muted. */
   notifications: { suggestions: boolean; announcements: boolean; milestones: boolean };
+  app: {
+    /** "system", or one of the interface languages. */
+    language: AppLanguage;
+    launchAtLogin: boolean;
+    showInDock: boolean;
+  };
 }
+
+/** Mirrors `settings::APP_LANGUAGES`. */
+export type AppLanguage = "system" | "en" | "de" | "es" | "it" | "pt";
 
 /** A JSON merge patch for `update_settings`: any subset of the settings. */
 export interface SettingsPatch {
@@ -321,6 +330,7 @@ export interface SettingsPatch {
   media?: Partial<Settings["media"]>;
   flowBar?: Partial<Settings["flowBar"]>;
   notifications?: Partial<Settings["notifications"]>;
+  app?: Partial<Settings["app"]>;
   /** `null` restores a default (a whole section, or Polish's rules). */
   transforms?: {
     enabled?: boolean;
@@ -532,6 +542,16 @@ export type VoiceProfileError =
   | { kind: "notYet"; nextAt: number }
   | { kind: "failed"; message: string };
 
+/** Mirrors `health::AppHealth`: what the error screens show (APP-09). */
+export interface AppHealth {
+  crash: { details: string | null } | null;
+  data: { backup: string | null } | null;
+  storage: { freeBytes: number } | null;
+}
+
+/** Mirrors `health::Repair`. */
+export type Repair = "restoreBackup" | "startFresh";
+
 /** Mirrors `commands::CommandError`: what a rejected command throws. */
 export interface CommandError {
   code: string;
@@ -734,6 +754,20 @@ export const copyImage = (png: Uint8Array): Promise<void> => invoke("copy_image"
 export const saveImage = (png: Uint8Array, name: string): Promise<string> =>
   invoke<string>("save_image", png, { headers: { "x-file-name": encodeURIComponent(name) } });
 
+export const getAppHealth = (): Promise<AppHealth> => invoke<AppHealth>("get_app_health");
+
+export const dismissCrash = (): Promise<AppHealth> => invoke<AppHealth>("dismiss_crash");
+
+export const checkStorage = (): Promise<AppHealth> => invoke<AppHealth>("check_storage");
+
+export const openStorageSettings = (): Promise<void> => invoke("open_storage_settings");
+
+/** Repairs the database at a restart; the app restarts right away. */
+export const repairData = (repair: Repair): Promise<void> => invoke("repair_data", { repair });
+
+/** Reset & restart. */
+export const resetApp = (): Promise<void> => invoke("reset_app");
+
 /** Event names emitted by src-tauri/src/app/events.rs. */
 export const EVENTS = {
   state: "dictation://state",
@@ -750,6 +784,7 @@ export const EVENTS = {
   microphones: "mic://devices",
   flowBarHover: "flow-bar://hover",
   history: "history://changed",
+  health: "app://health",
 } as const;
 
 export function onEvent<T>(name: string, handler: (payload: T) => void): Promise<UnlistenFn> {

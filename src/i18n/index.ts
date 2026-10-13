@@ -1,4 +1,5 @@
 import { createInstance } from "i18next";
+import { useEffect } from "react";
 import { initReactI18next } from "react-i18next";
 import { en } from "./locales/en";
 
@@ -16,6 +17,23 @@ export function resolveLanguage(preferred: readonly string[]): UiLanguage {
     }
   }
   return "en";
+}
+
+/** The interface language for Settings › General › App language. */
+export function languageFor(setting: string): UiLanguage {
+  return setting === "system" ? resolveLanguage(navigator.languages) : resolveLanguage([setting]);
+}
+
+/** Follows the App language setting, and tells screen readers the page's language. */
+export function useInterfaceLanguage(setting: string | undefined) {
+  useEffect(() => {
+    if (!setting) {
+      return;
+    }
+    const language = languageFor(setting);
+    document.documentElement.lang = language;
+    void i18n.changeLanguage(language);
+  }, [setting]);
 }
 
 export const i18n = createInstance();

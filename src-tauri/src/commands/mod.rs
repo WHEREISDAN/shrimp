@@ -15,6 +15,7 @@ pub mod models;
 pub mod permissions;
 pub mod settings;
 pub mod shortcuts;
+pub mod system;
 
 use serde::Serialize;
 
@@ -84,6 +85,12 @@ pub const NAMES: &[&str] = &[
     "generate_voice_profile",
     "copy_image",
     "save_image",
+    "get_app_health",
+    "dismiss_crash",
+    "check_storage",
+    "open_storage_settings",
+    "repair_data",
+    "reset_app",
     #[cfg(debug_assertions)]
     "dev_get_audio_source",
     #[cfg(debug_assertions)]

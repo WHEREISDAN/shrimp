@@ -320,6 +320,14 @@ pub trait MediaControl: Send + Sync {
     fn pause(&self) -> Option<Restore>;
 }
 
+/// Launch at login (APP-06).
+pub trait LoginItem: Send + Sync {
+    fn enabled(&self) -> bool;
+    fn set_enabled(&self, on: bool) -> Result<(), PlatformError>;
+    /// This launch came from the login item, so Shrimp starts in the background.
+    fn launched_at_login(&self) -> bool;
+}
+
 /// Opens URLs in the default browser (CMD-05 web searches).
 pub trait Launcher: Send + Sync {
     fn open_url(&self, url: &str) -> Result<(), PlatformError>;
@@ -346,6 +354,7 @@ pub struct Platform {
     pub globe_key: GlobeKeyAction,
     /// The user's first name, for Home's greeting (STA-02).
     pub user_name: Option<String>,
+    pub login_item: Arc<dyn LoginItem>,
 }
 
 /// The system action of the Fn (Globe) key pressed alone.
@@ -385,7 +394,10 @@ pub fn native(main_thread: MainThread) -> Platform {
 }
 
 #[cfg(target_os = "macos")]
-pub use macos::{open_keyboard_settings, open_sound_settings};
+pub use macos::{
+    free_bytes, open_keyboard_settings, open_sound_settings, open_storage_settings,
+    relaunch_after_exit,
+};
 
 /// Adds the Tauri plugins the platform backend relies on.
 pub fn register_plugins<R: tauri::Runtime>(builder: tauri::Builder<R>) -> tauri::Builder<R> {

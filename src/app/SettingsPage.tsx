@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type KeyboardEvent, type ReactNode } from "react";
+import { useTranslation } from "react-i18next";
 import {
   errorMessage,
   getAiOptions,
@@ -8,6 +9,7 @@ import {
   type ApiKeys,
 } from "../lib/ipc";
 import { AiProviderSection } from "./AiProviderSection";
+import { AppLanguageSection } from "./AppLanguageSection";
 import { CommandModeIntro } from "./CommandModeIntro";
 import { ExperimentalSection } from "./ExperimentalSection";
 import { FlowBarSection } from "./FlowBarSection";
@@ -19,26 +21,51 @@ import { PrivacySection } from "./PrivacySection";
 import { ShortcutsSection } from "./ShortcutsSection";
 import { SoundSection } from "./SoundSection";
 import { SpeechEngineSection } from "./SpeechEngineSection";
-import { VibeCodingSection } from "./VibeCodingSection";
+import { SystemSection } from "./SystemSection";
 import { useSettings } from "./useSettings";
+import { VibeCodingSection } from "./VibeCodingSection";
+
+/** Settings' pages, in order (APP-05). */
+export const SETTINGS_SECTIONS = [
+  "general",
+  "system",
+  "privacy",
+  "speech",
+  "ai",
+  "experimental",
+  "vibeCoding",
+] as const;
+export type SettingsSection = (typeof SETTINGS_SECTIONS)[number];
+
+/** Where Settings opens and what it brings into view. */
+export interface SettingsTarget {
+  section: SettingsSection;
+  focus?: "microphone" | "languages" | "experimental";
+  /** Increments with each request, so the same one can repeat. */
+  count: number;
+}
 
 interface SettingsPageProps {
-  /** Increments each time Settings › Experimental should come into view. */
-  revealExperimental?: number;
-  /** Increments each time Settings › Microphone should come into view. */
-  revealMicrophone?: number;
-  /** Increments each time Settings › Languages should come into view. */
-  revealLanguages?: number;
+  target?: SettingsTarget;
   onOpenShortcuts?: () => void;
 }
 
+const STEP: Record<string, number> = { ArrowDown: 1, ArrowUp: -1 };
+
+/** The page `step` away, wrapping around. */
+function neighbour(section: SettingsSection, step: number): SettingsSection {
+  const count = SETTINGS_SECTIONS.length;
+  const index = (SETTINGS_SECTIONS.indexOf(section) + step + count) % count;
+  return SETTINGS_SECTIONS[index] ?? section;
+}
+
 export function SettingsPage({
-  revealExperimental = 0,
-  revealMicrophone = 0,
-  revealLanguages = 0,
+  target = { section: "general", count: 0 },
   onOpenShortcuts = () => undefined,
 }: SettingsPageProps) {
+  const { t } = useTranslation();
   const { settings, error, update } = useSettings();
+  const [section, setSection] = useState<SettingsSection>(target.section);
   const [options, setOptions] = useState<AiOptions | null>(null);
   const [keys, setKeys] = useState<ApiKeys | null>(null);
   const [commandShortcut, setCommandShortcut] = useState("fn ⌃");
@@ -69,6 +96,35 @@ export function SettingsPage({
     };
   }, []);
 
+  const move = (step: number) => {
+    const next = neighbour(section, step);
+    setSection(next);
+    document.getElementById(`settings-tab-${next}`)?.focus();
+  };
+
+  // Option+↑/↓ moves between settings pages from anywhere on the page (APP-04).
+  useEffect(() => {
+    const onKeyDown = (event: globalThis.KeyboardEvent) => {
+      const step = STEP[event.key];
+      if (step && event.altKey && !event.metaKey && !event.ctrlKey) {
+        event.preventDefault();
+        setSection(neighbour(section, step));
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [section]);
+
+  // ↑/↓ within the list of pages, as with any tab list.
+  const onTabKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
+    const step = STEP[event.key];
+    if (!step || event.altKey) {
+      return;
+    }
+    event.preventDefault();
+    move(step);
+  };
+
   const closeIntro = (keepOn: boolean) => {
     setIntro(false);
     void update({
@@ -78,10 +134,79 @@ export function SettingsPage({
     });
   };
 
+  const reveal = (focus: SettingsTarget["focus"]) =>
+    target.focus === focus && target.section === section ? target.count : 0;
+
+  let content: ReactNode = null;
+  if (settings && options && keys) {
+    switch (section) {
+      case "general":
+        content = (
+          <>
+            <ShortcutsSection onOpenShortcuts={onOpenShortcuts} />
+            <MicrophoneSection reveal={reveal("microphone")} />
+            <LanguagesSection reveal={reveal("languages")} />
+            <AppLanguageSection settings={settings} update={update} />
+          </>
+        );
+        break;
+      case "system":
+        content = (
+          <>
+            <SystemSection settings={settings} update={update} />
+            <SoundSection settings={settings} update={update} />
+            <FlowBarSection settings={settings} update={update} />
+            <NotificationsSection settings={settings} update={update} />
+          </>
+        );
+        break;
+      case "privacy":
+        content = <PrivacySection settings={settings} update={update} />;
+        break;
+      case "speech":
+        content = (
+          <SpeechEngineSection
+            settings={settings}
+            options={options}
+            keys={keys}
+            onKeys={setKeys}
+            update={update}
+          />
+        );
+        break;
+      case "ai":
+        content = (
+          <AiProviderSection
+            settings={settings}
+            options={options}
+            keys={keys}
+            onKeys={setKeys}
+            update={update}
+          />
+        );
+        break;
+      case "experimental":
+        content = (
+          <ExperimentalSection
+            settings={settings}
+            commandShortcut={commandShortcut}
+            reveal={reveal("experimental")}
+            update={update}
+            onCommandModeOn={() => setIntro(true)}
+          />
+        );
+        break;
+      case "vibeCoding":
+        content = <VibeCodingSection settings={settings} update={update} />;
+        break;
+    }
+  }
+
   const problem = error ?? loadError;
   return (
     <Page
-      title="Settings"
+      title={t("settings.title")}
+      wide
       modal={
         intro && (
           <CommandModeIntro
@@ -92,46 +217,45 @@ export function SettingsPage({
         )
       }
     >
-      {problem && (
-        <p className="error" role="alert">
-          {problem}
-        </p>
-      )}
-      {settings && options && keys ? (
-        <>
-          <AiProviderSection
-            settings={settings}
-            options={options}
-            keys={keys}
-            onKeys={setKeys}
-            update={update}
-          />
-          <SpeechEngineSection
-            settings={settings}
-            options={options}
-            keys={keys}
-            onKeys={setKeys}
-            update={update}
-          />
-          <ShortcutsSection onOpenShortcuts={onOpenShortcuts} />
-          <MicrophoneSection reveal={revealMicrophone} />
-          <LanguagesSection reveal={revealLanguages} />
-          <SoundSection settings={settings} update={update} />
-          <FlowBarSection settings={settings} update={update} />
-          <NotificationsSection settings={settings} update={update} />
-          <PrivacySection settings={settings} update={update} />
-          <VibeCodingSection settings={settings} update={update} />
-          <ExperimentalSection
-            settings={settings}
-            commandShortcut={commandShortcut}
-            reveal={revealExperimental}
-            update={update}
-            onCommandModeOn={() => setIntro(true)}
-          />
-        </>
-      ) : (
-        !problem && <p className="muted">Loading…</p>
-      )}
+      <div className="settings-layout">
+        <div
+          className="settings-nav"
+          role="tablist"
+          aria-orientation="vertical"
+          aria-label={t("settings.sections")}
+          onKeyDown={onTabKeyDown}
+        >
+          {SETTINGS_SECTIONS.map((id) => (
+            <button
+              key={id}
+              id={`settings-tab-${id}`}
+              type="button"
+              role="tab"
+              className="settings-tab"
+              aria-selected={id === section}
+              aria-controls="settings-panel"
+              tabIndex={id === section ? 0 : -1}
+              onClick={() => setSection(id)}
+            >
+              {t(`settings.${id}`)}
+            </button>
+          ))}
+          <p className="muted settings-hint">{t("settings.pageHint")}</p>
+        </div>
+        <div
+          id="settings-panel"
+          className="settings-panel"
+          role="tabpanel"
+          aria-labelledby={`settings-tab-${section}`}
+        >
+          {problem && (
+            <p className="error" role="alert">
+              {problem}
+            </p>
+          )}
+          {content ?? (!problem && <p className="muted">{t("common.loading")}</p>)}
+        </div>
+      </div>
     </Page>
   );
 }

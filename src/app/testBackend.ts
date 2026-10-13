@@ -140,6 +140,7 @@ export const SETTINGS: Settings = {
   languages: { autoDetect: false, selected: ["en-US"], active: null },
   flowBar: { alwaysShow: true, hiddenUntil: 0, edge: "bottom", position: 0.5 },
   notifications: { suggestions: true, announcements: true, milestones: true },
+  app: { language: "system", launchAtLogin: false, showInDock: true },
 };
 
 export const MODELS: ModelStatus[] = [

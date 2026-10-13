@@ -6,6 +6,7 @@ mod commands;
 pub mod context;
 pub mod dictation;
 pub mod edit;
+pub mod health;
 pub mod history;
 pub mod hotkeys;
 pub mod insights;
@@ -98,6 +99,12 @@ pub fn run() {
                 commands::insights::generate_voice_profile,
                 commands::insights::copy_image,
                 commands::insights::save_image,
+                commands::system::get_app_health,
+                commands::system::dismiss_crash,
+                commands::system::check_storage,
+                commands::system::open_storage_settings,
+                commands::system::repair_data,
+                commands::system::reset_app,
                 $($dev)*
             ]
         };

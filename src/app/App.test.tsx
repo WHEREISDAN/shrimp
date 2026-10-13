@@ -42,6 +42,8 @@ function backend(models: ModelStatus[]) {
         return INSIGHTS;
       case "get_voice_profile":
         return VOICE_PROFILE;
+      case "get_app_health":
+        return { crash: null, data: null, storage: null };
       default:
         throw new Error(`unexpected command ${cmd}`);
     }
@@ -113,6 +115,8 @@ describe("App", () => {
         "get_shortcuts",
         "list_history",
         "get_insights",
+        "get_settings",
+        "get_app_health",
       ]),
     );
   });

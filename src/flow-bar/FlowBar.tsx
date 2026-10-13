@@ -10,6 +10,7 @@ import {
   type Notice,
   type TransformView,
 } from "../lib/ipc";
+import { useInterfaceLanguage } from "../i18n";
 import { useTauriEvent } from "../lib/useTauriEvent";
 import { AnswerCard } from "./AnswerCard";
 import { ChangesCard } from "./ChangesCard";
@@ -44,6 +45,8 @@ export function FlowBar() {
   const [menu, setMenu] = useState(false);
   const [placement, setPlacement] = useState<Settings["flowBar"] | null>(null);
   const [privacy, setPrivacy] = useState(false);
+  const [language, setLanguage] = useState<string | undefined>(undefined);
+  useInterfaceLanguage(language);
   const [now, setNow] = useState(() => Date.now() / 1000);
   const rootRef = useRef<HTMLDivElement>(null);
   useContentSize(rootRef);
@@ -65,6 +68,7 @@ export function FlowBar() {
         if (!cancelled) {
           setPlacement(settings.flowBar);
           setPrivacy(settings.privacy.privacyMode);
+          setLanguage(settings.app.language);
         }
       })
       .catch(() => undefined);
@@ -75,6 +79,7 @@ export function FlowBar() {
   useTauriEvent<Settings>(EVENTS.settings, (settings) => {
     setPlacement(settings.flowBar);
     setPrivacy(settings.privacy.privacyMode);
+    setLanguage(settings.app.language);
     setNow(Date.now() / 1000);
   });
 

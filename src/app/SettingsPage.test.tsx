@@ -1,7 +1,7 @@
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import type { ApiKeys, Settings, SettingsPatch } from "../lib/ipc";
-import { SettingsPage } from "./SettingsPage";
+import { SettingsPage, type SettingsSection, type SettingsTarget } from "./SettingsPage";
 import {
   AI_OPTIONS,
   LANGUAGES,
@@ -67,10 +67,12 @@ function backend(
   });
 }
 
+const at = (section: SettingsSection): SettingsTarget => ({ section, count: 0 });
+
 describe("SettingsPage AI provider", () => {
   it("shows the provider, its model and the model note", async () => {
     backend();
-    render(<SettingsPage />);
+    render(<SettingsPage target={at("ai")} />);
 
     expect(await screen.findByRole("combobox", { name: "Provider" })).toHaveValue("anthropic");
     expect(screen.getByRole("combobox", { name: "Model" })).toHaveValue("claude-haiku");
@@ -82,7 +84,7 @@ describe("SettingsPage AI provider", () => {
 
   it("saves the chosen model for the provider", async () => {
     const { argsOf } = backend();
-    render(<SettingsPage />);
+    render(<SettingsPage target={at("ai")} />);
     fireEvent.change(await screen.findByRole("combobox", { name: "Model" }), {
       target: { value: "claude-sonnet" },
     });
@@ -96,7 +98,7 @@ describe("SettingsPage AI provider", () => {
 
   it("saves a key, clears the field and never shows the key", async () => {
     const { argsOf } = backend();
-    render(<SettingsPage />);
+    render(<SettingsPage target={at("ai")} />);
     expect(await screen.findByText("No key yet")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Remove key" })).not.toBeInTheDocument();
 
@@ -114,7 +116,7 @@ describe("SettingsPage AI provider", () => {
 
   it("removes a saved key", async () => {
     const { argsOf } = backend();
-    render(<SettingsPage />);
+    render(<SettingsPage target={at("ai")} />);
     fireEvent.change(await screen.findByRole("combobox", { name: "Provider" }), {
       target: { value: "openai" },
     });
@@ -130,7 +132,7 @@ describe("SettingsPage AI provider", () => {
         throw { code: "keychain", message: "The keychain is locked" };
       },
     });
-    render(<SettingsPage />);
+    render(<SettingsPage target={at("ai")} />);
     fireEvent.change(await screen.findByLabelText("Anthropic API key"), { target: { value: "k" } });
     fireEvent.click(screen.getByRole("button", { name: "Save key" }));
     expect(await screen.findByRole("alert")).toHaveTextContent("The keychain is locked");
@@ -138,7 +140,7 @@ describe("SettingsPage AI provider", () => {
 
   it("lists Ollama models when Ollama is chosen", async () => {
     const { argsOf } = backend({ list_ollama_models: () => ["llama3.2", "qwen3"] });
-    render(<SettingsPage />);
+    render(<SettingsPage target={at("ai")} />);
     fireEvent.change(await screen.findByRole("combobox", { name: "Provider" }), {
       target: { value: "ollama" },
     });
@@ -168,7 +170,7 @@ describe("SettingsPage AI provider", () => {
       { list_ollama_models: () => [] },
       { ...SETTINGS, ai: { ...SETTINGS.ai, provider: "ollama" } },
     );
-    render(<SettingsPage />);
+    render(<SettingsPage target={at("ai")} />);
     const address = await screen.findByLabelText("Address");
 
     fireEvent.change(address, { target: { value: "http://studio:11434" } });
@@ -206,7 +208,7 @@ describe("SettingsPage AI provider", () => {
       },
       { ...SETTINGS, ai: { ...SETTINGS.ai, provider: "ollama" } },
     );
-    render(<SettingsPage />);
+    render(<SettingsPage target={at("ai")} />);
 
     expect(
       await screen.findByText("Ollama isn't running at http://localhost:11434."),
@@ -227,7 +229,7 @@ describe("SettingsPage AI provider", () => {
       message: null,
     };
     backend({ test_ai_provider: () => result });
-    render(<SettingsPage />);
+    render(<SettingsPage target={at("ai")} />);
 
     fireEvent.click(await screen.findByRole("button", { name: "Test" }));
     expect(await screen.findByText("Cleaned up in 412 ms: “Hi.”")).toBeInTheDocument();
@@ -243,7 +245,7 @@ describe("SettingsPage AI provider", () => {
 
   it("says Testing… while the test runs", async () => {
     backend({ test_ai_provider: () => new Promise(() => undefined) });
-    render(<SettingsPage />);
+    render(<SettingsPage target={at("ai")} />);
     fireEvent.click(await screen.findByRole("button", { name: "Test" }));
     expect(screen.getByText("Testing…")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Test" })).toBeDisabled();
@@ -253,7 +255,7 @@ describe("SettingsPage AI provider", () => {
 describe("SettingsPage speech engine", () => {
   it("switches the engine and shows the cloud model and key", async () => {
     const { argsOf } = backend();
-    render(<SettingsPage />);
+    render(<SettingsPage target={at("speech")} />);
 
     const group = await screen.findByRole("radiogroup", { name: "Speech engine" });
     expect(within(group).getByRole("radio", { name: "Whisper on this Mac" })).toHaveAttribute(
@@ -277,7 +279,7 @@ describe("SettingsPage speech engine", () => {
 
   it("saves the speech model", async () => {
     const { argsOf } = backend({}, { ...SETTINGS, stt: { ...SETTINGS.stt, engine: "openai" } });
-    render(<SettingsPage />);
+    render(<SettingsPage target={at("speech")} />);
     fireEvent.change(await screen.findByRole("combobox", { name: "Speech model" }), {
       target: { value: "whisper-1" },
     });
@@ -290,7 +292,7 @@ describe("SettingsPage speech engine", () => {
 describe("SettingsPage data and privacy", () => {
   it("turns context awareness off", async () => {
     const { argsOf } = backend();
-    render(<SettingsPage />);
+    render(<SettingsPage target={at("privacy")} />);
     const toggle = await screen.findByRole("switch", { name: "Context awareness" });
     expect(toggle).toBeChecked();
     fireEvent.click(toggle);
@@ -306,7 +308,7 @@ describe("SettingsPage data and privacy", () => {
 describe("SettingsPage notifications", () => {
   it("mutes a category", async () => {
     const { argsOf } = backend();
-    render(<SettingsPage />);
+    render(<SettingsPage target={at("system")} />);
     const milestones = await screen.findByRole("switch", { name: "Milestones" });
     expect(milestones).toBeChecked();
     fireEvent.click(milestones);
@@ -322,7 +324,7 @@ describe("SettingsPage notifications", () => {
 describe("SettingsPage experimental", () => {
   it("introduces Command Mode once when it is turned on", async () => {
     const { argsOf } = backend();
-    render(<SettingsPage />);
+    render(<SettingsPage target={at("experimental")} />);
     fireEvent.click(await screen.findByRole("switch", { name: "Command Mode" }));
     const dialog = await screen.findByRole("dialog", { name: "Using Command Mode (beta)" });
     expect(dialog).toHaveTextContent("fn ⌃");
@@ -338,7 +340,7 @@ describe("SettingsPage experimental", () => {
 
   it("turns the press enter voice command on", async () => {
     const { argsOf } = backend();
-    render(<SettingsPage />);
+    render(<SettingsPage target={at("experimental")} />);
     fireEvent.click(await screen.findByRole("switch", { name: "“Press enter” voice command" }));
     await waitFor(() =>
       expect(argsOf("update_settings")).toEqual([
@@ -351,7 +353,7 @@ describe("SettingsPage experimental", () => {
 describe("SettingsPage Whisper models", () => {
   it("lists the models with size and state, and switches, downloads and deletes", async () => {
     const { argsOf } = backend();
-    render(<SettingsPage />);
+    render(<SettingsPage target={at("speech")} />);
     const list = await screen.findByRole("list", { name: "Whisper models" });
     expect(await within(list).findByText(/574 MB · Recommended · In use/)).toBeInTheDocument();
     expect(within(list).getByText(/32 MB · Not downloaded/)).toBeInTheDocument();
@@ -386,7 +388,7 @@ describe("SettingsPage shortcuts", () => {
 describe("SettingsPage vibe coding", () => {
   it("turns file tagging off and explains variable recognition", async () => {
     const { argsOf } = backend();
-    render(<SettingsPage />);
+    render(<SettingsPage target={at("vibeCoding")} />);
     fireEvent.click(await screen.findByRole("switch", { name: "File tagging in chat" }));
     await waitFor(() =>
       expect(argsOf("update_settings")).toEqual([
@@ -400,7 +402,7 @@ describe("SettingsPage vibe coding", () => {
 describe("SettingsPage microphone", () => {
   it("lists Auto-detect and the microphones with their state, and ranks and forgets them", async () => {
     const { argsOf } = backend();
-    render(<SettingsPage />);
+    render(<SettingsPage target={at("general")} />);
     const list = await screen.findByRole("list", { name: "Microphones" });
     expect(within(list).getByText("Yeti")).toBeInTheDocument();
     expect(within(list).getByText(/In use/)).toBeInTheDocument();
@@ -429,7 +431,7 @@ describe("SettingsPage microphone", () => {
 
   it("walks through Find the right mic for you", async () => {
     backend();
-    render(<SettingsPage />);
+    render(<SettingsPage target={at("general")} />);
     fireEvent.click(await screen.findByRole("button", { name: "Find the right mic for you" }));
     fireEvent.click(screen.getByRole("button", { name: "A quiet room" }));
     fireEvent.click(screen.getByRole("button", { name: "A desktop Mac (mini, iMac, Studio)" }));
@@ -441,7 +443,7 @@ describe("SettingsPage microphone", () => {
 describe("SettingsPage sound", () => {
   it("turns sounds off and keeps muting and pausing exclusive", async () => {
     const { argsOf } = backend();
-    render(<SettingsPage />);
+    render(<SettingsPage target={at("system")} />);
     fireEvent.click(await screen.findByRole("switch", { name: "Notification sounds" }));
     fireEvent.click(screen.getByRole("switch", { name: "Mute audio while dictating" }));
     await waitFor(() => expect(argsOf("update_settings")).toHaveLength(2));
@@ -459,7 +461,7 @@ describe("SettingsPage sound", () => {
 describe("SettingsPage languages", () => {
   it("searches, keeps one variant per language and saves", async () => {
     const { argsOf } = backend();
-    render(<SettingsPage />);
+    render(<SettingsPage target={at("general")} />);
     const section = await screen.findByRole("region", { name: "Languages" });
     expect(await within(section).findByText("English (US)")).toBeInTheDocument();
     fireEvent.click(within(section).getByRole("button", { name: "Change" }));
@@ -482,7 +484,7 @@ describe("SettingsPage languages", () => {
 
   it("refuses to save with no language and auto-detect off", async () => {
     const { argsOf } = backend();
-    render(<SettingsPage />);
+    render(<SettingsPage target={at("general")} />);
     const section = await screen.findByRole("region", { name: "Languages" });
     fireEvent.click(await within(section).findByRole("button", { name: "Change" }));
     const dialog = screen.getByRole("dialog", { name: "Languages" });
@@ -503,7 +505,7 @@ describe("SettingsPage languages", () => {
 describe("SettingsPage Flow Bar", () => {
   it("turns off showing the bar at all times", async () => {
     const { argsOf } = backend();
-    render(<SettingsPage />);
+    render(<SettingsPage target={at("system")} />);
     fireEvent.click(await screen.findByRole("switch", { name: "Show Flow Bar at all times" }));
     await waitFor(() =>
       expect(argsOf("update_settings")).toEqual([{ patch: { flowBar: { alwaysShow: false } } }]),

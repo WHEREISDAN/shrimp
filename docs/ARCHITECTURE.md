@@ -46,7 +46,9 @@ lib.rs                  Tauri builder: plugins, commands, setup                 
 app/                    shell                                                          (built)
   mod.rs                run-loop events (Dock reopen)                                  (built)
   setup.rs              builds the services at startup, managed state                  (built)
-  window.rs             main window show/hide, close-to-tray                           (built)
+  window.rs             main window show/hide, close-to-tray, the Dock icon            (built)
+  system.rs             startup: pending reset or repair, crash and storage checks,
+                        launch at login, background start (APP-06..09)                (built)
   tray.rs               tray icon and menu                                             (built)
   flow_bar.rs           Flow Bar window: sizing, hiding when empty, edge placement on
                         the cursor's display, dragging (BAR-04, BAR-05)                (built)
@@ -63,7 +65,7 @@ context/                context awareness: what surrounds the cursor (CTX-01..04
   words.rs              everyday English words (SCOWL), common first names, acronyms   (built)
 commands/               thin IPC handlers, one file per area                           (built)
   app.rs, dictation.rs, models.rs, permissions.rs, settings.rs, shortcuts.rs, ai.rs,
-  library.rs, history.rs, insights.rs, dev.rs (debug only)
+  library.rs, history.rs, insights.rs, system.rs, dev.rs (debug only)
 audio/                  audio input                                                    (built)
   source.rs             AudioSource trait, AudioSink, AudioFormat                      (built)
   wav.rs                WavFileSource, read_wav                                        (built)
@@ -102,6 +104,8 @@ llm/                    LLM providers                                           
   catalog.rs            models offered per provider and engine, defaults               (built)
   http.rs               shared reqwest client, status and transport error mapping      (built)
   registry.rs           LlmSource: builds the chosen provider with its key             (built)
+health/                 error screens: crash marker, damaged database, low disk; Reset
+                        & restart and database repairs at the next launch (APP-08/09) (built)
 edit/                   AI edit pipeline                                               (built)
   pipeline.rs           Editor: pre-pass, LLM pass, post-pass, raw fallback            (built)
   prompts.rs            system prompt per cleanup level, style and category            (built)
@@ -165,7 +169,8 @@ platform/               OS integration behind traits (next section)             
   macos/                hotkeys, mouse (button tap), secure_input, iokit (Fn keyboard,
                         lid, Caps Lock), core_audio (devices, output mute and volume),
                         media (mute, MediaRemote pause), insert, pasteboard, keymap,
-                        focus, context, ax, permissions, sound, globe, flow_bar        (built)
+                        focus, context, ax, permissions, sound, globe, flow_bar, login
+                        (launch at login)                                              (built)
   windows/              Windows backend                                                (P5)
 storage/                SQLite                                                         (built)
   db.rs                 open, WAL, migrations                                          (built)
@@ -231,15 +236,15 @@ IPC conventions:
 
 Built so far:
 
-| Kind     | Names                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
-| -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Commands | `app_info`, `get_dictation_state`, `flow_bar_control`, `flow_bar_ready`, `flow_bar_layout`, `run_notice_action`, `get_models`, `get_permissions`, `open_permission_settings`                                                                                                                                                                                                                                                                                                                                                               |
-| Phase 3  | `transform_action` (the changes view's Copy, Retry and Undo)                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
-| Phase 4  | `get_shortcuts` (every action's bindings, the overlap warning, Secure Keyboard Entry), `record_shortcut` (records through the hooks; progress as `shortcuts://recording`), `cancel_shortcut_recording`, `remove_shortcut`, `reset_shortcuts`; `retry_model`, `download_model`, `delete_model`; `get_microphones`, `select_microphone`, `rank_microphone`, `forget_microphone`, `start_mic_preview`, `stop_mic_preview`; `get_languages`, `set_languages`, `set_active_language`; `flow_bar_drag`, `flow_bar_action` (the right-click menu) |
-| Phase 4b | `get_insights`, `get_voice_profile`, `generate_voice_profile` (rejects with `{kind}`), `copy_image` and `save_image` (a raw PNG request body; the file name in an `x-file-name` header); `list_history`, `copy_history`, `set_history_raw` (Undo/Redo AI edit), `retry_history`, `history_audio` (raw WAV bytes), `extract_history_audio`, `delete_history`, `set_history_storage` ("never" needs "delete all")                                                                                                                            |
-| Phase 2  | `get_settings`, `update_settings`, `get_ai_options`, `get_api_keys`, `set_api_key`, `delete_api_key`, `list_ollama_models`, `test_ai_provider`; dictionary and snippet CRUD and imports (`list_dictionary`, `add_dictionary_entry`, `update_dictionary_entry`, `set_dictionary_pinned`, `delete_dictionary_entries`, `preview_dictionary_import`, `import_dictionary`, `list_snippets`, `add_snippet`, `update_snippet`, `delete_snippets`, `preview_snippet_import`, `import_snippets`)                                                   |
-| Dev only | `dev_get_audio_source`, `dev_set_audio_source`, `dev_set_app_category`, `dev_edit_text`, `dev_read_context`, `dev_set_microphones` (debug builds; see DEVELOPMENT.md)                                                                                                                                                                                                                                                                                                                                                                      |
-| Events   | `dictation://state`, `dictation://level` (Flow Bar only), `notify://notice`, `command://answer` and `transform://changes` (Flow Bar only), `models://status`, `app://navigate`, `settings://changed`, `shortcuts://recording`, `notify://dismiss` (a notice whose cause went away), `mic://devices`, `mic://level`, `flow-bar://hover` (Flow Bar only)                                                                                                                                                                                     |
+| Kind     | Names                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
+| -------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Commands | `app_info`, `get_dictation_state`, `flow_bar_control`, `flow_bar_ready`, `flow_bar_layout`, `run_notice_action`, `get_models`, `get_permissions`, `open_permission_settings`                                                                                                                                                                                                                                                                                                                                                                    |
+| Phase 3  | `transform_action` (the changes view's Copy, Retry and Undo)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| Phase 4  | `get_shortcuts` (every action's bindings, the overlap warning, Secure Keyboard Entry), `record_shortcut` (records through the hooks; progress as `shortcuts://recording`), `cancel_shortcut_recording`, `remove_shortcut`, `reset_shortcuts`; `retry_model`, `download_model`, `delete_model`; `get_microphones`, `select_microphone`, `rank_microphone`, `forget_microphone`, `start_mic_preview`, `stop_mic_preview`; `get_languages`, `set_languages`, `set_active_language`; `flow_bar_drag`, `flow_bar_action` (the right-click menu)      |
+| Phase 4b | `get_app_health`, `dismiss_crash`, `check_storage`, `open_storage_settings`, `repair_data`, `reset_app` (both restart the app); `get_insights`, `get_voice_profile`, `generate_voice_profile` (rejects with `{kind}`), `copy_image` and `save_image` (a raw PNG request body; the file name in an `x-file-name` header); `list_history`, `copy_history`, `set_history_raw` (Undo/Redo AI edit), `retry_history`, `history_audio` (raw WAV bytes), `extract_history_audio`, `delete_history`, `set_history_storage` ("never" needs "delete all") |
+| Phase 2  | `get_settings`, `update_settings`, `get_ai_options`, `get_api_keys`, `set_api_key`, `delete_api_key`, `list_ollama_models`, `test_ai_provider`; dictionary and snippet CRUD and imports (`list_dictionary`, `add_dictionary_entry`, `update_dictionary_entry`, `set_dictionary_pinned`, `delete_dictionary_entries`, `preview_dictionary_import`, `import_dictionary`, `list_snippets`, `add_snippet`, `update_snippet`, `delete_snippets`, `preview_snippet_import`, `import_snippets`)                                                        |
+| Dev only | `dev_get_audio_source`, `dev_set_audio_source`, `dev_set_app_category`, `dev_edit_text`, `dev_read_context`, `dev_set_microphones` (debug builds; see DEVELOPMENT.md)                                                                                                                                                                                                                                                                                                                                                                           |
+| Events   | `dictation://state`, `dictation://level` (Flow Bar only), `notify://notice`, `command://answer` and `transform://changes` (Flow Bar only), `models://status`, `app://navigate`, `settings://changed`, `shortcuts://recording`, `notify://dismiss` (a notice whose cause went away), `mic://devices`, `mic://level`, `flow-bar://hover` (Flow Bar only)                                                                                                                                                                                          |
 
 The Flow Bar shows the resting pill only when "Show Flow Bar at all times" is on and it
 isn't hidden for an hour (BAR-04); with nothing to show it reports 0 × 0 and Rust hides
@@ -359,7 +364,9 @@ pub struct Platform {
     pub language: Option<String>,     // preferred language, ISO 639-1
     pub globe_key: GlobeKeyAction,    // what Fn alone does (CORE-02)
     pub user_name: Option<String>,    // first name for Home's greeting (NSFullUserName)
+    pub login_item: Arc<dyn LoginItem>,
 }
+// Also: platform::free_bytes(path) (statvfs) and open_storage_settings() for APP-09.
 
 /// Global shortcuts with press and release: keys, Fn and modifier-only chords, mouse buttons.
 pub trait HotkeyBackend: Send {
@@ -435,6 +442,13 @@ pub trait DeviceProvider: Send + Sync {
     fn default_input(&self) -> Option<String>;
     fn lid_closed(&self) -> bool;
     fn open(&self, device: &InputDevice) -> Box<dyn AudioSource>;
+}
+
+/// Launch at login (APP-06).
+pub trait LoginItem: Send + Sync {
+    fn enabled(&self) -> bool;
+    fn set_enabled(&self, on: bool) -> Result<(), PlatformError>;
+    fn launched_at_login(&self) -> bool; // start in the background
 }
 
 /// Mute the output or pause the playing media app; the closures undo it.
@@ -515,7 +529,7 @@ ever used (Apple DTS, developer forums thread 828052).
 | Permissions               | Direct calls: objc2-av-foundation `AVCaptureDevice::authorizationStatusForMediaType` / `requestAccessForMediaType_completionHandler`; `AXIsProcessTrusted` (the Accessibility pane is opened, not prompted); objc2-io-kit `IOHIDCheckAccess` / `IOHIDRequestAccess(ListenEvent)` for Input Monitoring, if a listen-only tap is ever added. The microphone is requested on the first microphone dictation, after checking that an input device exists, so a Mac without one never sees the prompt. Deep links: `x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility` (also `Privacy_Microphone`, `Privacy_ListenEvent`). tauri-plugin-macos-permissions 2.3.0 is not used: it reads an `NSInteger` as `i32`, which objc2 rejects with a panic in debug builds.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                | —                           |
 | Flow Bar panel            | tauri-nspanel 2.1.1: a `tauri_panel!` class with `can_become_key_window: false` and `is_floating_panel: true`; `window.to_panel()`, `PanelLevel::Status`, the non-activating style mask, collection behaviour `can_join_all_spaces().full_screen_auxiliary().stationary().ignores_cycle()`, `set_hides_on_deactivate(false)`. Panel calls must run on the main thread. Tauri's `focusable(false)` alone does not stop a click from activating the app; the window also needs `accept_first_mouse(true)` so the first click on the inactive panel registers. Show it with Tauri's `window.show()` before `orderFrontRegardless`: while Tauri believes the window is hidden, WebKit keeps painting a stale snapshot of the first frame over later content. Needs Tauri's `macos-private-api` feature (`macOSPrivateApi` in tauri.conf.json).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             | none                        |
 | Dictation sounds          | `NSSound` from in-memory WAV data, created and played on the main thread, so no audio output stream stays open between cues (rodio would hold one). The cues are synthesised in `sounds/`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             | none                        |
-| Launch at login (P4)      | objc2-service-management `SMAppService::mainAppService()` (`registerAndReturnError`, `status`), the modern login-item API. tauri-plugin-autostart would install a LaunchAgent or use AppleScript instead.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              | none                        |
+| Launch at login           | objc2-service-management `SMAppService::mainAppService()` (`registerAndReturnError`, `unregisterAndReturnError`, `status`), the modern login-item API (`platform/macos/login.rs`). macOS doesn't say whether a launch came from the login item, so a launch within 2 minutes of the console session's start (the utmpx `USER_PROCESS` record on `console`) while the login item is enabled counts as one, and the main window stays hidden; `--background` does the same, and debug builds read `SHRIMP_LAUNCHED_AT_LOGIN`. A LaunchAgent with a `--background` argument was rejected: unregistering it would stop a Shrimp that it had started. tauri-plugin-autostart would install a LaunchAgent or use AppleScript instead.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        | none                        |
 
 ### Windows backend (`platform/windows/`, P5)
 
@@ -1092,7 +1106,8 @@ Whisper model. `microphone` (selection and ranking), `sounds` (dictation and not
 sounds) and `media` (mute or pause while dictating, at most one) hold Settings ›
 Microphone and Sound. `languages` (above) and `flowBar` (`alwaysShow`, `hiddenUntil`,
 `edge`, `position`) hold Languages and the Flow Bar; `notifications` (`suggestions`,
-`announcements`, `milestones`) holds Settings › Notifications. Later phases add privacy, system,
+`announcements`, `milestones`) holds Settings › Notifications; `app` (`language`, `launchAtLogin`, `showInDock`) holds the
+app language and Settings › System. Later phases add privacy, system,
 notifications and onboarding.
 
 ### Secrets (built)
@@ -1142,6 +1157,38 @@ alone.
 - Logging uses the `log` crate. Debug builds route it into tauri-plugin-mcp's buffer
   (`capture_rust_logs`), readable with `query_logs`. Release builds add a file logger in
   phase 4. Logs never contain transcripts, field text or keys at `info` level or above.
+
+## App shell (APP-04..09)
+
+- **Main window.** It starts hidden (`visible: false`) and setup shows it, unless the
+  launch came from the login item (or `--background`) and nothing needs attention
+  (`app/system.rs`). The sidebar lists Home, Insights, Dictionary, Snippets, Style and
+  Transforms, with Settings and Help at the bottom. ⌘[ and ⌘] go back and forward
+  through the pages visited, ⌥↑/⌥↓ move through the sidebar (`usePageHistory`), and on
+  Settings ⌥↑/⌥↓ move through its pages instead.
+- **Settings pages** (APP-05) are a vertical tab list: General (shortcuts, microphone,
+  languages, app language), System (launch at login, Dock icon, sound, Flow Bar,
+  notifications, Reset & restart), Data and privacy, Speech engine, AI provider,
+  Experimental and Vibe coding. `app://navigate` targets a page and what to bring into
+  view (`settings`, `ai`, `microphone`, `languages`, `experimental`).
+- **Settings › System** lives in `settings.app` (`language`, `launchAtLogin`,
+  `showInDock`). At startup the login item's real state wins over the saved switch (the
+  user may have turned it off in System Settings); a failed change puts the switch back
+  with a notice. "Show app in Dock" calls Tauri's `set_dock_visibility`.
+- **Reset & restart (APP-08)** writes `reset-requested` and restarts with
+  `request_restart` (which runs the normal exit, so Whisper is unloaded). The next launch
+  deletes everything in the data folder except `models/` before opening anything, and
+  removes the API keys from the keychain; onboarding then starts again.
+- **Error screens (APP-09).** `health/`: a `running` marker is written at launch and
+  removed at a normal exit (`RunEvent::Exit`), so a leftover marker means the last run
+  crashed or was killed; a panic hook saves the message for the screen's Details. The
+  database is opened and checked with `PRAGMA quick_check`; if either fails, this run uses
+  an in-memory database and the damaged-data screen offers Restore backup (the newest
+  daily copy) or Start fresh, which a `repair-requested` marker applies at the restart,
+  keeping the damaged file aside as `shrimp.db.damaged-<time>`. Free space is checked at
+  launch and every 10 minutes; under 200 MB the "Storage Full" screen offers Open Storage
+  Settings and Check again (debug builds read `SHRIMP_FAKE_FREE_BYTES`). The main window
+  shows the screen instead of the app, the most serious problem first.
 
 ## Security and privacy
 

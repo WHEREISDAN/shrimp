@@ -24,6 +24,7 @@ pub const MIC_LEVEL_EVENT: &str = "mic://level";
 pub const MICROPHONES_EVENT: &str = "mic://devices";
 pub const FLOW_BAR_HOVER_EVENT: &str = "flow-bar://hover";
 pub const HISTORY_EVENT: &str = "history://changed";
+pub const HEALTH_EVENT: &str = "app://health";
 
 pub struct TauriUi {
     app: AppHandle,

@@ -7,7 +7,7 @@ use std::time::Duration;
 use tauri::{App, AppHandle, Emitter, Manager};
 
 use super::events::{HISTORY_EVENT, MICROPHONES_EVENT, MODELS_EVENT, SETTINGS_EVENT, TauriUi};
-use super::{flow_bar, tray};
+use super::{flow_bar, system, tray, window};
 #[cfg(debug_assertions)]
 use crate::audio::SwitchableDevices;
 use crate::audio::{AudioSourceSpec, DeviceProvider};
@@ -19,6 +19,7 @@ use crate::commands::permissions::AppPermissions;
 use crate::commands::shortcuts::DefaultBindings;
 use crate::dictation::{self, ControllerInput, DictationUi, MutedNotices, Services, Timing};
 use crate::edit::{EditTimeout, Editor, Library};
+use crate::health::Pending;
 use crate::history::History;
 use crate::lang;
 use crate::llm::{LlmSource, Providers, http};
@@ -36,6 +37,7 @@ pub fn setup(app: &mut App) -> Result<(), Box<dyn std::error::Error>> {
     let platform = platform::native(main_thread(&handle));
 
     let data_dir = app.path().app_data_dir()?;
+    let (health, pending) = system::prepare(&data_dir);
     let settings = Arc::new(SettingsStore::load(data_dir.join("settings.json")));
     let ui = Arc::new(TauriUi::new(handle.clone()));
     if let Some(conflict) = platform.globe_key.conflict() {
@@ -55,7 +57,11 @@ pub fn setup(app: &mut App) -> Result<(), Box<dyn std::error::Error>> {
     let secrets = Arc::new(Secrets::new(Box::new(Keychain::new(
         app.config().identifier.clone(),
     ))));
-    let database = Arc::new(open_database(&data_dir, ui.as_ref()));
+    if pending == Pending::Reset {
+        system::forget_keys(&secrets);
+    }
+    let database = Arc::new(system::open_database(&data_dir, &health));
+    system::watch_storage(&handle, &health, &data_dir);
     let history = start_history(&handle, &database, &data_dir, &settings, ui.as_ref());
     let client = http::client();
     let llm: Arc<dyn LlmSource> = Arc::new(Providers::new(client.clone(), Arc::clone(&secrets)));
@@ -121,6 +127,8 @@ pub fn setup(app: &mut App) -> Result<(), Box<dyn std::error::Error>> {
         bindings: platform.default_bindings.clone(),
         label: platform.label,
     });
+    let notices = Arc::clone(&dictation_ui);
+    let login_item = Arc::clone(&platform.login_item);
     let controller = dictation::spawn(Services {
         hotkeys: platform.hotkeys,
         bindings: platform.default_bindings,
@@ -159,6 +167,7 @@ pub fn setup(app: &mut App) -> Result<(), Box<dyn std::error::Error>> {
     app.manage(Arc::clone(&slot));
     app.manage(ui);
     app.manage(AppPermissions(platform.permissions));
+    app.manage(Arc::clone(&health));
 
     tray::create(&handle, &settings.get())?;
     let tray_handle = handle.clone();
@@ -184,6 +193,16 @@ pub fn setup(app: &mut App) -> Result<(), Box<dyn std::error::Error>> {
         let id = settings.stt.local_model.clone();
         tauri::async_runtime::spawn(Arc::clone(&chosen_model).prepare(id));
     }));
+    system::follow_system_settings(
+        &handle,
+        &settings,
+        Arc::clone(&login_item),
+        Arc::new(move |notice| notices.notice(notice)),
+    );
+    // The main window starts hidden; a launch at login stays in the menu bar (APP-06).
+    if !system::starts_in_background(login_item.as_ref(), &health) {
+        window::show_main(&handle);
+    }
     Ok(())
 }
 
@@ -247,19 +266,6 @@ fn start_history(
         }
     }));
     history
-}
-
-/// The dictionary and snippets database; an unreadable file is set aside for
-/// this run (in memory instead) with a notice, so dictation keeps working.
-fn open_database(dir: &std::path::Path, ui: &TauriUi) -> Database {
-    let path = dir.join("shrimp.db");
-    Database::open(&path).unwrap_or_else(|error| {
-        log::error!("could not open {}: {error}", path.display());
-        ui.notice(Notice::error(
-            "Shrimp couldn't open its dictionary and snippets. Changes this session won't be saved.",
-        ));
-        Database::open_in_memory().expect("an in-memory database always opens")
-    })
 }
 
 fn main_thread(handle: &AppHandle) -> MainThread {

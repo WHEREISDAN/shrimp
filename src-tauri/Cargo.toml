@@ -52,6 +52,7 @@ objc2-io-kit = { version = "0.3.2", default-features = false, features = ["std",
 libc = "0.2"
 objc2-application-services = { version = "0.3.2", default-features = false, features = ["std", "AXUIElement", "AXError", "AXValue", "AXValueConstants", "AXAttributeConstants", "AXRoleConstants", "HIServices", "libc"] }
 objc2-av-foundation = { version = "0.3.2", default-features = false, features = ["std", "block2", "AVCaptureDevice", "AVMediaFormat"] }
+objc2-service-management = { version = "0.3.2", default-features = false, features = ["std", "SMAppService", "objc2", "objc2-foundation"] }
 
 [profile.release]
 codegen-units = 1

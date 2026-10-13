@@ -36,6 +36,7 @@ pub struct Settings {
     pub languages: LanguageSettings,
     pub flow_bar: FlowBarSettings,
     pub notifications: NotificationSettings,
+    pub app: AppSettings,
 }
 
 impl Default for Settings {
@@ -58,6 +59,32 @@ impl Default for Settings {
             languages: LanguageSettings::default(),
             flow_bar: FlowBarSettings::default(),
             notifications: NotificationSettings::default(),
+            app: AppSettings::default(),
+        }
+    }
+}
+
+/// The interface languages (LANG-06); "system" follows the Mac.
+pub const APP_LANGUAGES: [&str; 6] = ["system", "en", "de", "es", "it", "pt"];
+
+/// Settings › General's app language and Settings › System.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", default)]
+pub struct AppSettings {
+    /// One of [`APP_LANGUAGES`].
+    pub language: String,
+    /// Shrimp starts at login, in the background (APP-06).
+    pub launch_at_login: bool,
+    /// A Dock icon, or only the menu bar icon (APP-07).
+    pub show_in_dock: bool,
+}
+
+impl Default for AppSettings {
+    fn default() -> Self {
+        Self {
+            language: "system".into(),
+            launch_at_login: false,
+            show_in_dock: true,
         }
     }
 }
@@ -333,6 +360,9 @@ impl Settings {
         self.media.validate()?;
         self.languages.validate()?;
         self.flow_bar.validate()?;
+        if !APP_LANGUAGES.contains(&self.app.language.as_str()) {
+            return Err(format!("{} is not an app language.", self.app.language));
+        }
         self.transforms.validate()?;
         let url = self.ai.ollama_url.trim();
         if !(url.starts_with("http://") || url.starts_with("https://")) || url.len() > 200 {

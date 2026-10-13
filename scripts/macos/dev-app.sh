@@ -19,6 +19,11 @@ build() {
 
 quit() {
   osascript -e "tell application id \"$BUNDLE_ID\" to quit" >/dev/null 2>&1 || true
+  # A new instance opened before this one has exited would hand over to it and quit.
+  for _ in $(seq 1 40); do
+    pgrep -f "$APP/Contents/MacOS/" >/dev/null || return 0
+    sleep 0.25
+  done
 }
 
 open_app() {

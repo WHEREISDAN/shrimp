@@ -18,9 +18,9 @@ pub use audio::{KnownMicrophone, MediaSettings, MicrophoneSettings, SoundSetting
 pub use flow_bar::FlowBarSettings;
 pub use languages::LanguageSettings;
 pub use model::{
-    AiSettings, DictionarySettings, ExperimentalSettings, FormattingTips, HistoryStorage,
-    NoticeSettings, NotificationSettings, PrivacySettings, SETTINGS_VERSION, Settings, SttSettings,
-    StyleSettings, VibeCodingSettings,
+    APP_LANGUAGES, AiSettings, AppSettings, DictionarySettings, ExperimentalSettings,
+    FormattingTips, HistoryStorage, NoticeSettings, NotificationSettings, PrivacySettings,
+    SETTINGS_VERSION, Settings, SttSettings, StyleSettings, VibeCodingSettings,
 };
 pub use shortcuts::ShortcutSettings;
 pub use transforms::{CustomTransform, PolishRules, TransformSettings};

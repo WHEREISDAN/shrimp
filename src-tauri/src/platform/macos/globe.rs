@@ -1,5 +1,6 @@
 //! What the Fn (Globe) key does on its own, from System Settings › Keyboard ›
-//! "Press 🌐 key to" (`com.apple.HIToolbox` `AppleFnUsageType`).
+//! "Press 🌐 key to" (`com.apple.HIToolbox` `AppleFnUsageType`), and the
+//! System Settings panes Shrimp's notices open.
 
 use std::process::Command;
 
@@ -27,6 +28,15 @@ pub fn open_sound_settings() -> Result<(), PlatformError> {
 pub fn open_keyboard_settings() -> Result<(), PlatformError> {
     Command::new("open")
         .arg("x-apple.systempreferences:com.apple.Keyboard-Settings.extension")
+        .spawn()
+        .map(|_| ())
+        .map_err(|err| PlatformError::Failed(format!("could not open System Settings: {err}")))
+}
+
+/// System Settings › General › Storage (a full disk, APP-09).
+pub fn open_storage_settings() -> Result<(), PlatformError> {
+    Command::new("open")
+        .arg("x-apple.systempreferences:com.apple.settings.Storage")
         .spawn()
         .map(|_| ())
         .map_err(|err| PlatformError::Failed(format!("could not open System Settings: {err}")))

@@ -12,10 +12,12 @@ mod insert;
 mod iokit;
 mod keymap;
 mod launcher;
+mod login;
 mod media;
 mod mouse;
 mod pasteboard;
 mod permissions;
+mod relaunch;
 mod secure_input;
 mod sound;
 
@@ -41,7 +43,16 @@ pub fn platform(main_thread: MainThread) -> Platform {
         language: preferred_language(),
         globe_key: globe::globe_key_action(),
         user_name: first_name(),
+        login_item: Arc::new(login::MacLoginItem),
     }
+}
+
+/// Free space on the volume holding `path`, in bytes (APP-09).
+pub fn free_bytes(path: &std::path::Path) -> Option<u64> {
+    let path = std::ffi::CString::new(path.as_os_str().as_encoded_bytes()).ok()?;
+    let mut stats: libc::statvfs = unsafe { std::mem::zeroed() };
+    let status = unsafe { libc::statvfs(path.as_ptr(), &mut stats) };
+    (status == 0).then(|| stats.f_bavail as u64 * stats.f_frsize as u64)
 }
 
 /// The first word of the account's full name.
@@ -50,7 +61,8 @@ fn first_name() -> Option<String> {
     full.split_whitespace().next().map(str::to_owned)
 }
 
-pub use globe::{open_keyboard_settings, open_sound_settings};
+pub use globe::{open_keyboard_settings, open_sound_settings, open_storage_settings};
+pub use relaunch::relaunch_after_exit;
 
 /// Debug builds read this variable to pretend the keyboard has (1) or
 /// lacks (0) an Apple Fn key. See docs/DEVELOPMENT.md.

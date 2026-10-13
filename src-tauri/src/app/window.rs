@@ -27,3 +27,13 @@ pub fn on_window_event<R: Runtime>(window: &Window<R>, event: &WindowEvent) {
         }
     }
 }
+
+/// "Show app in Dock" (APP-07): a Dock app, or only the menu bar icon.
+pub fn show_in_dock<R: Runtime>(app: &AppHandle<R>, show: bool) {
+    #[cfg(target_os = "macos")]
+    if let Err(err) = app.set_dock_visibility(show) {
+        log::warn!("failed to change the Dock icon: {err}");
+    }
+    #[cfg(not(target_os = "macos"))]
+    let _ = (app, show);
+}

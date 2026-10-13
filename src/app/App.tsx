@@ -1,64 +1,81 @@
 import { useState } from "react";
+import { useInterfaceLanguage } from "../i18n";
 import { EVENTS } from "../lib/ipc";
 import { useTauriEvent } from "../lib/useTauriEvent";
 import { DictionaryPage } from "./DictionaryPage";
+import { ErrorScreen, hasProblem, problemKind } from "./ErrorScreen";
+import { HelpPage } from "./HelpPage";
 import { HomePage } from "./HomePage";
 import { InsightsPage } from "./InsightsPage";
-import { SettingsPage } from "./SettingsPage";
+import { SettingsPage, type SettingsSection, type SettingsTarget } from "./SettingsPage";
 import { ShortcutsDialog } from "./ShortcutsDialog";
 import { Sidebar, type PageId } from "./Sidebar";
 import { SnippetsPage } from "./SnippetsPage";
 import { StylePage } from "./StylePage";
 import { TransformsPage } from "./TransformsPage";
+import { useAppHealth } from "./useAppHealth";
+import { usePageHistory } from "./usePageHistory";
+import { useSettings } from "./useSettings";
+
+/** Sections other windows can open with `app://navigate`. */
+const SETTINGS_TARGETS: Record<string, Omit<SettingsTarget, "count">> = {
+  settings: { section: "general" },
+  ai: { section: "ai" },
+  microphone: { section: "general", focus: "microphone" },
+  languages: { section: "general", focus: "languages" },
+  experimental: { section: "experimental", focus: "experimental" },
+};
 
 export function App() {
-  const [page, setPage] = useState<PageId>("home");
+  const { page, go } = usePageHistory();
+  const { settings } = useSettings();
+  const health = useAppHealth();
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
-  const [revealExperimental, setRevealExperimental] = useState(0);
-  const [revealMicrophone, setRevealMicrophone] = useState(0);
-  const [revealLanguages, setRevealLanguages] = useState(0);
+  const [settingsTarget, setSettingsTarget] = useState<SettingsTarget>({
+    section: "general",
+    count: 0,
+  });
   const [revealVoiceProfile, setRevealVoiceProfile] = useState(0);
-  const openShortcuts = () => setShortcutsOpen(true);
+  useInterfaceLanguage(settings?.app.language);
+
+  const openSettings = (section: SettingsSection, focus?: SettingsTarget["focus"]) => {
+    go("settings");
+    setSettingsTarget((current) => ({
+      section,
+      ...(focus ? { focus } : {}),
+      count: current.count + 1,
+    }));
+  };
 
   useTauriEvent<string>(EVENTS.navigate, (section) => {
-    if (section === "shortcuts") {
+    const target = SETTINGS_TARGETS[section];
+    if (target) {
+      openSettings(target.section, target.focus);
+    } else if (section === "shortcuts") {
       setShortcutsOpen(true);
-    } else if (section === "settings") {
-      setPage("settings");
     } else if (section === "history") {
-      // Home lists recent dictations (HIS-01).
-      setPage("home");
-    } else if (section === "dictionary") {
-      setPage("dictionary");
-    } else if (section === "insights") {
-      setPage("insights");
+      go("home");
+    } else if (section === "dictionary" || section === "insights") {
+      go(section);
     } else if (section === "voiceProfile") {
-      setPage("insights");
+      go("insights");
       setRevealVoiceProfile((count) => count + 1);
-    } else if (section === "languages") {
-      setPage("settings");
-      setRevealLanguages((count) => count + 1);
-    } else if (section === "microphone") {
-      setPage("settings");
-      setRevealMicrophone((count) => count + 1);
-    } else if (section === "experimental") {
-      setPage("settings");
-      setRevealExperimental((count) => count + 1);
     }
   });
 
+  if (hasProblem(health)) {
+    return <ErrorScreen key={problemKind(health)} health={health} />;
+  }
   return (
     <div className="shell">
-      <Sidebar page={page} onSelect={setPage} />
+      <Sidebar page={page} onSelect={go} />
       <main className="content" inert={shortcutsOpen}>
         <CurrentPage
           page={page}
-          onOpenShortcuts={openShortcuts}
-          revealExperimental={revealExperimental}
-          revealMicrophone={revealMicrophone}
-          revealLanguages={revealLanguages}
+          settingsTarget={settingsTarget}
           revealVoiceProfile={revealVoiceProfile}
-          onNavigate={setPage}
+          onNavigate={go}
+          onOpenShortcuts={() => setShortcutsOpen(true)}
         />
       </main>
       {shortcutsOpen && <ShortcutsDialog onClose={() => setShortcutsOpen(false)} />}
@@ -68,22 +85,18 @@ export function App() {
 
 interface CurrentPageProps {
   page: PageId;
-  onOpenShortcuts: () => void;
-  revealExperimental: number;
-  revealMicrophone: number;
-  revealLanguages: number;
+  settingsTarget: SettingsTarget;
   revealVoiceProfile: number;
   onNavigate: (page: PageId) => void;
+  onOpenShortcuts: () => void;
 }
 
 function CurrentPage({
   page,
-  onOpenShortcuts,
-  revealExperimental,
-  revealMicrophone,
-  revealLanguages,
+  settingsTarget,
   revealVoiceProfile,
   onNavigate,
+  onOpenShortcuts,
 }: CurrentPageProps) {
   switch (page) {
     case "home":
@@ -101,11 +114,12 @@ function CurrentPage({
     case "settings":
       return (
         <SettingsPage
-          revealExperimental={revealExperimental}
-          revealMicrophone={revealMicrophone}
-          revealLanguages={revealLanguages}
+          key={settingsTarget.count}
+          target={settingsTarget}
           onOpenShortcuts={onOpenShortcuts}
         />
       );
+    case "help":
+      return <HelpPage onOpenShortcuts={onOpenShortcuts} />;
   }
 }
