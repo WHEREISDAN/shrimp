@@ -40,9 +40,9 @@ this file.
 
 | Status | ID     | Feature          | Acceptance criterion                                                                                                                                 | Phase |
 | ------ | ------ | ---------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- | ----- |
-| [ ]    | ENG-01 | Local Whisper    | whisper.cpp (whisper-rs, Metal on Apple Silicon) transcribes the `hello-shrimp.wav` fixture offline with the default model.                          | 1     |
-| [ ]    | ENG-02 | Model download   | On first use, the default model downloads with visible progress, is checked against its pinned SHA-256 and is reused afterwards.                     | 1     |
-| [ ]    | ENG-03 | Silence handling | A silence-only recording produces no text (no hallucinated words), and leading and trailing silence is trimmed before STT.                           | 1     |
+| [x]    | ENG-01 | Local Whisper    | whisper.cpp (whisper-rs, Metal on Apple Silicon) transcribes the `hello-shrimp.wav` fixture offline with the default model.                          | 1     |
+| [x]    | ENG-02 | Model download   | On first use, the default model downloads with visible progress, is checked against its pinned SHA-256 and is reused afterwards.                     | 1     |
+| [x]    | ENG-03 | Silence handling | A silence-only recording produces no text (no hallucinated words), and leading and trailing silence is trimmed before STT.                           | 1     |
 | [ ]    | ENG-04 | First words kept | The first word of a dictation is never cut off: audio from the key press onwards is captured.                                                        | 1     |
 | [ ]    | ENG-05 | Cloud STT        | Groq and OpenAI transcription engines work with the user's own API key and can be selected in settings.                                              | 2     |
 | [ ]    | ENG-06 | LLM providers    | Anthropic (the default), OpenAI, Groq and local Ollama each complete a cleanup request; provider and model are selectable.                           | 2     |
@@ -53,15 +53,15 @@ this file.
 
 | Status | ID      | Feature               | Acceptance criterion                                                                                                                                                                    | Phase |
 | ------ | ------- | --------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----- |
-| [ ]    | CORE-01 | Push to talk          | Holding the push-to-talk shortcut records; releasing it transcribes and inserts the text at the cursor of the focused app.                                                              | 1     |
-| [ ]    | CORE-02 | Fn default            | Fn alone is the default push-to-talk shortcut, and pressing it never opens the emoji picker or system dictation (suppressed, or onboarding guides the Globe key setting to Do Nothing). | 1     |
-| [ ]    | CORE-03 | Short-tap guard       | A press released in under 0.5 s inserts nothing: Shrimp waits briefly for a second press, then cancels and shows the "hold the shortcut" tip.                                           | 1     |
-| [ ]    | CORE-04 | Hands-free shortcut   | Fn+Space starts recording without holding; pressing it again stops and inserts.                                                                                                         | 1     |
-| [ ]    | CORE-05 | Hands-free double-tap | Double-pressing push to talk within 0.5 s locks recording hands-free; a third quick press cancels.                                                                                      | 1     |
-| [ ]    | CORE-06 | Cancel                | Esc cancels an active dictation without inserting anything, and the Esc press does not reach the focused app.                                                                           | 1     |
-| [ ]    | CORE-07 | Busy guard            | Shortcuts pressed while a dictation is still processing are rejected (not queued) with a "Transcript currently processing" notice.                                                      | 1     |
-| [ ]    | CORE-08 | Session limit         | A warning sound and notice come at 19 minutes; at 20 minutes recording stops, then transcribes and inserts.                                                                             | 1     |
-| [ ]    | CORE-09 | Click to dictate      | Clicking the Flow Bar starts hands-free recording, ■ stops and inserts, ✕ cancels, and a click within 0.5 s of starting cancels.                                                        | 1     |
+| [x]    | CORE-01 | Push to talk          | Holding the push-to-talk shortcut records; releasing it transcribes and inserts the text at the cursor of the focused app.                                                              | 1     |
+| [x]    | CORE-02 | Fn default            | Fn alone is the default push-to-talk shortcut, and pressing it never opens the emoji picker or system dictation (suppressed, or onboarding guides the Globe key setting to Do Nothing). | 1     |
+| [x]    | CORE-03 | Short-tap guard       | A press released in under 0.5 s inserts nothing: Shrimp waits briefly for a second press, then cancels and shows the "hold the shortcut" tip.                                           | 1     |
+| [x]    | CORE-04 | Hands-free shortcut   | Fn+Space starts recording without holding; pressing it again stops and inserts.                                                                                                         | 1     |
+| [x]    | CORE-05 | Hands-free double-tap | Double-pressing push to talk within 0.5 s locks recording hands-free; a third quick press cancels.                                                                                      | 1     |
+| [x]    | CORE-06 | Cancel                | Esc cancels an active dictation without inserting anything, and the Esc press does not reach the focused app.                                                                           | 1     |
+| [x]    | CORE-07 | Busy guard            | Shortcuts pressed while a dictation is still processing are rejected (not queued) with a "Transcript currently processing" notice.                                                      | 1     |
+| [x]    | CORE-08 | Session limit         | A warning sound and notice come at 19 minutes; at 20 minutes recording stops, then transcribes and inserts.                                                                             | 1     |
+| [x]    | CORE-09 | Click to dictate      | Clicking the Flow Bar starts hands-free recording, ■ stops and inserts, ✕ cancels, and a click within 0.5 s of starting cancels.                                                        | 1     |
 | [ ]    | CORE-10 | No-Fn fallback        | On a Mac keyboard without an Apple Fn key, the defaults become Ctrl+Opt, Ctrl+Opt+Space and Cmd+Ctrl+Opt (Command Mode).                                                                | 4     |
 | [ ]    | CORE-11 | Cancel undo           | The cancel notice offers Undo, which transcribes the cancelled audio and inserts it into the current field.                                                                             | 4     |
 | [ ]    | CORE-12 | Interrupting shortcut | Pressing another app's shortcut within the first second of a held dictation cancels it with a notification.                                                                             | 4     |
@@ -89,13 +89,13 @@ this file.
 
 | Status | ID     | Feature               | Acceptance criterion                                                                                                                                       | Phase |
 | ------ | ------ | --------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- | ----- |
-| [ ]    | INS-01 | Paste at cursor       | Text is inserted through the clipboard and Cmd+V into the focused field of native, browser and Electron apps.                                              | 1     |
-| [ ]    | INS-02 | Clipboard restore     | The previous clipboard (text, rich text, images) is restored about 0.5 s after the paste; something copied during that window is kept.                     | 1     |
-| [ ]    | INS-03 | Keyboard layouts      | Pasting works on non-QWERTY layouts (Dvorak, AZERTY) because Shrimp resolves which key types "v".                                                          | 1     |
-| [ ]    | INS-04 | Failed insertion      | If no editable field is focused or the paste fails, the text stays on the clipboard and a notification offers Copy.                                        | 1     |
-| [ ]    | INS-05 | Paste last transcript | Cmd+Ctrl+V pastes the last transcript, retrying a failed or cancelled one first, and does nothing when there is none.                                      | 1     |
-| [ ]    | INS-06 | Copy last transcript  | Cmd+Ctrl+C copies the last transcript to the clipboard.                                                                                                    | 1     |
-| [ ]    | INS-07 | Undo in target app    | Cmd+Z in the target app removes the inserted text in one step.                                                                                             | 1     |
+| [x]    | INS-01 | Paste at cursor       | Text is inserted through the clipboard and Cmd+V into the focused field of native, browser and Electron apps.                                              | 1     |
+| [x]    | INS-02 | Clipboard restore     | The previous clipboard (text, rich text, images) is restored about 0.5 s after the paste; something copied during that window is kept.                     | 1     |
+| [x]    | INS-03 | Keyboard layouts      | Pasting works on non-QWERTY layouts (Dvorak, AZERTY) because Shrimp resolves which key types "v".                                                          | 1     |
+| [x]    | INS-04 | Failed insertion      | If no editable field is focused or the paste fails, the text stays on the clipboard and a notification offers Copy.                                        | 1     |
+| [x]    | INS-05 | Paste last transcript | Cmd+Ctrl+V pastes the last transcript, retrying a failed or cancelled one first, and does nothing when there is none.                                      | 1     |
+| [x]    | INS-06 | Copy last transcript  | Cmd+Ctrl+C copies the last transcript to the clipboard.                                                                                                    | 1     |
+| [x]    | INS-07 | Undo in target app    | Cmd+Z in the target app removes the inserted text in one step.                                                                                             | 1     |
 | [ ]    | INS-08 | Rich text output      | One spoken line break gives a new line and two give a new paragraph; rich text pastes where the field accepts it, and plain text where it doesn't.         | 2     |
 | [ ]    | INS-09 | AI coding CLIs        | In Claude Code and Codex CLI, long dictations paste in parts, so they don't collapse into "[Pasted N lines]".                                              | 3     |
 | [ ]    | INS-10 | Remote desktops       | In remote-desktop clients (Windows App, Citrix, Horizon, VNC and Screen Sharing), the clipboard is held about 5 s and no context-based spacing is applied. | 3     |
@@ -195,9 +195,9 @@ this file.
 
 | Status | ID     | Feature      | Acceptance criterion                                                                                                                                         | Phase |
 | ------ | ------ | ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------ | ----- |
-| [ ]    | BAR-01 | Pill window  | A floating pill shows resting, recording (live waveform) and processing states, never takes focus and stays above all windows, including full-screen Spaces. | 1     |
-| [ ]    | BAR-02 | Controls     | Stop (■), cancel (✕) and confirm (✓) work while recording.                                                                                                   | 1     |
-| [ ]    | BAR-03 | Notices      | Notices (warnings, errors, cancel and failed-paste messages) appear next to the bar without taking focus.                                                    | 1     |
+| [x]    | BAR-01 | Pill window  | A floating pill shows resting, recording (live waveform) and processing states, never takes focus and stays above all windows, including full-screen Spaces. | 1     |
+| [x]    | BAR-02 | Controls     | Stop (■), cancel (✕) and confirm (✓) work while recording.                                                                                                   | 1     |
+| [x]    | BAR-03 | Notices      | Notices (warnings, errors, cancel and failed-paste messages) appear next to the bar without taking focus.                                                    | 1     |
 | [ ]    | BAR-04 | Visibility   | "Show Flow Bar at all times" works, and right-click > Hide for 1 hour hides it with an Undo.                                                                 | 4     |
 | [ ]    | BAR-05 | Position     | The bar can be dragged to the bottom, left or right edge, remembers its place, avoids the menu bar and Dock, and moves to the display under the cursor.      | 4     |
 | [ ]    | BAR-06 | Context menu | Right-click offers Microphone, Paste last transcript, Transcript history, Settings and Hide for 1 hour.                                                      | 4     |
@@ -221,7 +221,7 @@ this file.
 
 | Status | ID     | Feature              | Acceptance criterion                                                                                                                              | Phase |
 | ------ | ------ | -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- | ----- |
-| [ ]    | SND-01 | Dictation sounds     | Distinct start, stop, lock (hands-free) and cancel sounds play at the matching moments.                                                           | 1     |
+| [x]    | SND-01 | Dictation sounds     | Distinct start, stop, lock (hands-free) and cancel sounds play at the matching moments.                                                           | 1     |
 | [ ]    | SND-02 | Sound settings       | Settings > Sound turns dictation and notification sounds on or off.                                                                               | 4     |
 | [ ]    | SND-03 | Mute while dictating | If audio is playing when a dictation starts, output is muted within about 300 ms and restored afterwards; the setting is off by default on macOS. | 4     |
 | [ ]    | SND-04 | Pause media          | "Pause music while dictating" pauses supported players and resumes them afterwards, ignores conferencing apps, and excludes the mute option.      | 4     |
@@ -271,7 +271,7 @@ this file.
 
 | Status | ID      | Feature          | Acceptance criterion                                                                                                                      | Phase |
 | ------ | ------- | ---------------- | ----------------------------------------------------------------------------------------------------------------------------------------- | ----- |
-| [ ]    | PRIV-01 | Local by default | With the default settings (local Whisper, no API key), no audio or text leaves the device, verified with a network monitor.               | 1     |
+| [x]    | PRIV-01 | Local by default | With the default settings (local Whisper, no API key), no audio or text leaves the device, verified with a network monitor.               | 1     |
 | [ ]    | PRIV-02 | Keychain         | API keys are stored only in the OS keychain, never in settings files, the database or logs.                                               | 2     |
 | [ ]    | PRIV-03 | Privacy mode     | Privacy mode turns off every cloud engine and provider (only local Whisper and Ollama run), and the Flow Bar and tray show that it is on. | 4     |
 
@@ -281,7 +281,7 @@ this file.
 | ------ | ------ | --------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----- |
 | [x]    | APP-01 | Close to tray   | Closing the main window keeps Shrimp running in the menu bar; "Open Shrimp" brings the window back and Quit exits.                                               | 1     |
 | [x]    | APP-02 | Single instance | Launching Shrimp again focuses the running instance instead of starting a second one.                                                                            | 1     |
-| [ ]    | APP-03 | Tray menu       | The menu-bar menu offers Open Shrimp, Shortcuts, Paste last transcript, Copy last transcript and Quit.                                                           | 1     |
+| [x]    | APP-03 | Tray menu       | The menu-bar menu offers Open Shrimp, Shortcuts, Paste last transcript, Copy last transcript and Quit.                                                           | 1     |
 | [ ]    | APP-04 | Main window     | The main window's sidebar has Home, Insights, Dictionary, Snippets, Style, Transforms, Settings and Help; Opt+↑/↓ moves between settings pages.                  | 4     |
 | [ ]    | APP-05 | Settings pages  | Settings has General (shortcuts, microphone, languages, app language), System, Data and privacy, Speech engine, AI provider, Experimental and Vibe coding pages. | 4     |
 | [ ]    | APP-06 | Launch at login | When turned on, Shrimp starts at login in the background without opening the main window.                                                                        | 4     |
@@ -343,6 +343,46 @@ this file.
 | [ ]    | AUD-01 | Parity audit | Every item here is re-checked against Wispr Flow's then-current docs and changelog; new features are added or explicitly scoped out.               | 6     |
 | [ ]    | AUD-02 | Regression   | The automated tests and a scripted tauri-mcp walkthrough of every phase 1–5 item pass on macOS and Windows.                                        | 6     |
 | [ ]    | AUD-03 | Latency      | Key-release-to-insert latency for a 5-second dictation (local Whisper, with and without AI edits) is measured on both platforms and recorded here. | 6     |
+
+## Verification log
+
+How each ticked item was verified. "Live" means the signed `Shrimp Dev.app` on macOS 26.5
+(M4 Mac mini), driven by tauri-mcp and by synthetic key events posted through the HID event
+tap, with a WAV file as the audio source.
+
+| ID      | Verified by                                                                                                                                                                                                                                                                             |
+| ------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| APP-01  | Phase 0: closing hid the window, "Open Shrimp" brought it back, Quit exited.                                                                                                                                                                                                            |
+| APP-02  | Phase 0: a second launch focused the running process.                                                                                                                                                                                                                                   |
+| APP-03  | Live: the tray menu lists Open Shrimp, Shortcuts…, Paste last transcript, Copy last transcript, Quit Shrimp; Copy last put the transcript on the clipboard, Shortcuts… opened the main window scrolled to the shortcuts.                                                                |
+| ENG-01  | `tests/whisper_local.rs` (default model, offline): "Hello from Shrimp. This sentence is a test of local dictation." in 0.52 s; live, the same text from the fixture.                                                                                                                    |
+| ENG-02  | Live first launch: the main window showed "Downloading 22% … 42%", then "Ready"; both files matched their pinned SHA-256 (`shasum`); the next launch loaded the model without downloading. `tests/model_download.rs` covers progress and a checksum mismatch (file discarded).          |
+| ENG-03  | `tests/whisper_local.rs`: 3 s of silence gives no text, with and without the energy trim; the padded fixture is trimmed from 7.69 s to 4.26 s and transcribes the same. `tests/controller.rs`: silence never reaches STT.                                                               |
+| CORE-01 | Live: holding fn for 3 s pasted the transcript into TextEdit, read back through System Events; two dictations in a row both pasted.                                                                                                                                                     |
+| CORE-02 | Live: fn alone is the push-to-talk default. With "Press 🌐 key to" set to emoji, a startup notice guides the user to Do Nothing and its button opens Keyboard settings; this Mac's setting is Do Nothing. Whether swallowing fn alone suppresses the emoji picker needs a physical key. |
+| CORE-03 | Live: a 0.3 s tap showed "Hold fn to dictate, or double-tap it for hands-free." and inserted nothing. Unit and controller tests.                                                                                                                                                        |
+| CORE-04 | Live: fn Space started (Start, Lock cues), recording continued after fn was released, fn Space again stopped and pasted; no busy notice; a tail event tap saw no Space.                                                                                                                 |
+| CORE-05 | Live: a double tap locked (Start, Lock) and a later tap finished and pasted, keeping the audio from the first press; a third quick tap cancelled.                                                                                                                                       |
+| CORE-06 | Live: Esc during a recording cancelled it (Cancel cue, nothing inserted); a tail event tap saw neither the Esc key-down nor its key-up.                                                                                                                                                 |
+| CORE-07 | Live: fn pressed while a transcript was processing showed "Transcript currently processing", and only one transcript was inserted.                                                                                                                                                      |
+| CORE-08 | `tests/controller.rs` with the limits scaled down: warning cue and notice, then stop, transcribe and insert; a unit test pins the defaults at 19 and 20 minutes.                                                                                                                        |
+| CORE-09 | Live: a real click on the resting bar started hands-free, ■ stopped and inserted, a real click on ✕ cancelled. The quick second click is covered by unit and controller tests.                                                                                                          |
+| INS-01  | Live: pasted into TextEdit (native), a Safari textarea (browser) and a Cursor editor (Electron), each read back.                                                                                                                                                                        |
+| INS-02  | Live: plain text, RTF and a PNG (all its types) were back on the clipboard about 0.5 s after each paste; something copied right after the paste was kept.                                                                                                                               |
+| INS-03  | Unit test against the installed layouts' data: the Cmd+V key is 47 on Dvorak and 9 on US, French (AZERTY) and "Dvorak - QWERTY ⌘".                                                                                                                                                      |
+| INS-04  | Live: with Finder frontmost the transcript stayed on the clipboard with "No text field is focused. Your transcript is on the clipboard." and a Copy button; without Accessibility it is copied with an Open Settings notice.                                                            |
+| INS-05  | Live: ⌃⌘V transcribed a cancelled dictation's audio and pasted it, and was not passed to TextEdit. Controller tests: retry of a failed transcription, paste without re-transcribing, nothing when there is no transcript.                                                               |
+| INS-06  | Live: ⌃⌘C put the last transcript on the clipboard and was not passed on.                                                                                                                                                                                                               |
+| INS-07  | Live: one Cmd+Z in TextEdit removed the whole inserted transcript.                                                                                                                                                                                                                      |
+| BAR-01  | Live screenshots: resting pill, recording (✕, live waveform, ■ or ✓) and processing states at the bottom centre; above a full-screen TextEdit Space; clicking the bar kept TextEdit frontmost.                                                                                          |
+| BAR-02  | Live: ✕ (real click) cancelled, ■ stopped, ✓ finished a held recording. Vitest covers the IPC each button sends.                                                                                                                                                                        |
+| BAR-03  | Live screenshots: Accessibility, no-microphone, cancel and fn-key notices above the bar without taking focus.                                                                                                                                                                           |
+| SND-01  | Unit test: the five cues are distinct; controller tests assert Start, Stop, Lock, Cancel and Warning at the right moments; live logs show `NSSound` started each cue.                                                                                                                   |
+| PRIV-01 | Live: `lsof -i` sampled 69 times during a full dictation found no socket; `nettop` showed no traffic. The only network use is the model download.                                                                                                                                       |
+
+Open in phase 1: ENG-04 and MIC-01 need a microphone. This Mac has no audio input device; with
+the WAV source every sample from the key press reaches STT (controller test and live), and
+with no device Shrimp shows "No microphone found" without a permission prompt.
 
 ## Out of scope
 

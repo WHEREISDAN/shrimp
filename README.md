@@ -16,9 +16,11 @@ Shrimp is built with [Tauri v2](https://tauri.app), Rust, React and TypeScript.
 
 ## Status
 
-Phase 0 (research, architecture and scaffold) is complete. The app launches with a main
-window and a tray icon, and dictation lands in phase 1. [docs/PARITY.md](docs/PARITY.md)
-tracks every feature.
+Phase 1 (the core dictation loop) is complete on macOS: hold fn to dictate (or fn Space and
+double-tap for hands-free), local Whisper transcription with a downloaded model, pasting
+at the cursor with the clipboard restored, the Flow Bar with live waveform and notices, the
+tray menu and dictation sounds. AI edits arrive in phase 2.
+[docs/PARITY.md](docs/PARITY.md) tracks every feature.
 
 ## Getting started
 
