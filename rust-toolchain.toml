@@ -1,0 +1,4 @@
+[toolchain]
+# tauri 2.12 needs rustc >= 1.90; pinned so every machine builds with the same compiler.
+channel = "1.99.0"
+components = ["rustfmt", "clippy"]
