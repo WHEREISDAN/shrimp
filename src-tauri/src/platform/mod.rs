@@ -238,6 +238,8 @@ pub struct FieldContext {
     pub window_title: Option<String>,
     /// Short texts visible in the focused window: labels, names, file names.
     pub screen_text: Vec<String>,
+    /// The text of code editors in the window, for identifiers (DEV-02).
+    pub code_text: Vec<String>,
 }
 
 /// How much of the focused field and window to read.

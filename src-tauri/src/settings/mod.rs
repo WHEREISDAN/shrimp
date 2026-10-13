@@ -12,7 +12,7 @@ use serde_json::Value;
 
 pub use model::{
     AiSettings, ExperimentalSettings, NoticeSettings, PrivacySettings, SETTINGS_VERSION, Settings,
-    ShortcutSettings, SttSettings, StyleSettings,
+    ShortcutSettings, SttSettings, StyleSettings, VibeCodingSettings,
 };
 pub use transforms::{CustomTransform, PolishRules, TransformSettings};
 

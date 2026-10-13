@@ -23,6 +23,8 @@ const SCAN_DEPTH: usize = 45;
 const SCAN_BUDGET: Duration = Duration::from_millis(150);
 const SCAN_TEXTS: usize = 300;
 const SCAN_TEXT_CHARS: usize = 120;
+/// Code read from editors that don't have focus, in all.
+const SCAN_CODE_CHARS: usize = 20_000;
 
 /// Monaco's hidden input, and xterm.js's, in VS Code, Cursor and Windsurf.
 const CODE_EDITOR_CLASS: &str = "inputarea";
@@ -57,7 +59,9 @@ pub fn read(pid: i32, request: &ContextRequest) -> Option<FieldContext> {
     if request.scan_window
         && let Some(window) = window.as_deref()
     {
-        context.screen_text = scan(window, focused.as_deref());
+        let scanned = scan(window, focused.as_deref());
+        context.screen_text = scanned.texts;
+        context.code_text = scanned.code;
     }
     log::debug!(
         "read {:?} field in pid {pid} ({} chars, {} screen texts) in {} ms",
@@ -196,11 +200,19 @@ fn find_web_area(window: &AXUIElement) -> Option<Element> {
     None
 }
 
-/// Short visible texts of the window, for names and file names on screen.
-fn scan(window: &AXUIElement, focused: Option<&AXUIElement>) -> Vec<String> {
+struct Scanned {
+    texts: Vec<String>,
+    code: Vec<String>,
+}
+
+/// Short visible texts of the window, for names and file names on screen,
+/// and the text of code editors (Monaco's "editor" text areas).
+fn scan(window: &AXUIElement, focused: Option<&AXUIElement>) -> Scanned {
     let started = Instant::now();
     let skip = focused.map(ax::hash);
     let mut texts = Vec::new();
+    let mut code: Vec<String> = Vec::new();
+    let mut code_chars = 0;
     let mut seen = HashSet::new();
     let mut stack: Vec<(Element, usize)> = vec![(window.retain(), 0)];
     let mut visited = 0;
@@ -212,6 +224,14 @@ fn scan(window: &AXUIElement, focused: Option<&AXUIElement>) -> Vec<String> {
         let role = ax::string(&node, "AXRole").unwrap_or_default();
         if role == "AXSecureTextField" || Some(ax::hash(&node)) == skip {
             continue;
+        }
+        if role == "AXTextArea"
+            && code_chars < SCAN_CODE_CHARS
+            && ax::string(&node, "AXRoleDescription").as_deref() == Some("editor")
+            && let Some(text) = ax::string(&node, "AXValue")
+        {
+            code_chars += text.len();
+            code.push(text);
         }
         let attributes: &[&'static str] = match role.as_str() {
             "AXStaticText" => &["AXValue"],
@@ -232,5 +252,5 @@ fn scan(window: &AXUIElement, focused: Option<&AXUIElement>) -> Vec<String> {
             stack.extend(children.into_iter().rev().map(|child| (child, depth + 1)));
         }
     }
-    texts
+    Scanned { texts, code }
 }

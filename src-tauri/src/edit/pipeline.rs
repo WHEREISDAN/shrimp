@@ -6,16 +6,19 @@ use std::collections::HashSet;
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
+use super::code::{self, DevPass};
+use super::failure::Failure;
 use super::guard::{self, Rejection};
 use super::library::{Library, Snapshot};
 use super::markdown::{self, Rendered, SNIPPET_END, SNIPPET_START};
 use super::prompts::{self, PromptOptions};
 use super::style::{self, Style, Target};
 use super::transforms::AutoApply;
-use super::{CleanupLevel, context_format, dictionary, names, snippets, spoken};
+use super::{CleanupLevel, context_format, dictionary, file_tags, names, snippets, spoken};
 use crate::context::DictationContext;
 use crate::llm::{LlmError, LlmProviderId, LlmRequest, LlmSource, http};
-use crate::notify::{Notice, NoticeAction};
+use crate::notify::Notice;
+use crate::platform::FieldKind;
 use crate::settings::{Settings, SettingsStore};
 
 /// Ends every notice about a failed AI edit.
@@ -82,10 +85,17 @@ struct PromptTerms<'a> {
     screen: &'a [String],
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
-enum Failure {
-    Llm(LlmProviderId, LlmError),
-    Rejected(Rejection),
+impl Edited {
+    /// Text that skips the AI edit and needs no rendering.
+    fn plain(text: String) -> Self {
+        Self {
+            text: markdown::render(&text),
+            formatted: true,
+            notice: None,
+            llm_ms: None,
+            press_enter: false,
+        }
+    }
 }
 
 pub struct Editor {
@@ -213,11 +223,22 @@ impl Editor {
             };
         }
 
-        let terms = dictionary::vocabulary(&library.dictionary);
+        let mut terms = dictionary::vocabulary(&library.dictionary);
         let visible_names = context.names();
         let prepared = spoken::line_breaks(raw);
         let (prepared, mut used) = dictionary::correct(&prepared, &library.dictionary);
         let prepared = names::respell(&prepared, &visible_names, &terms);
+        let dev = DevPass::new(context);
+        let prepared = match &dev {
+            Some(dev) => dev.apply(&prepared),
+            None => prepared,
+        };
+        if dev.is_some() {
+            if context.field_kind() == FieldKind::Terminal && code::looks_like_command(&prepared) {
+                return Edited::plain(code::format_command(&prepared));
+            }
+            terms.extend(DevPass::identifiers_in(&prepared));
+        }
         let held = snippets::find_triggers(&prepared, &library.snippets);
         let triggers: Vec<String> = held
             .iter()
@@ -258,12 +279,16 @@ impl Editor {
                 } else {
                     spoken::punctuation(&prepared)
                 };
-                let notice = failure.and_then(|failure| self.notice(failure));
+                let notice = failure.and_then(|failure| failure.notice(&self.missing_key_shown));
                 (body, intended_empty, notice)
             }
         };
 
         let body = names::respell(&body, &visible_names, &terms);
+        let body = match &dev {
+            Some(dev) => dev.apply(&body),
+            None => body,
+        };
         let styled = self.post_pass(&body, &settings, target, level, &terms, &library);
         let (expanded, kept_placeholders) =
             match snippets::expand(&styled, &held, &library.snippets) {
@@ -288,6 +313,14 @@ impl Editor {
             }
         };
         let mut text = markdown::render(&expanded);
+        // Any dictionary or snippet substitution turns tagging off (DEV-01).
+        if text.html.is_none()
+            && used.is_empty()
+            && held.is_empty()
+            && file_tags::applies(context, &settings)
+        {
+            text.plain = file_tags::tag_files(&text.plain, &context.file_names());
+        }
         if text.html.is_none()
             && let Some(around) = context.surroundings()
         {
@@ -379,56 +412,6 @@ impl Editor {
         } else {
             body
         }
-    }
-
-    fn notice(&self, failure: Failure) -> Option<Notice> {
-        let Failure::Llm(provider, error) = failure else {
-            return None;
-        };
-        let name = provider.label();
-        let raw = RAW_INSERTED;
-        let notice = match error {
-            LlmError::MissingKey => {
-                let first = self
-                    .missing_key_shown
-                    .lock()
-                    .unwrap_or_else(|err| err.into_inner())
-                    .insert(provider);
-                if !first {
-                    return None;
-                }
-                Notice::warning(format!(
-                    "AI edits need your {name} API key. Add it in Settings, or turn AI edits off."
-                ))
-                .with_action(NoticeAction::OpenAiSettings)
-            }
-            LlmError::Unauthorized(_) => {
-                Notice::error(format!("{name} rejected your API key. {raw}"))
-                    .with_action(NoticeAction::OpenAiSettings)
-            }
-            LlmError::Quota(_) => {
-                Notice::error(format!("Your {name} account is out of credits. {raw}"))
-            }
-            LlmError::RateLimited(_) => {
-                Notice::warning(format!("{name} rate limit reached. {raw}"))
-            }
-            LlmError::Offline(_) => Notice::warning(format!("Can't reach {name}. {raw}")),
-            LlmError::Timeout => Notice::warning(format!("{name} took too long. {raw}")),
-            LlmError::Unavailable(message) if provider == LlmProviderId::Ollama => {
-                let message = if message.contains("Ollama") {
-                    message
-                } else {
-                    format!("Ollama: {message}")
-                };
-                Notice::warning(format!("{message}. {raw}"))
-            }
-            LlmError::Unavailable(_) => Notice::warning(format!("{name} is unavailable. {raw}")),
-            LlmError::Failed(message) => {
-                Notice::error(format!("AI edit failed ({message}). {raw}"))
-            }
-            LlmError::Cancelled => return None,
-        };
-        Some(notice)
     }
 }
 

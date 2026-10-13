@@ -82,17 +82,27 @@ pub struct DevEdited {
     pub llm_ms: Option<u64>,
 }
 
+/// Runs the edit pipeline on `text` as if dictated into `app_id`, or, with
+/// `live`, into the frontmost app's focused field as it is now (its context
+/// is read, nothing is pasted).
 #[tauri::command]
 pub async fn dev_edit_text(
     text: String,
     app_id: Option<String>,
+    live: Option<bool>,
     editor: State<'_, Arc<Editor>>,
+    focus: State<'_, DevFocus>,
 ) -> Result<DevEdited, CommandError> {
-    let app = app_id.map(|bundle_id| AppIdentity {
-        bundle_id,
-        name: String::new(),
-    });
-    let edited = editor.edit(&text, &DictationContext::new(app, None)).await;
+    let context = if live.unwrap_or(false) {
+        read_context(Arc::clone(&focus.0)).await
+    } else {
+        let app = app_id.map(|bundle_id| AppIdentity {
+            bundle_id,
+            name: String::new(),
+        });
+        DictationContext::new(app, None)
+    };
+    let edited = editor.edit(&text, &context).await;
     Ok(DevEdited {
         plain: edited.text.plain,
         html: edited.text.html,
@@ -100,6 +110,20 @@ pub async fn dev_edit_text(
         notice: edited.notice.map(|notice| notice.message),
         llm_ms: edited.llm_ms,
     })
+}
+
+/// Reads the frontmost app's field the way a dictation does, waiting for it.
+async fn read_context(focus: Arc<dyn FocusInspector>) -> DictationContext {
+    let started = std::time::Instant::now();
+    let app = focus.frontmost_app();
+    let mut pending = crate::context::capture(focus, app);
+    loop {
+        let context = pending.ready();
+        if context.field.is_some() || started.elapsed().as_secs() >= 3 {
+            return context;
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(20)).await;
+    }
 }
 
 /// The focus inspector, kept for debug commands.
@@ -140,17 +164,8 @@ pub async fn dev_read_context(
     focus: State<'_, DevFocus>,
 ) -> Result<DevContext, CommandError> {
     tokio::time::sleep(std::time::Duration::from_millis(delay_ms.unwrap_or(0))).await;
-    let focus = Arc::clone(&focus.0);
     let started = std::time::Instant::now();
-    let app = focus.frontmost_app();
-    let mut pending = crate::context::capture(focus, app);
-    let context = loop {
-        let context = pending.ready();
-        if context.field.is_some() || started.elapsed().as_secs() >= 3 {
-            break context;
-        }
-        tokio::time::sleep(std::time::Duration::from_millis(20)).await;
-    };
+    let context = read_context(Arc::clone(&focus.0)).await;
     let read_ms = started.elapsed().as_millis() as u64;
     let target = context.target();
     let field = context.field.as_ref();

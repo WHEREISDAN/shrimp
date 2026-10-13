@@ -31,6 +31,7 @@ function backend(
         ai: { ...settings.ai, ...patch.ai },
         privacy: { ...settings.privacy, ...patch.privacy },
         experimental: { ...settings.experimental, ...patch.experimental },
+        vibeCoding: { ...settings.vibeCoding, ...patch.vibeCoding },
       };
       return settings;
     },
@@ -343,5 +344,19 @@ describe("SettingsPage shortcuts", () => {
     fireEvent.click(recorder);
     fireEvent.keyDown(recorder, { code: "Escape" });
     expect(recorder).toHaveAccessibleName("Press Enter shortcut: Not set");
+  });
+});
+
+describe("SettingsPage vibe coding", () => {
+  it("turns file tagging off and explains variable recognition", async () => {
+    const { argsOf } = backend();
+    render(<SettingsPage />);
+    fireEvent.click(await screen.findByRole("switch", { name: "File tagging in chat" }));
+    await waitFor(() =>
+      expect(argsOf("update_settings")).toEqual([
+        { patch: { vibeCoding: { fileTagging: false } } },
+      ]),
+    );
+    expect(screen.getByText(/Toggle Screen Reader Accessibility Mode/)).toBeInTheDocument();
   });
 });

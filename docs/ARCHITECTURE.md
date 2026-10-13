@@ -102,6 +102,9 @@ edit/                   AI edit pipeline                                        
   library.rs            Library: the dictionary and snippets a dictation reads         (built)
   context_format.rs     casing and spacing from the text around the cursor (FMT-11)    (built)
   names.rs              respells names the way the screen shows them (CTX-02)          (built)
+  code.rs               identifiers, case commands, dev terms, shell commands (DEV-02/03) (built)
+  file_tags.rs          @-mentions of visible files in Cursor/Windsurf chat (DEV-01)   (built)
+  failure.rs            why an AI edit wasn't used, and its notice                     (built)
   command.rs            Command Mode prompt, tagged reply parsing (CMD-01..03)         (built)
   transforms.rs         Polish, Prompt Engineer, custom transforms, auto-apply         (built)
 dictation/              orchestration                                                  (built)
@@ -604,7 +607,22 @@ settings, the dictionary and snippets (`Library`, read from SQLite per dictation
    deterministic steps (including spoken punctuation, FMT-05) is inserted and
    `formatted` is false (FMT-10); provider errors raise a notice (ENG-07). A missing key's
    notice shows once per provider per session.
-7. **Context casing and spacing (FMT-11).** When the field could be read and the text
+7. **Developer apps (DEV-01..03).** In code editors and terminals (`edit/code.rs`), before
+   and after the LLM pass: spoken case commands build identifiers ("camel case user
+   profile" → `userProfile`; also pascal, snake, kebab and constant case); spoken forms of
+   identifiers on screen become the identifiers ("user ID" → `userId`, matched word by
+   word, longest first); common acronyms and tool names get their spelling (API, JSON,
+   GitHub, TypeScript); a dictation that is only an identifier loses its final period.
+   Identifiers in the text are added to the prompt's spell-exactly list. In a terminal, a
+   dictation that starts with a shell program (git, npm, cargo, ls…; "get" before a git
+   subcommand counts as git) skips the LLM and is written as a command: lowercase, no
+   final period, spoken symbols as symbols ("dash dash release" → `--release`, "feature
+   slash login" → `feature/login`). In Cursor's and Windsurf's chat input, with
+   Settings › Vibe coding › File tagging on, a visible file's name ("index dot ts",
+   "index.ts") or "tag"/"tagged"/"at"/"@" and its base name becomes `@index.ts`
+   (`edit/file_tags.rs`); any dictionary correction or snippet in the dictation turns
+   tagging off, as in Wispr Flow.
+8. **Context casing and spacing (FMT-11).** When the field could be read and the text
    is plain, `edit/context_format.rs` fits it to the text around the cursor: a dictation
    that continues a sentence starts lowercase (names on screen, dictionary terms, "I",
    acronyms, weekdays and months keep their capital) and gets a leading space; ending
@@ -612,7 +630,7 @@ settings, the dictionary and snippets (`Library`, read from SQLite per dictation
    selection keeps its lowercase start, its surrounding spaces and a final `,`, `?` or
    `!`; Chinese and Japanese join without spaces. This runs on the device whatever the
    context awareness setting.
-8. **Rendering.** `edit/markdown.rs` produces plain text always and HTML when the text has
+9. **Rendering.** `edit/markdown.rs` produces plain text always and HTML when the text has
    lists or snippet formatting (INS-08, SNP-03). Inline markup is read only inside snippet
    expansions, so dictated `snake_case` stays literal. Dictionary terms found in the final
    text count as uses (DIC-04).
@@ -692,7 +710,11 @@ never delays a dictation (CTX-01); a read takes 30–100 ms in practice. The res
 - **Names and terms.** Capitalized words that are not everyday English (`context/words.rs`,
   39,000 lowercase words from SCOWL) in the text around the cursor and, except in code
   editors and terminals, on screen; code identifiers (camelCase, PascalCase, snake_case)
-  from a code editor's text; file names from the window (DEV-01).
+  from the code editor being dictated into, or from the code editors on screen while
+  dictating into an IDE's chat (the window scan also reads Monaco "editor" text areas, up
+  to 20,000 characters); file names from the window title, tabs and sidebar (DEV-01).
+- **Developer apps.** Code editors and terminals get syntax-aware dictation (below), and
+  an IDE's chat input counts as an AI app (no style formatting, FMT-09).
 
 With **Context awareness** on (Settings › Data and privacy, the default), names and
 identifiers go to the speech engine's vocabulary and the AI edit's prompt. With it off,
@@ -801,7 +823,8 @@ Built sections: `stt` (engine, OpenAI and Groq models), `ai` (provider, cleanup 
 model per provider, Ollama model and address), `styles` (one per category, Formal by
 default), `privacy` (`contextAwareness`, on by default), `experimental` (`commandMode`,
 `commandModeIntroSeen`, `pressEnterCommand`), `shortcuts` (`pressEnter`, set through
-`set_shortcut`), `notices` (how often one-off notices were shown) and `transforms`.
+`set_shortcut`), `notices` (how often one-off notices were shown), `transforms` and
+`vibeCoding` (`fileTagging`, on by default).
 Shortcut fields default to unbound field by field, so a merge patch's `null` clears one. Every change is
 announced to listeners: the webview's `settings://changed` and the controller, which
 rebinds shortcuts. Later phases add shortcuts, microphone, languages, sounds, media, flowBar,

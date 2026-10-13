@@ -14,6 +14,7 @@ import { Page } from "./Page";
 import { PrivacySection } from "./PrivacySection";
 import { ShortcutsSection } from "./ShortcutsSection";
 import { SpeechEngineSection } from "./SpeechEngineSection";
+import { VibeCodingSection } from "./VibeCodingSection";
 import { useSettings } from "./useSettings";
 
 interface SettingsPageProps {
@@ -98,6 +99,7 @@ export function SettingsPage({ revealExperimental = 0 }: SettingsPageProps) {
           />
           <ShortcutsSection settings={settings} onSaved={apply} />
           <PrivacySection settings={settings} update={update} />
+          <VibeCodingSection settings={settings} update={update} />
           <ExperimentalSection
             settings={settings}
             commandShortcut={commandShortcut}

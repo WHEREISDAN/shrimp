@@ -109,6 +109,7 @@ export const SETTINGS: Settings = {
     viewChangesShortcut: "Opt+O",
     autoApply: null,
   },
+  vibeCoding: { fileTagging: true },
 };
 
 export const AI_OPTIONS: AiOptions = {

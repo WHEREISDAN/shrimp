@@ -3,9 +3,12 @@
 //! rendering of lists and rich snippets for pasting. Command Mode runs a
 //! spoken instruction on selected text.
 
+pub mod code;
 pub mod command;
 mod context_format;
 pub mod dictionary;
+mod failure;
+pub mod file_tags;
 pub mod guard;
 pub mod library;
 pub mod markdown;

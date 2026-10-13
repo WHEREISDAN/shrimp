@@ -162,6 +162,7 @@ export interface Settings {
   shortcuts: { pressEnter: string | null };
   notices: { commandModeOffCount: number; commandModeOffDay: string };
   transforms: TransformSettings;
+  vibeCoding: { fileTagging: boolean };
 }
 
 /** A JSON merge patch for `update_settings`: any subset of the settings. */
@@ -171,6 +172,7 @@ export interface SettingsPatch {
   styles?: Partial<Settings["styles"]>;
   privacy?: Partial<Settings["privacy"]>;
   experimental?: Partial<Settings["experimental"]>;
+  vibeCoding?: Partial<Settings["vibeCoding"]>;
   /** `null` restores a default (a whole section, or Polish's rules). */
   transforms?: {
     enabled?: boolean;

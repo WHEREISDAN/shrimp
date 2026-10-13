@@ -100,13 +100,26 @@ impl DictationContext {
         terms::names(near.into_iter().chain(screen.iter().map(String::as_str)))
     }
 
-    /// Identifiers in the code around the cursor (DEV-02).
+    /// A code editor or terminal, where dictation is syntax-aware (DEV-03).
+    pub fn is_developer(&self) -> bool {
+        matches!(self.app_kind(), AppKind::CodeEditor | AppKind::Terminal)
+            || matches!(self.field_kind(), FieldKind::Code | FieldKind::Terminal)
+    }
+
+    /// Identifiers in the code being edited, or in the code editors on
+    /// screen while dictating into an IDE's chat (DEV-02).
     pub fn identifiers(&self) -> Vec<String> {
-        match self.readable_field() {
-            Some(field) if field.kind == FieldKind::Code => match &field.text {
-                Some(text) => terms::identifiers(text),
-                None => terms::identifiers(&format!("{}\n{}", field.before, field.after)),
-            },
+        let Some(field) = self.readable_field() else {
+            return Vec::new();
+        };
+        match (&field.text, field.kind) {
+            (Some(text), FieldKind::Code) => terms::identifiers(text),
+            (None, FieldKind::Code) => {
+                terms::identifiers(&format!("{}\n{}", field.before, field.after))
+            }
+            _ if self.app_kind() == AppKind::CodeEditor => {
+                terms::identifiers(&field.code_text.join("\n"))
+            }
             _ => Vec::new(),
         }
     }
@@ -124,9 +137,16 @@ impl DictationContext {
         )
     }
 
-    /// The app's category, or the website's in a browser (STY-05).
+    /// The app's category, or the website's in a browser (STY-05). An IDE's
+    /// chat input is an AI app, whose dictations skip style formatting (FMT-09).
     pub fn target(&self) -> Target {
         let app_target = style::categorize(self.app.as_ref());
+        if self.app_kind() == AppKind::CodeEditor && self.field_kind() == FieldKind::Text {
+            return Target {
+                ai_app: true,
+                ..app_target
+            };
+        }
         if self.app_kind() != AppKind::Browser {
             return app_target;
         }

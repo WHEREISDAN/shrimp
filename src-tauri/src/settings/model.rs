@@ -25,6 +25,7 @@ pub struct Settings {
     pub shortcuts: ShortcutSettings,
     pub notices: NoticeSettings,
     pub transforms: TransformSettings,
+    pub vibe_coding: VibeCodingSettings,
 }
 
 impl Default for Settings {
@@ -39,6 +40,7 @@ impl Default for Settings {
             shortcuts: ShortcutSettings::default(),
             notices: NoticeSettings::default(),
             transforms: TransformSettings::default(),
+            vibe_coding: VibeCodingSettings::default(),
         }
     }
 }
@@ -53,6 +55,20 @@ pub struct ExperimentalSettings {
     pub command_mode_intro_seen: bool,
     /// Ending a dictation with "press enter" presses Enter (CORE-16).
     pub press_enter_command: bool,
+}
+
+/// Settings › Vibe coding.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", default)]
+pub struct VibeCodingSettings {
+    /// File names said in Cursor's and Windsurf's chat become @-mentions (DEV-01).
+    pub file_tagging: bool,
+}
+
+impl Default for VibeCodingSettings {
+    fn default() -> Self {
+        Self { file_tagging: true }
+    }
 }
 
 /// Shortcuts the user sets, in handy-keys notation ("Opt+Return").
