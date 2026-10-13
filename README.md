@@ -19,8 +19,14 @@ Shrimp is built with [Tauri v2](https://tauri.app), Rust, React and TypeScript.
 Phase 1 (the core dictation loop) is complete on macOS: hold fn to dictate (or fn Space and
 double-tap for hands-free), local Whisper transcription with a downloaded model, pasting
 at the cursor with the clipboard restored, the Flow Bar with live waveform and notices, the
-tray menu and dictation sounds. AI edits arrive in phase 2.
-[docs/PARITY.md](docs/PARITY.md) tracks every feature.
+tray menu and dictation sounds.
+
+Phase 2 adds AI edits: filler removal, self-corrections, lists, spoken punctuation and line
+breaks, Auto Cleanup levels, app-aware styles (personal, work, email, other), a personal
+dictionary that also biases Whisper, snippets with rich text, and CSV/JSON imports. The
+cleanup runs on Anthropic, OpenAI, Groq or a local Ollama with keys in the keychain, and
+falls back to the raw transcript whenever the model fails or answers instead of editing.
+OpenAI and Groq can also transcribe. [docs/PARITY.md](docs/PARITY.md) tracks every feature.
 
 ## Getting started
 

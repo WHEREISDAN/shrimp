@@ -247,6 +247,19 @@ Debug builds also register two commands, so an agent can switch sources through
 `flow_bar_control` with `{ "control": "start" }` (then `"stop"` or `"cancel"`) starts a
 hands-free dictation without any shortcut, which needs no Accessibility grant.
 
+Two more debug-only commands help with AI edits:
+
+| Command                | Arguments                                                                | Effect                                                                                                                                                                      |
+| ---------------------- | ------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `dev_edit_text`        | `{ "text": "…", "appId": "com.apple.TextEdit" }` (`appId` optional)      | Runs the edit pipeline on `text` as if dictated into that app, with the current settings, dictionary and snippets. Returns `plain`, `html`, `formatted`, `notice`, `llmMs`. |
+| `dev_set_app_category` | `{ "appId": "com.apple.TextEdit", "category": "email" }` (`null` resets) | Treats that bundle ID as `personal`, `work`, `email`, `other` or `ai` (an AI assistant), so one app can test every style.                                                   |
+
+A typical end-to-end check: make a TextEdit document frontmost, set the audio source to a
+`say` WAV, call `flow_bar_control` `start`, and read the result back with
+`osascript -e 'tell application "TextEdit" to get text of document 1'`. A rich-text
+document shows pasted lists as `\t1\t…` list markers; a plain one (Format › Make Plain
+Text) receives the plain text.
+
 ### Local Whisper tests
 
 `src-tauri/tests/whisper_local.rs` runs the real model on the fixtures. It needs the model
@@ -261,6 +274,51 @@ cargo test --manifest-path src-tauri/Cargo.toml --test whisper_local -- --ignore
 catalog model (for example `small-q5_1`). It prints the latency of each run. The other
 fixtures are `silence.wav` (3 s of digital silence) and `hello-shrimp-padded.wav` (the
 speech fixture with 2 s of silence on each side).
+
+## AI edits
+
+### Providers and keys
+
+- **Ollama** needs no key: install it, pull a model (`ollama pull qwen3.5:4b`, the measured
+  pick) and choose Ollama in Settings › AI provider. With no model chosen, Shrimp uses the
+  first installed of `qwen3.5:4b`, `gemma3:4b` and `llama3.2:3b`, else the first installed
+  model.
+- **Cloud keys** go into the keychain through the app: Settings › AI provider, or the
+  `set_api_key` command (`{ "account": "anthropic" | "openai" | "groq", "key": "…" }`). An
+  item written by another tool (for example `security add-generic-password`) belongs to
+  that tool, so the first read from Shrimp Dev raises a keychain access prompt. The dev
+  app's entries use the service `com.shrimp.desktop.dev`; remove one with
+  `security delete-generic-password -s com.shrimp.desktop.dev -a <account>`.
+- Settings › AI provider › Test runs the cleanup on a sample sentence and shows the
+  latency or the provider's error.
+- A key that is rejected, out of credits or rate limited is a quick way to see the error
+  notices; a wrong Ollama address shows "Ollama isn't running".
+
+### The eval set
+
+`src-tauri/tests/ai_eval.rs` runs the 37 cases in `tests/fixtures/eval/cases.json`
+(fillers, self-corrections, lists, spoken punctuation, line commands, questions and
+injection attempts, code, dictionary terms, snippets, styles and email layout) through
+the real edit pipeline and a real provider. It prints a table of outputs, failed checks
+and cleanup latency, then a summary. It is ignored by default because it calls a model:
+
+```sh
+SHRIMP_EVAL_PROVIDER=ollama SHRIMP_EVAL_MODEL=qwen3.5:4b \
+  cargo test --manifest-path src-tauri/Cargo.toml --test ai_eval -- --ignored --nocapture
+```
+
+| Variable               | Meaning                                                                                           |
+| ---------------------- | ------------------------------------------------------------------------------------------------- |
+| `SHRIMP_EVAL_PROVIDER` | `anthropic`, `openai`, `groq` or `ollama` (default).                                              |
+| `SHRIMP_EVAL_MODEL`    | The model ID; empty uses the provider's default (Ollama: the preferred installed model).          |
+| `SHRIMP_EVAL_RUNS`     | Runs per case; latency is the median. Default 1.                                                  |
+| `SHRIMP_EVAL_CASE`     | Comma-separated case IDs to run only those.                                                       |
+| `SHRIMP_EVAL_STRICT`   | `1` fails the test when any check fails.                                                          |
+| `ANTHROPIC_API_KEY` …  | Keys for cloud providers (`ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `GROQ_API_KEY`), held in memory. |
+
+"raw fallback" in the results means the guard rejected the model's output (or the
+provider failed) and the unedited transcript would have been inserted. The pipeline's own
+log lines, including rejected outputs at debug level, are printed under the case.
 
 ## Testing shortcuts and pasting in the real app
 
