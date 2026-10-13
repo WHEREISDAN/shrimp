@@ -41,6 +41,7 @@ export const en = {
     },
   },
   bar: {
+    region: "Shrimp Flow Bar",
     start: "Start dictation",
     startHint: "Click to dictate, or drag to move",
     recording: "Recording",
@@ -117,6 +118,74 @@ export const en = {
     setupAgain: "Run setup again",
     about:
       "Shrimp {{version}}. Everything you dictate stays on this Mac unless you choose a cloud engine or provider.",
+  },
+  onboarding: {
+    progress: "Setup steps",
+    titles: {
+      welcome: "Welcome to Shrimp",
+      permissions: "Let Shrimp hear you and type for you",
+      microphone: "Test your microphone",
+      shortcut: "Your dictation shortcut",
+      languages: "Which languages do you speak?",
+      engine: "Set up the speech engine",
+      practice: "Try it",
+      done: "You're all set",
+    },
+    welcomeBody:
+      "Speak anywhere you can type. Hold a key, talk, and let go: Shrimp writes what you said with Whisper on this Mac, tidies it up and pastes it where your cursor is.",
+    getStarted: "Get started",
+    continue: "Continue",
+    back: "Back",
+    skip: "Skip",
+    finish: "Start using Shrimp",
+    permissionsBody:
+      "Shrimp needs two permissions. Each one turns green as soon as macOS grants it.",
+    permissionsNote:
+      "Input Monitoring isn't needed: Accessibility already lets Shrimp see its shortcut.",
+    permission: {
+      microphone: "Microphone",
+      microphoneWhy: "To hear you while you dictate.",
+      accessibility: "Accessibility",
+      accessibilityWhy: "To see the dictation shortcut and paste the text where you type.",
+      granted: "Allowed",
+      denied: "Not allowed",
+      notDetermined: "Not asked yet",
+      grant: "Allow",
+      openSettings: "Open System Settings",
+    },
+    microphoneBody: "Speak and watch the meter move. If it stays still, choose another microphone.",
+    shortcutHold: "Hold {{shortcut}} and speak, then let go to insert the text.",
+    shortcutHandsFree:
+      "For longer dictations, double-tap {{shortcut}} or press {{handsFree}} to keep recording hands-free, and press it again to finish.",
+    changeShortcut: "Change shortcut",
+    globeKey: "If pressing fn opens the emoji picker, set “Press 🌐 key to” to Do Nothing.",
+    openKeyboardSettings: "Open Keyboard Settings",
+    languagesBody:
+      "Pick every language you dictate in, or let Shrimp detect the language each time.",
+    engineBody:
+      "Shrimp transcribes on this Mac with Whisper. The model downloads once and works offline.",
+    aiTitle: "AI edits",
+    aiBody:
+      "An AI model can remove filler words, apply your corrections and format lists. You can change this later in Settings.",
+    aiNone: "No AI edits",
+    aiNoneBody: "Insert what Whisper hears, with spoken punctuation and your dictionary.",
+    aiOllamaBody: "A model on this Mac through Ollama. Nothing leaves your Mac.",
+    aiCloudBody: "Your dictated text goes to this provider with your own API key.",
+    practiceBody:
+      "Click in the box below, hold {{shortcut}} and say one of these. Shortcuts work from now on.",
+    practice1: "“Um, let's meet at two, actually three.”",
+    practice2: "“My list: one, eggs; two, milk; three, bread.”",
+    practiceField: "Practice here",
+    youSaid: "You said",
+    shrimpWrote: "Shrimp wrote",
+    doneTip1: "Hold {{shortcut}} anywhere you type, and let go to insert.",
+    doneTip2: "Your dictations, with Undo AI edit and Retry, are on Home.",
+    doneTip3: "Help in the sidebar has your shortcuts and how to move around.",
+    reverifyTitle: "Grant Shrimp's permissions again",
+    reverifyBody:
+      "macOS no longer lets Shrimp use a permission it had, which often happens after an update. Grant it again to keep dictating.",
+    reverifyHint: "In System Settings, turn Shrimp off and on again if it already looks allowed.",
+    later: "Later",
   },
   errors: {
     dataTitle: "Some of your local data is corrupted.",

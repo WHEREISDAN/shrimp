@@ -37,6 +37,7 @@ pub fn run() {
         ($($dev:tt)*) => {
             tauri::generate_handler![
                 commands::app::app_info,
+                commands::app::own_field_focused,
                 commands::dictation::get_dictation_state,
                 commands::dictation::flow_bar_control,
                 commands::dictation::flow_bar_ready,
@@ -116,7 +117,8 @@ pub fn run() {
         commands::dev::dev_set_app_category,
         commands::dev::dev_edit_text,
         commands::dev::dev_read_context,
-        commands::dev::dev_set_microphones
+        commands::dev::dev_set_microphones,
+        commands::dev::dev_set_permissions
     );
     #[cfg(not(debug_assertions))]
     let handler: fn(tauri::ipc::Invoke) -> bool = handler!();

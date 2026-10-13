@@ -4,6 +4,9 @@ import { EVENTS } from "../lib/ipc";
 import { useTauriEvent } from "../lib/useTauriEvent";
 import { DictionaryPage } from "./DictionaryPage";
 import { ErrorScreen, hasProblem, problemKind } from "./ErrorScreen";
+import { Onboarding } from "./onboarding/Onboarding";
+import { ReverifyScreen } from "./onboarding/ReverifyScreen";
+import { usePermissions } from "./onboarding/usePermissions";
 import { HelpPage } from "./HelpPage";
 import { HomePage } from "./HomePage";
 import { InsightsPage } from "./InsightsPage";
@@ -28,8 +31,10 @@ const SETTINGS_TARGETS: Record<string, Omit<SettingsTarget, "count">> = {
 
 export function App() {
   const { page, go } = usePageHistory();
-  const { settings } = useSettings();
+  const { settings, error: settingsError, update } = useSettings();
   const health = useAppHealth();
+  const permissions = usePermissions();
+  const [reverifyLater, setReverifyLater] = useState(false);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const [settingsTarget, setSettingsTarget] = useState<SettingsTarget>({
     section: "general",
@@ -66,6 +71,22 @@ export function App() {
   if (hasProblem(health)) {
     return <ErrorScreen key={problemKind(health)} health={health} />;
   }
+  if (!settings && !settingsError) {
+    return null;
+  }
+  if (settings && !settings.onboarding.completed) {
+    return <Onboarding settings={settings} update={update} />;
+  }
+  // A permission granted before is missing now, usually after an update (ONB-08).
+  const granted = settings?.onboarding.granted;
+  const lost =
+    granted !== undefined &&
+    permissions !== null &&
+    ((granted.accessibility && permissions.accessibility !== "granted") ||
+      (granted.microphone && permissions.microphone !== "granted"));
+  if (lost && !reverifyLater) {
+    return <ReverifyScreen info={permissions} onLater={() => setReverifyLater(true)} />;
+  }
   return (
     <div className="shell">
       <Sidebar page={page} onSelect={go} />
@@ -76,6 +97,7 @@ export function App() {
           revealVoiceProfile={revealVoiceProfile}
           onNavigate={go}
           onOpenShortcuts={() => setShortcutsOpen(true)}
+          onSetup={() => void update({ onboarding: { completed: false, step: "welcome" } })}
         />
       </main>
       {shortcutsOpen && <ShortcutsDialog onClose={() => setShortcutsOpen(false)} />}
@@ -89,6 +111,7 @@ interface CurrentPageProps {
   revealVoiceProfile: number;
   onNavigate: (page: PageId) => void;
   onOpenShortcuts: () => void;
+  onSetup: () => void;
 }
 
 function CurrentPage({
@@ -97,6 +120,7 @@ function CurrentPage({
   revealVoiceProfile,
   onNavigate,
   onOpenShortcuts,
+  onSetup,
 }: CurrentPageProps) {
   switch (page) {
     case "home":
@@ -120,6 +144,6 @@ function CurrentPage({
         />
       );
     case "help":
-      return <HelpPage onOpenShortcuts={onOpenShortcuts} />;
+      return <HelpPage onOpenShortcuts={onOpenShortcuts} onSetup={onSetup} />;
   }
 }

@@ -34,7 +34,7 @@ pub use shrimp_lib::platform::{
     InsertOptions, InsertOutcome, InsertText, Launcher, MediaControl, Permission, PermissionStatus,
     Permissions, PlatformError, Restore, SyntheticKey, TextInserter, TextRange,
 };
-pub use shrimp_lib::settings::{Settings, SettingsStore};
+pub use shrimp_lib::settings::{OnboardingSettings, OnboardingStep, Settings, SettingsStore};
 pub use shrimp_lib::sounds::Cue;
 pub use shrimp_lib::sounds::{SettingsCues, SoundingNotices};
 pub use shrimp_lib::storage::{Database, DictionaryEntry, EntrySource, HistoryStatus, Snippet};
@@ -406,6 +406,8 @@ pub struct Setup {
     pub microphones: Option<Arc<FakeDevices>>,
     /// Store dictations in a History backed by a database in a temporary folder.
     pub history: bool,
+    /// Onboarding's state; finished when None, whatever `settings` says.
+    pub onboarding: Option<OnboardingSettings>,
 }
 
 impl Default for Setup {
@@ -422,6 +424,7 @@ impl Default for Setup {
             transcript: None,
             microphones: None,
             history: false,
+            onboarding: None,
         }
     }
 }
@@ -482,6 +485,7 @@ impl Harness {
         *fakes.transcript.lock().unwrap() = setup.transcript;
         let mut settings = setup.settings;
         settings.ai.cleanup = setup.cleanup;
+        settings.onboarding = setup.onboarding.unwrap_or_else(OnboardingSettings::done);
         let llm = Arc::new(FakeLlm {
             fakes: Arc::clone(&fakes),
             replies: Mutex::new(setup.replies),

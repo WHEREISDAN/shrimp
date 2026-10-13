@@ -5,6 +5,7 @@ use tauri::State;
 
 use super::CommandError;
 use crate::platform::{Permission, PermissionStatus, Permissions};
+use crate::settings::SettingsStore;
 
 pub struct AppPermissions(pub Arc<dyn Permissions>);
 
@@ -16,12 +17,30 @@ pub struct PermissionsInfo {
     pub accessibility: PermissionStatus,
 }
 
+/// The permissions now; a grant seen for the first time is noted, so losing
+/// it later is noticed (ONB-08).
 #[tauri::command]
-pub fn get_permissions(permissions: State<'_, AppPermissions>) -> PermissionsInfo {
-    PermissionsInfo {
+pub fn get_permissions(
+    permissions: State<'_, AppPermissions>,
+    settings: State<'_, Arc<SettingsStore>>,
+) -> PermissionsInfo {
+    let info = PermissionsInfo {
         microphone: permissions.0.status(Permission::Microphone),
         accessibility: permissions.0.status(Permission::Accessibility),
+    };
+    let granted = settings.get().onboarding.granted;
+    let microphone = info.microphone == PermissionStatus::Granted && !granted.microphone;
+    let accessibility = info.accessibility == PermissionStatus::Granted && !granted.accessibility;
+    if microphone || accessibility {
+        let patch = serde_json::json!({"onboarding": {"granted": {
+            "microphone": granted.microphone || microphone,
+            "accessibility": granted.accessibility || accessibility,
+        }}});
+        if let Err(error) = settings.update(&patch) {
+            log::warn!("could not note the grant: {error}");
+        }
     }
+    info
 }
 
 /// Shows the OS prompt (microphone, first time) or the System Settings pane.

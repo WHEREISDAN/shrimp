@@ -19,8 +19,9 @@ pub use flow_bar::FlowBarSettings;
 pub use languages::LanguageSettings;
 pub use model::{
     APP_LANGUAGES, AiSettings, AppSettings, DictionarySettings, ExperimentalSettings,
-    FormattingTips, HistoryStorage, NoticeSettings, NotificationSettings, PrivacySettings,
-    SETTINGS_VERSION, Settings, SttSettings, StyleSettings, VibeCodingSettings,
+    FormattingTips, GrantedPermissions, HistoryStorage, NoticeSettings, NotificationSettings,
+    OnboardingSettings, OnboardingStep, PrivacySettings, SETTINGS_VERSION, Settings, SttSettings,
+    StyleSettings, VibeCodingSettings,
 };
 pub use shortcuts::ShortcutSettings;
 pub use transforms::{CustomTransform, PolishRules, TransformSettings};
@@ -85,6 +86,7 @@ impl SettingsStore {
         merge(&mut merged, patch);
         let mut next: Settings = serde_json::from_value(merged)
             .map_err(|err| SettingsError::Invalid(err.to_string()))?;
+        next.revision = current.revision + 1;
         next.normalize();
         next.validate().map_err(SettingsError::Invalid)?;
         if let Some(path) = &self.path {
@@ -106,7 +108,15 @@ impl SettingsStore {
 
 fn read(path: &Path) -> Option<Settings> {
     let text = std::fs::read_to_string(path).ok()?;
-    match serde_json::from_str::<Settings>(&text) {
+    let mut value: Value = serde_json::from_str(&text).ok()?;
+    // A file written before onboarding existed is a set-up install (ONB-07).
+    if let Value::Object(fields) = &mut value
+        && !fields.contains_key("onboarding")
+    {
+        let done = serde_json::to_value(OnboardingSettings::done()).ok()?;
+        fields.insert("onboarding".into(), done);
+    }
+    match serde_json::from_value::<Settings>(value) {
         Ok(mut settings) => {
             settings.normalize();
             if let Err(error) = settings.validate() {
@@ -187,6 +197,9 @@ mod tests {
 
         let reloaded = SettingsStore::load(path);
         assert_eq!(reloaded.get(), updated);
+        assert_eq!(updated.revision, 1);
+        let next = reloaded.update(&json!({"revision": 0})).unwrap();
+        assert_eq!(next.revision, 2, "a patch can't set the revision");
     }
 
     #[test]
@@ -207,6 +220,17 @@ mod tests {
         store.update(&json!({"ai": {"cleanup": "none"}})).unwrap();
         let restored = store.update(&json!({"ai": {"cleanup": null}})).unwrap();
         assert_eq!(restored.ai.cleanup, CleanupLevel::Light);
+        assert_eq!(restored.revision, 2);
+    }
+
+    #[test]
+    fn an_install_from_before_onboarding_counts_as_set_up() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("settings.json");
+        std::fs::write(&path, r#"{"ai": {"cleanup": "medium"}}"#).unwrap();
+        assert!(SettingsStore::load(path).get().onboarding.completed);
+        let fresh = SettingsStore::load(dir.path().join("missing.json"));
+        assert!(!fresh.get().onboarding.completed);
     }
 
     #[test]

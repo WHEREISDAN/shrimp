@@ -99,6 +99,10 @@ pub fn configured(defaults: &[Binding], settings: &Settings) -> Vec<Binding> {
 }
 
 pub fn active(defaults: &[Binding], settings: &Settings, moment: Moment) -> Vec<Binding> {
+    // Until onboarding reaches Practice, no shortcut dictates (ONB-07).
+    if !settings.onboarding.shortcuts_active() {
+        return Vec::new();
+    }
     let mut bindings: Vec<Binding> = configured(defaults, settings)
         .into_iter()
         .filter(|binding| moment.cancelable || binding.action != Action::Cancel)
@@ -198,8 +202,23 @@ mod tests {
     }
 
     #[test]
+    fn nothing_is_bound_before_onboarding_reaches_practice() {
+        let defaults = macos_defaults(true);
+        assert!(active(&defaults, &Settings::default(), Moment::default()).is_empty());
+        assert!(!active(&defaults, &set_up(), Moment::default()).is_empty());
+    }
+
+    /// Settings of an install that finished onboarding.
+    fn set_up() -> Settings {
+        Settings {
+            onboarding: crate::settings::OnboardingSettings::done(),
+            ..Settings::default()
+        }
+    }
+
+    #[test]
     fn cancel_keys_are_bound_only_while_recording() {
-        let settings = Settings::default();
+        let settings = set_up();
         let defaults = macos_defaults(true);
         let idle = active(&defaults, &settings, Moment::default());
         assert!(!actions_of(&idle).contains(&Action::Cancel));
@@ -250,7 +269,7 @@ mod tests {
 
     #[test]
     fn transform_shortcuts_are_bound_once_transforms_are_on() {
-        let mut settings = Settings::default();
+        let mut settings = set_up();
         let defaults = macos_defaults(true);
         let bound =
             |settings: &Settings| actions_of(&active(&defaults, settings, Moment::default()));

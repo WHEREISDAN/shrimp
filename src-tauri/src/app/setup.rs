@@ -25,7 +25,9 @@ use crate::lang;
 use crate::llm::{LlmSource, Providers, http};
 use crate::mic::Microphones;
 use crate::notify::{Notice, NoticeAction};
-use crate::platform::{self, CuePlayer, MainThread};
+#[cfg(debug_assertions)]
+use crate::platform::SwitchablePermissions;
+use crate::platform::{self, CuePlayer, MainThread, Permissions};
 use crate::secrets::{Keychain, Secrets};
 use crate::settings::SettingsStore;
 use crate::sounds::{SettingsCues, SoundingNotices};
@@ -129,13 +131,28 @@ pub fn setup(app: &mut App) -> Result<(), Box<dyn std::error::Error>> {
     });
     let notices = Arc::clone(&dictation_ui);
     let login_item = Arc::clone(&platform.login_item);
+    #[cfg(debug_assertions)]
+    let permissions: Arc<dyn Permissions> = {
+        let switchable = Arc::new(SwitchablePermissions::new(platform.permissions));
+        switchable.pretend_from_env();
+        app.manage(Arc::clone(&switchable));
+        switchable
+    };
+    #[cfg(not(debug_assertions))]
+    let permissions = platform.permissions;
+    system::recheck_permissions(
+        &settings,
+        permissions.as_ref(),
+        &app.package_info().version.to_string(),
+        dictation_ui.as_ref(),
+    );
     let controller = dictation::spawn(Services {
         hotkeys: platform.hotkeys,
         bindings: platform.default_bindings,
         label: platform.label,
         inserter: platform.inserter,
         focus: platform.focus,
-        permissions: Arc::clone(&platform.permissions),
+        permissions: Arc::clone(&permissions),
         sounds: cues,
         launcher: platform.launcher,
         media: platform.media,
@@ -166,7 +183,7 @@ pub fn setup(app: &mut App) -> Result<(), Box<dyn std::error::Error>> {
     app.manage(microphones);
     app.manage(Arc::clone(&slot));
     app.manage(ui);
-    app.manage(AppPermissions(platform.permissions));
+    app.manage(AppPermissions(permissions));
     app.manage(Arc::clone(&health));
 
     tray::create(&handle, &settings.get())?;
@@ -199,8 +216,11 @@ pub fn setup(app: &mut App) -> Result<(), Box<dyn std::error::Error>> {
         Arc::clone(&login_item),
         Arc::new(move |notice| notices.notice(notice)),
     );
-    // The main window starts hidden; a launch at login stays in the menu bar (APP-06).
-    if !system::starts_in_background(login_item.as_ref(), &health) {
+    // The main window starts hidden; a launch at login stays in the menu bar (APP-06),
+    // unless setup isn't finished.
+    if !settings.get().onboarding.completed
+        || !system::starts_in_background(login_item.as_ref(), &health)
+    {
         window::show_main(&handle);
     }
     Ok(())

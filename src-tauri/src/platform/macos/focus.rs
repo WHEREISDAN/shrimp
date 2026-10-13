@@ -4,6 +4,7 @@
 
 use std::collections::HashSet;
 use std::sync::Mutex;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
 
 use objc2_app_kit::NSWorkspace;
@@ -42,6 +43,14 @@ const NON_TEXT_ROLES: [&str; 14] = [
     "AXSlider",
     "AXWindow",
 ];
+
+/// Whether a text field in Shrimp's own window has focus, as its webview
+/// reports; Accessibility can't ask our own process (see [`is_own`]).
+static OWN_FIELD_FOCUSED: AtomicBool = AtomicBool::new(false);
+
+pub fn set_own_field_focused(focused: bool) {
+    OWN_FIELD_FOCUSED.store(focused, Ordering::Relaxed);
+}
 
 /// Pids whose Chromium/Electron accessibility tree Shrimp has switched on.
 static MANUAL_ACCESSIBILITY: Mutex<Option<HashSet<i32>>> = Mutex::new(None);
@@ -101,7 +110,12 @@ pub fn is_own(pid: i32) -> bool {
 
 pub fn focused_field(pid: i32) -> Editable {
     if is_own(pid) {
-        return Editable::No;
+        // Onboarding's practice field and Shrimp's own text boxes take dictation.
+        return if OWN_FIELD_FOCUSED.load(Ordering::Relaxed) {
+            Editable::Yes
+        } else {
+            Editable::No
+        };
     }
     let app = ax::application(pid, MESSAGING_TIMEOUT_SECONDS);
     let first_contact = enable_manual_accessibility(&app, pid);

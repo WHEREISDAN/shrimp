@@ -12,9 +12,10 @@ use tauri::{AppHandle, Emitter};
 use super::events::HEALTH_EVENT;
 use super::window;
 use crate::commands::system::free_bytes;
+use crate::dictation::DictationUi;
 use crate::health::{self, Health, Pending};
-use crate::notify::Notice;
-use crate::platform::LoginItem;
+use crate::notify::{Notice, NoticeAction};
+use crate::platform::{LoginItem, Permission, PermissionStatus, Permissions};
 use crate::secrets::{KeyAccount, Secrets};
 use crate::settings::SettingsStore;
 use crate::storage::Database;
@@ -136,4 +137,141 @@ pub fn starts_in_background(login_item: &dyn LoginItem, health: &Health) -> bool
         log::info!("started in the background");
     }
     asked && !health.needs_attention()
+}
+
+/// After an update, macOS may drop a grant (the signature changed): a
+/// permission seen granted before and missing now gets a notice, and the
+/// main window asks for it again (ONB-08). Grants seen now are noted.
+pub fn recheck_permissions(
+    settings: &SettingsStore,
+    permissions: &dyn Permissions,
+    version: &str,
+    ui: &dyn DictationUi,
+) {
+    let onboarding = settings.get().onboarding;
+    let microphone = permissions.status(Permission::Microphone) == PermissionStatus::Granted;
+    let accessibility = permissions.status(Permission::Accessibility) == PermissionStatus::Granted;
+    let updated = onboarding.version != version;
+    if onboarding.completed && updated {
+        let lost = [
+            (
+                onboarding.granted.accessibility && !accessibility,
+                Permission::Accessibility,
+            ),
+            (
+                onboarding.granted.microphone && !microphone,
+                Permission::Microphone,
+            ),
+        ];
+        for (_, permission) in lost.iter().filter(|(lost, _)| *lost) {
+            log::warn!("{permission:?} was lost after the update to {version}");
+            ui.notice(lost_permission_notice(*permission));
+        }
+    }
+    let patch = json!({"onboarding": {
+        "version": version,
+        "granted": {
+            "microphone": onboarding.granted.microphone || microphone,
+            "accessibility": onboarding.granted.accessibility || accessibility,
+        },
+    }});
+    if let Err(error) = settings.update(&patch) {
+        log::warn!("could not note the permissions: {error}");
+    }
+}
+
+fn lost_permission_notice(permission: Permission) -> Notice {
+    match permission {
+        Permission::Accessibility => Notice::error(
+            "Shrimp lost Accessibility access after the update. Grant it again to keep using \
+             your shortcuts and pasting.",
+        )
+        .with_action(NoticeAction::OpenAccessibilitySettings),
+        Permission::Microphone => Notice::error(
+            "Shrimp lost Microphone access after the update. Grant it again to keep dictating.",
+        )
+        .with_action(NoticeAction::OpenMicrophoneSettings),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::sync::Mutex;
+
+    use super::*;
+    use crate::dictation::DictationState;
+    use crate::platform::PlatformError;
+    use crate::settings::{OnboardingSettings, Settings};
+
+    struct Statuses(PermissionStatus, PermissionStatus);
+
+    impl Permissions for Statuses {
+        fn status(&self, permission: Permission) -> PermissionStatus {
+            match permission {
+                Permission::Microphone => self.0,
+                Permission::Accessibility => self.1,
+            }
+        }
+
+        fn request(&self, _: Permission) -> Result<(), PlatformError> {
+            Ok(())
+        }
+
+        fn open_settings(&self, _: Permission) -> Result<(), PlatformError> {
+            Ok(())
+        }
+    }
+
+    #[derive(Default)]
+    struct Notices(Mutex<Vec<Notice>>);
+
+    impl DictationUi for Notices {
+        fn state(&self, _: DictationState) {}
+        fn level(&self, _: f32) {}
+        fn notice(&self, notice: Notice) {
+            self.0.lock().unwrap().push(notice);
+        }
+    }
+
+    fn installed(version: &str) -> SettingsStore {
+        let mut onboarding = OnboardingSettings::done();
+        onboarding.version = version.into();
+        onboarding.granted.accessibility = true;
+        onboarding.granted.microphone = true;
+        SettingsStore::in_memory(Settings {
+            onboarding,
+            ..Settings::default()
+        })
+    }
+
+    #[test]
+    fn a_grant_lost_in_an_update_is_asked_for_again() {
+        let settings = installed("0.1.0");
+        let notices = Notices::default();
+        let permissions = Statuses(PermissionStatus::Granted, PermissionStatus::Denied);
+        recheck_permissions(&settings, &permissions, "0.2.0", &notices);
+        let shown = notices.0.lock().unwrap();
+        assert_eq!(shown.len(), 1);
+        assert!(shown[0].message.contains("lost Accessibility access"));
+        assert_eq!(settings.get().onboarding.version, "0.2.0");
+        assert!(
+            settings.get().onboarding.granted.accessibility,
+            "still owed"
+        );
+    }
+
+    #[test]
+    fn the_same_version_and_new_grants_raise_nothing() {
+        let settings = installed("0.2.0");
+        let notices = Notices::default();
+        let permissions = Statuses(PermissionStatus::Granted, PermissionStatus::Denied);
+        recheck_permissions(&settings, &permissions, "0.2.0", &notices);
+        assert!(notices.0.lock().unwrap().is_empty());
+
+        let fresh = SettingsStore::in_memory(Settings::default());
+        let granted = Statuses(PermissionStatus::Granted, PermissionStatus::Granted);
+        recheck_permissions(&fresh, &granted, "0.2.0", &notices);
+        assert!(notices.0.lock().unwrap().is_empty());
+        assert!(fresh.get().onboarding.granted.microphone);
+    }
 }

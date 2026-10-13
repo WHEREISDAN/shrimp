@@ -243,7 +243,7 @@ Built so far:
 | Phase 4  | `get_shortcuts` (every action's bindings, the overlap warning, Secure Keyboard Entry), `record_shortcut` (records through the hooks; progress as `shortcuts://recording`), `cancel_shortcut_recording`, `remove_shortcut`, `reset_shortcuts`; `retry_model`, `download_model`, `delete_model`; `get_microphones`, `select_microphone`, `rank_microphone`, `forget_microphone`, `start_mic_preview`, `stop_mic_preview`; `get_languages`, `set_languages`, `set_active_language`; `flow_bar_drag`, `flow_bar_action` (the right-click menu)      |
 | Phase 4b | `get_app_health`, `dismiss_crash`, `check_storage`, `open_storage_settings`, `repair_data`, `reset_app` (both restart the app); `get_insights`, `get_voice_profile`, `generate_voice_profile` (rejects with `{kind}`), `copy_image` and `save_image` (a raw PNG request body; the file name in an `x-file-name` header); `list_history`, `copy_history`, `set_history_raw` (Undo/Redo AI edit), `retry_history`, `history_audio` (raw WAV bytes), `extract_history_audio`, `delete_history`, `set_history_storage` ("never" needs "delete all") |
 | Phase 2  | `get_settings`, `update_settings`, `get_ai_options`, `get_api_keys`, `set_api_key`, `delete_api_key`, `list_ollama_models`, `test_ai_provider`; dictionary and snippet CRUD and imports (`list_dictionary`, `add_dictionary_entry`, `update_dictionary_entry`, `set_dictionary_pinned`, `delete_dictionary_entries`, `preview_dictionary_import`, `import_dictionary`, `list_snippets`, `add_snippet`, `update_snippet`, `delete_snippets`, `preview_snippet_import`, `import_snippets`)                                                        |
-| Dev only | `dev_get_audio_source`, `dev_set_audio_source`, `dev_set_app_category`, `dev_edit_text`, `dev_read_context`, `dev_set_microphones` (debug builds; see DEVELOPMENT.md)                                                                                                                                                                                                                                                                                                                                                                           |
+| Dev only | `dev_get_audio_source`, `dev_set_audio_source`, `dev_set_app_category`, `dev_edit_text`, `dev_read_context`, `dev_set_microphones`, `dev_set_permissions` (debug builds; see DEVELOPMENT.md)                                                                                                                                                                                                                                                                                                                                                    |
 | Events   | `dictation://state`, `dictation://level` (Flow Bar only), `notify://notice`, `command://answer` and `transform://changes` (Flow Bar only), `models://status`, `app://navigate`, `settings://changed`, `shortcuts://recording`, `notify://dismiss` (a notice whose cause went away), `mic://devices`, `mic://level`, `flow-bar://hover` (Flow Bar only)                                                                                                                                                                                          |
 
 The Flow Bar shows the resting pill only when "Show Flow Bar at all times" is on and it
@@ -1107,7 +1107,8 @@ sounds) and `media` (mute or pause while dictating, at most one) hold Settings �
 Microphone and Sound. `languages` (above) and `flowBar` (`alwaysShow`, `hiddenUntil`,
 `edge`, `position`) hold Languages and the Flow Bar; `notifications` (`suggestions`,
 `announcements`, `milestones`) holds Settings › Notifications; `app` (`language`, `launchAtLogin`, `showInDock`) holds the
-app language and Settings › System. Later phases add privacy, system,
+app language and Settings › System; `onboarding` (`completed`, `step`, `version`,
+`granted`) holds setup's progress. Later phases add privacy, system,
 notifications and onboarding.
 
 ### Secrets (built)
@@ -1189,6 +1190,31 @@ alone.
   launch and every 10 minutes; under 200 MB the "Storage Full" screen offers Open Storage
   Settings and Check again (debug builds read `SHRIMP_FAKE_FREE_BYTES`). The main window
   shows the screen instead of the app, the most serious problem first.
+
+## Onboarding (ONB-01..08)
+
+A fresh install (no `settings.json`) opens the main window on onboarding
+(`src/app/onboarding/`), whatever the launch; a settings file from before onboarding
+existed counts as set up (`SettingsStore::load`). The steps are Welcome, Permissions
+(Microphone and Accessibility with their state polled every second and on focus, and a
+button that prompts or opens the System Settings pane; Input Monitoring isn't needed),
+Microphone (the picker with its live level meter and "Find the right mic for you"),
+Shortcut (push to talk, hands-free, Change shortcut, and the Globe-key advice),
+Languages, Speech engine (the model download with progress, and No AI edits, Ollama or a
+cloud provider with its key), Practice (a demo field and what Shrimp heard and wrote,
+from History; skippable) and Done. `settings.onboarding.step` is saved on every step, so
+a restart resumes there. Until the step reaches Practice, `bindings::active` binds no
+shortcut, so Fn and the rest pass through (ONB-07), and `MutedNotices` lets only status
+notices through. Help › Run setup again starts it over.
+
+Re-verify (ONB-08): `onboarding.granted` notes each permission once seen granted
+(`get_permissions` and startup). At launch, when the app version differs from
+`onboarding.version`, a lost grant raises an error notice with Open Settings
+(`app/system.rs`); the main window shows "Grant Shrimp's permissions again" whenever a
+noted grant is missing (checked every second and on focus) until it is back, or Later.
+Debug builds can pretend permission states with `dev_set_permissions` or, from launch,
+`SHRIMP_PRETEND_PERMISSIONS` (`platform::SwitchablePermissions`); a pretended permission's
+request or settings pane does nothing.
 
 ## Security and privacy
 

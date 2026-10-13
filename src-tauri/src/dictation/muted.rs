@@ -1,12 +1,13 @@
 //! Settings › Notifications (NOT-01): notices in a switched-off category are
-//! dropped before they sound or show. Errors, permissions and everything a
+//! dropped before they sound or show, and so is everything but status
+//! notices during onboarding. Errors, permissions and everything a
 //! dictation reports are status notices and always show.
 
 use std::sync::Arc;
 
 use super::state::{Answer, DictationState, DictationUi, RecordingStatus};
 use super::transform::TransformView;
-use crate::notify::Notice;
+use crate::notify::{Notice, NoticeCategory};
 use crate::settings::SettingsStore;
 
 pub struct MutedNotices {
@@ -30,7 +31,11 @@ impl DictationUi for MutedNotices {
     }
 
     fn notice(&self, notice: Notice) {
-        if notice.category.allowed(&self.settings.get().notifications) {
+        let settings = self.settings.get();
+        // During onboarding only status notices show: permissions, the microphone, errors.
+        let allowed = notice.category.allowed(&settings.notifications)
+            && (settings.onboarding.completed || notice.category == NoticeCategory::Status);
+        if allowed {
             self.inner.notice(notice);
         } else {
             log::info!("muted ({:?}): {}", notice.category, notice.message);

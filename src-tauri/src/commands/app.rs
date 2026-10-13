@@ -33,6 +33,13 @@ pub fn app_info(app: AppHandle, user: State<'_, UserName>) -> AppInfo {
     AppInfo::from_package(app.package_info(), user.0.clone())
 }
 
+/// The main window says whether one of its text fields has focus, so a
+/// dictation into Shrimp itself (onboarding's practice field) is pasted.
+#[tauri::command]
+pub fn own_field_focused(focused: bool) {
+    crate::platform::set_own_field_focused(focused);
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

@@ -16,6 +16,9 @@ const model = (overrides: Partial<ModelStatus>): ModelStatus =>
     ...overrides,
   }) as ModelStatus;
 
+/** Only Accessibility was granted before, so the "not asked yet" microphone isn't a lost grant. */
+const GRANTED_BEFORE = { microphone: false, accessibility: true };
+
 function backend(models: ModelStatus[]) {
   const permissions: PermissionsInfo = { microphone: "notDetermined", accessibility: "granted" };
   return (cmd: string) => {
@@ -31,7 +34,7 @@ function backend(models: ModelStatus[]) {
       case "list_dictionary":
         return [];
       case "get_settings":
-        return SETTINGS;
+        return { ...SETTINGS, onboarding: { ...SETTINGS.onboarding, granted: GRANTED_BEFORE } };
       case "get_ai_options":
         return AI_OPTIONS;
       case "get_api_keys":
@@ -65,7 +68,7 @@ describe("App", () => {
       { shouldMockEvents: true },
     );
     render(<App />);
-    expect(await screen.findByRole("alert")).toHaveTextContent("backend unavailable");
+    expect(await screen.findByTestId("app-info-error")).toHaveTextContent("backend unavailable");
   });
 
   it("shows model download progress", async () => {
@@ -87,7 +90,8 @@ describe("App", () => {
     expect(await screen.findByText("fn")).toBeInTheDocument();
     expect(await screen.findByText("Not asked yet")).toBeInTheDocument();
     expect(await screen.findByRole("button", { name: "Allow…" })).toBeInTheDocument();
-    expect(await screen.findByText(/Ready\. Dictation runs entirely/)).toBeInTheDocument();
+    // A ready model needs no card on Home.
+    expect(screen.queryByRole("heading", { name: "Speech model" })).not.toBeInTheDocument();
   });
 
   it("opens on Home without asking for anything the pages need", async () => {

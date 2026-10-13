@@ -112,3 +112,43 @@ fn french_in_a_code_editor_is_left_alone() {
         h.fakes.inserted()
     );
 }
+
+#[test]
+fn onboarding_shows_only_status_notices_and_keeps_tips_for_later() {
+    let mut setup = backtrack_setup();
+    setup.onboarding = Some(OnboardingSettings {
+        step: OnboardingStep::Practice,
+        ..OnboardingSettings::default()
+    });
+    let h = Harness::with(5.0, 0.3, fast_timing(), setup);
+    dictate(&h);
+    wait_until("insertion", || {
+        h.fakes.inserted() == ["Let's do coffee at 3."]
+    });
+    std::thread::sleep(Duration::from_millis(200));
+    assert!(!h.fakes.has_notice("kept only"));
+    assert_eq!(h.settings.get().notices.formatting_tips.backtrack, 0);
+    h.controller.send(ControllerInput::RetryHistory(7));
+    wait_until("a status notice", || {
+        h.fakes.has_notice("Retry failed. Please try again.")
+    });
+}
+
+#[test]
+fn shortcuts_stay_unbound_until_practice() {
+    let setup = Setup {
+        onboarding: Some(OnboardingSettings {
+            step: OnboardingStep::Shortcut,
+            ..OnboardingSettings::default()
+        }),
+        ..Setup::default()
+    };
+    let h = Harness::with(5.0, 0.3, fast_timing(), setup);
+    wait_until("bindings", || !h.fakes.bindings.lock().unwrap().is_empty());
+    assert!(h.fakes.bound.lock().unwrap().is_empty());
+    h.settings
+        .update(&serde_json::json!({"onboarding": {"step": "practice"}}))
+        .unwrap();
+    h.controller.send(ControllerInput::SettingsChanged);
+    wait_until("rebound", || !h.fakes.bound.lock().unwrap().is_empty());
+}

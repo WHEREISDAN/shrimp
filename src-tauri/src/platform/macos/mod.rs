@@ -61,6 +61,7 @@ fn first_name() -> Option<String> {
     full.split_whitespace().next().map(str::to_owned)
 }
 
+pub use focus::set_own_field_focused;
 pub use globe::{open_keyboard_settings, open_sound_settings, open_storage_settings};
 pub use relaunch::relaunch_after_exit;
 

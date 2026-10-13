@@ -25,7 +25,12 @@ const STATUS_TEXT: Record<PermissionStatus, string> = {
   notDetermined: "Not asked yet",
 };
 
-export function PermissionsCard() {
+interface PermissionsCardProps {
+  /** Home shows the card only while a permission is missing. */
+  hideWhenGranted?: boolean;
+}
+
+export function PermissionsCard({ hideWhenGranted = false }: PermissionsCardProps) {
   const [info, setInfo] = useState<PermissionsInfo | null>(null);
 
   useEffect(() => {
@@ -42,6 +47,9 @@ export function PermissionsCard() {
     };
   }, []);
 
+  if (hideWhenGranted && info?.microphone === "granted" && info.accessibility === "granted") {
+    return null;
+  }
   return (
     <section className="card" aria-labelledby="permissions-heading">
       <h2 id="permissions-heading">Permissions</h2>

@@ -3,6 +3,9 @@
 
 #[cfg(target_os = "macos")]
 mod macos;
+mod switchable;
+
+pub use switchable::SwitchablePermissions;
 
 use std::sync::Arc;
 use std::time::Duration;
@@ -288,7 +291,7 @@ pub enum Permission {
     Accessibility,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub enum PermissionStatus {
     Granted,
@@ -396,7 +399,7 @@ pub fn native(main_thread: MainThread) -> Platform {
 #[cfg(target_os = "macos")]
 pub use macos::{
     free_bytes, open_keyboard_settings, open_sound_settings, open_storage_settings,
-    relaunch_after_exit,
+    relaunch_after_exit, set_own_field_focused,
 };
 
 /// Adds the Tauri plugins the platform backend relies on.

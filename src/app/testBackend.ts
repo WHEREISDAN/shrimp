@@ -93,6 +93,7 @@ export const snippet = (overrides: Partial<Snippet> & { id: number }): Snippet =
 
 export const SETTINGS: Settings = {
   version: 1,
+  revision: 0,
   stt: {
     engine: "local-whisper",
     localModel: "large-v3-turbo-q5_0",
@@ -141,6 +142,12 @@ export const SETTINGS: Settings = {
   flowBar: { alwaysShow: true, hiddenUntil: 0, edge: "bottom", position: 0.5 },
   notifications: { suggestions: true, announcements: true, milestones: true },
   app: { language: "system", launchAtLogin: false, showInDock: true },
+  onboarding: {
+    completed: true,
+    step: "done",
+    version: "0.1.0",
+    granted: { microphone: true, accessibility: true },
+  },
 };
 
 export const MODELS: ModelStatus[] = [

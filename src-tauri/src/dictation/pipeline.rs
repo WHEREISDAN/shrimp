@@ -148,7 +148,10 @@ impl Pipeline {
     /// The formatting tip this dictation earns (FMT-13), counted when shown.
     fn formatting_tip(&self, formatting: Formatting) -> Option<Notice> {
         let settings = self.settings.get();
-        if !NoticeCategory::Announcement.allowed(&settings.notifications) {
+        // Muted, or during onboarding (status notices only): not shown, so not counted.
+        if !NoticeCategory::Announcement.allowed(&settings.notifications)
+            || !settings.onboarding.completed
+        {
             return None;
         }
         let today = chrono::Local::now().format("%Y-%m-%d").to_string();

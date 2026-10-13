@@ -18,9 +18,17 @@ export interface SettingsStore {
   apply: (settings: Settings) => void;
 }
 
+/** Keeps `next` unless an older state arrived late (events and replies can cross). */
+export const newer = (current: Settings | null, next: Settings): Settings =>
+  current && next.revision < current.revision ? current : next;
+
 /** The saved settings, kept current when they change elsewhere. */
 export function useSettings(): SettingsStore {
-  const [settings, setSettings] = useState<Settings | null>(null);
+  const [settings, setSettingsState] = useState<Settings | null>(null);
+  const setSettings = useCallback(
+    (next: Settings) => setSettingsState((current) => newer(current, next)),
+    [],
+  );
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -31,17 +39,20 @@ export function useSettings(): SettingsStore {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [setSettings]);
   useTauriEvent<Settings>(EVENTS.settings, setSettings);
 
-  const update = useCallback(async (patch: SettingsPatch) => {
-    try {
-      setSettings(await updateSettings(patch));
-      setError(null);
-    } catch (err) {
-      setError(errorMessage(err));
-    }
-  }, []);
+  const update = useCallback(
+    async (patch: SettingsPatch) => {
+      try {
+        setSettings(await updateSettings(patch));
+        setError(null);
+      } catch (err) {
+        setError(errorMessage(err));
+      }
+    },
+    [setSettings],
+  );
 
   return { settings, error, update, apply: setSettings };
 }

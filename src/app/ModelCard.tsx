@@ -4,7 +4,12 @@ import { useTauriEvent } from "../lib/useTauriEvent";
 
 const megabytes = (bytes: number) => Math.round(bytes / 1_000_000);
 
-export function ModelCard() {
+interface ModelCardProps {
+  /** Home shows the card only while the model isn't ready. */
+  hideWhenReady?: boolean;
+}
+
+export function ModelCard({ hideWhenReady = false }: ModelCardProps) {
   const [models, setModels] = useState<ModelStatus[]>([]);
 
   useEffect(() => {
@@ -23,6 +28,9 @@ export function ModelCard() {
     models.find((candidate) => candidate.inUse) ??
     models.find((candidate) => candidate.state === "downloading" || candidate.state === "failed") ??
     models.find((candidate) => candidate.isDefault);
+  if (hideWhenReady && model?.state === "active") {
+    return null;
+  }
   return (
     <section className="card" aria-labelledby="model-heading">
       <h2 id="model-heading">Speech model</h2>

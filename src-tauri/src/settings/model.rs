@@ -20,6 +20,9 @@ const MAX_MODEL_LENGTH: usize = 120;
 #[serde(rename_all = "camelCase", default)]
 pub struct Settings {
     pub version: u32,
+    /// Grows with every saved change, so the webview can drop a change
+    /// event that arrives after a newer one.
+    pub revision: u64,
     pub stt: SttSettings,
     pub ai: AiSettings,
     pub styles: StyleSettings,
@@ -37,12 +40,14 @@ pub struct Settings {
     pub flow_bar: FlowBarSettings,
     pub notifications: NotificationSettings,
     pub app: AppSettings,
+    pub onboarding: OnboardingSettings,
 }
 
 impl Default for Settings {
     fn default() -> Self {
         Self {
             version: SETTINGS_VERSION,
+            revision: 0,
             stt: SttSettings::default(),
             ai: AiSettings::default(),
             styles: StyleSettings::default(),
@@ -60,8 +65,59 @@ impl Default for Settings {
             flow_bar: FlowBarSettings::default(),
             notifications: NotificationSettings::default(),
             app: AppSettings::default(),
+            onboarding: OnboardingSettings::default(),
         }
     }
+}
+
+/// First-launch setup (ONB-01..08). Mirrors `Settings["onboarding"]` in src/lib/ipc.ts.
+#[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", default)]
+pub struct OnboardingSettings {
+    pub completed: bool,
+    /// Where it resumes (ONB-07).
+    pub step: OnboardingStep,
+    /// The app version that last checked the permissions (ONB-08).
+    pub version: String,
+    /// Permissions seen granted, so losing one is noticed.
+    pub granted: GrantedPermissions,
+}
+
+impl OnboardingSettings {
+    /// Settings files from before onboarding existed belong to set-up installs.
+    pub fn done() -> Self {
+        Self {
+            completed: true,
+            step: OnboardingStep::Done,
+            ..Self::default()
+        }
+    }
+
+    /// Dictation shortcuts work once setup reaches Practice (ONB-07).
+    pub fn shortcuts_active(&self) -> bool {
+        self.completed || self.step >= OnboardingStep::Practice
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Default, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum OnboardingStep {
+    #[default]
+    Welcome,
+    Permissions,
+    Microphone,
+    Shortcut,
+    Languages,
+    Engine,
+    Practice,
+    Done,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", default)]
+pub struct GrantedPermissions {
+    pub microphone: bool,
+    pub accessibility: bool,
 }
 
 /// The interface languages (LANG-06); "system" follows the Mac.
@@ -448,6 +504,17 @@ mod tests {
         let effective = settings.effective();
         assert_eq!(effective.stt.engine, SttEngineId::LocalWhisper);
         assert_eq!(effective.ai.provider, LlmProviderId::Ollama);
+    }
+
+    #[test]
+    fn shortcuts_wait_for_practice() {
+        let mut onboarding = OnboardingSettings::default();
+        assert!(!onboarding.shortcuts_active());
+        onboarding.step = OnboardingStep::Engine;
+        assert!(!onboarding.shortcuts_active());
+        onboarding.step = OnboardingStep::Practice;
+        assert!(onboarding.shortcuts_active());
+        assert!(OnboardingSettings::done().shortcuts_active());
     }
 
     #[test]

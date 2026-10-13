@@ -16,8 +16,8 @@ export function HomePage({ onOpenInsights }: HomePageProps) {
   return (
     <div className="app">
       <Greeting onOpenInsights={onOpenInsights} />
-      <ModelCard />
-      <PermissionsCard />
+      <ModelCard hideWhenReady />
+      <PermissionsCard hideWhenGranted />
       <HistorySection />
       <AppInfoLine />
     </div>
@@ -44,7 +44,7 @@ function AppInfoLine() {
       return null;
     case "error":
       return (
-        <p className="meta error" role="alert">
+        <p className="meta error" role="alert" data-testid="app-info-error">
           {state.message}
         </p>
       );

@@ -23,6 +23,7 @@ use serde::Serialize;
 #[cfg_attr(not(debug_assertions), allow(dead_code))]
 pub const NAMES: &[&str] = &[
     "app_info",
+    "own_field_focused",
     "get_dictation_state",
     "flow_bar_control",
     "flow_bar_ready",
@@ -103,6 +104,8 @@ pub const NAMES: &[&str] = &[
     "dev_read_context",
     #[cfg(debug_assertions)]
     "dev_set_microphones",
+    #[cfg(debug_assertions)]
+    "dev_set_permissions",
 ];
 
 /// The error every command returns. Mirrors `CommandError` in src/lib/ipc.ts.

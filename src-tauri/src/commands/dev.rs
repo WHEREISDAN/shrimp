@@ -219,3 +219,17 @@ pub fn dev_set_microphones(
     microphones.poll();
     microphones.list()
 }
+
+/// Pretends permissions are granted, denied or not asked yet (`null` goes
+/// back to the real state), to test onboarding and the re-check after an
+/// update without revoking real grants.
+#[tauri::command]
+pub fn dev_set_permissions(
+    microphone: Option<crate::platform::PermissionStatus>,
+    accessibility: Option<crate::platform::PermissionStatus>,
+    permissions: State<'_, Arc<crate::platform::SwitchablePermissions>>,
+) {
+    use crate::platform::Permission;
+    permissions.pretend(Permission::Microphone, microphone);
+    permissions.pretend(Permission::Accessibility, accessibility);
+}

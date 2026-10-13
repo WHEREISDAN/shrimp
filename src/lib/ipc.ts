@@ -254,6 +254,8 @@ export type AppCategory = "personal" | "work" | "email" | "other";
 /** Mirrors `settings::Settings`. */
 export interface Settings {
   version: number;
+  /** Grows with every saved change; a smaller one is an older state. */
+  revision: number;
   stt: { engine: SttEngineId; localModel: string; openaiModel: string; groqModel: string };
   ai: {
     provider: LlmProviderId;
@@ -312,7 +314,27 @@ export interface Settings {
     launchAtLogin: boolean;
     showInDock: boolean;
   };
+  onboarding: {
+    completed: boolean;
+    /** Where setup resumes. */
+    step: OnboardingStep;
+    /** The app version that last checked the permissions. */
+    version: string;
+    /** Permissions seen granted, so losing one is noticed. */
+    granted: { microphone: boolean; accessibility: boolean };
+  };
 }
+
+/** Mirrors `settings::OnboardingStep`. */
+export type OnboardingStep =
+  | "welcome"
+  | "permissions"
+  | "microphone"
+  | "shortcut"
+  | "languages"
+  | "engine"
+  | "practice"
+  | "done";
 
 /** Mirrors `settings::APP_LANGUAGES`. */
 export type AppLanguage = "system" | "en" | "de" | "es" | "it" | "pt";
@@ -331,6 +353,7 @@ export interface SettingsPatch {
   flowBar?: Partial<Settings["flowBar"]>;
   notifications?: Partial<Settings["notifications"]>;
   app?: Partial<Settings["app"]>;
+  onboarding?: Partial<Omit<Settings["onboarding"], "granted">>;
   /** `null` restores a default (a whole section, or Polish's rules). */
   transforms?: {
     enabled?: boolean;
