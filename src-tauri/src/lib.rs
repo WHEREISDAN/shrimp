@@ -1,7 +1,10 @@
 //! Shrimp: speech to text, anywhere. See docs/ARCHITECTURE.md for the module map.
 
 mod app;
+pub mod audio;
 mod commands;
+pub mod llm;
+pub mod stt;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
