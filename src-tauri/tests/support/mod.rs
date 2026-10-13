@@ -8,10 +8,12 @@ pub use std::sync::{Arc, Mutex};
 pub use std::time::{Duration, Instant};
 
 pub use async_trait::async_trait;
+pub use handy_keys::Modifiers;
 pub use shrimp_lib::audio::{AudioClip, AudioSourceSpec};
 pub use shrimp_lib::dictation::gestures::BarControl;
 pub use shrimp_lib::dictation::{
-    self, ControllerHandle, ControllerInput, DictationState, DictationUi, Mode, Services, Timing,
+    self, Answer, ControllerHandle, ControllerInput, DictationState, DictationUi, Mode, Services,
+    Timing,
 };
 pub use shrimp_lib::edit::{CleanupLevel, EditTimeout, Editor, FixedLibrary, Snapshot};
 pub use shrimp_lib::hotkeys::{Action, Binding, ShortcutEvent, macos_defaults};
@@ -21,8 +23,8 @@ pub use shrimp_lib::llm::{
 pub use shrimp_lib::notify::Notice;
 pub use shrimp_lib::platform::{
     AppIdentity, ContextRequest, CuePlayer, FieldContext, FocusInspector, HotkeyBackend,
-    InsertOptions, InsertOutcome, InsertText, Permission, PermissionStatus, Permissions,
-    PlatformError, TextInserter,
+    InsertOptions, InsertOutcome, InsertText, Launcher, Permission, PermissionStatus, Permissions,
+    PlatformError, SyntheticKey, TextInserter, TextRange,
 };
 pub use shrimp_lib::settings::{Settings, SettingsStore};
 pub use shrimp_lib::sounds::Cue;
@@ -41,8 +43,18 @@ pub struct Fakes {
     pub app: Mutex<Option<AppIdentity>>,
     pub field: Mutex<Option<FieldContext>>,
     pub field_delay: Mutex<Duration>,
+    /// What reads after the first return, when set (the field changed).
+    pub field_later: Mutex<Option<FieldContext>>,
+    pub field_reads: AtomicUsize,
     /// What the fake engine transcribes; TEXT when None.
     pub transcript: Mutex<Option<String>>,
+    pub pressed: Mutex<Vec<(SyntheticKey, Modifiers)>>,
+    /// What copying the selection returns (Command Mode's fallback).
+    pub selection_copy: Mutex<Option<String>>,
+    pub opened: Mutex<Vec<String>>,
+    pub answers: Mutex<Vec<Answer>>,
+    /// Ranges selected through the focus inspector.
+    pub selected_ranges: Mutex<Vec<TextRange>>,
     pub copied: Mutex<Vec<String>>,
     pub vocabulary: Mutex<Vec<Vec<String>>>,
     pub prompts: Mutex<Vec<LlmRequest>>,
@@ -113,6 +125,24 @@ impl TextInserter for FakeInserter {
         self.0.copied.lock().unwrap().push(text.plain.clone());
         Ok(())
     }
+
+    fn press(&self, key: SyntheticKey, extra: Modifiers) -> Result<(), PlatformError> {
+        self.0.pressed.lock().unwrap().push((key, extra));
+        Ok(())
+    }
+
+    fn copy_selection(&self) -> Result<Option<String>, PlatformError> {
+        Ok(self.0.selection_copy.lock().unwrap().clone())
+    }
+}
+
+pub struct FakeLauncher(pub Arc<Fakes>);
+
+impl Launcher for FakeLauncher {
+    fn open_url(&self, url: &str) -> Result<(), PlatformError> {
+        self.0.opened.lock().unwrap().push(url.to_owned());
+        Ok(())
+    }
 }
 
 /// The frontmost app (Slack unless a test sets another) and its field.
@@ -140,7 +170,22 @@ impl FocusInspector for FakeFocus {
     fn read_field(&self, _: &ContextRequest) -> Option<FieldContext> {
         let delay = *self.0.field_delay.lock().unwrap();
         std::thread::sleep(delay);
-        self.0.field.lock().unwrap().clone()
+        let reads = self.0.field_reads.fetch_add(1, Ordering::SeqCst);
+        match &*self.0.field_later.lock().unwrap() {
+            Some(later) if reads > 0 => Some(later.clone()),
+            _ => self.0.field.lock().unwrap().clone(),
+        }
+    }
+
+    fn select_range(&self, field_id: u64, range: TextRange) -> bool {
+        let field = self.0.field.lock().unwrap();
+        let same = field
+            .as_ref()
+            .is_some_and(|field| field.field_id == field_id);
+        if same {
+            self.0.selected_ranges.lock().unwrap().push(range);
+        }
+        same
     }
 }
 
@@ -312,11 +357,16 @@ impl DictationUi for FakeUi {
     fn notice(&self, notice: Notice) {
         self.0.notices.lock().unwrap().push(notice);
     }
+
+    fn answer(&self, answer: Answer) {
+        self.0.answers.lock().unwrap().push(answer);
+    }
 }
 
 pub struct Harness {
     pub controller: ControllerHandle,
     pub fakes: Arc<Fakes>,
+    pub settings: Arc<SettingsStore>,
     pub _dir: tempfile::TempDir,
 }
 
@@ -341,8 +391,9 @@ impl Harness {
             replies: Mutex::new(setup.replies),
             delay: setup.llm_delay,
         });
+        let settings = Arc::new(SettingsStore::in_memory(settings));
         let editor = Arc::new(Editor::new(
-            Arc::new(SettingsStore::in_memory(settings)),
+            Arc::clone(&settings),
             Arc::new(FakeLlmSource(llm)),
             Arc::new(FixedLibrary(setup.library)),
             EditTimeout {
@@ -361,10 +412,13 @@ impl Harness {
             hotkeys: Box::new(FakeHotkeys(Arc::clone(&fakes))),
             bindings: macos_defaults(),
             push_to_talk_label: "fn".into(),
+            command_mode_label: "fn ⌃".into(),
             inserter: Arc::new(FakeInserter(Arc::clone(&fakes))),
             focus: Arc::new(FakeFocus(Arc::clone(&fakes))),
             permissions: Arc::new(Granted),
             sounds: Arc::new(FakeSounds(Arc::clone(&fakes))),
+            launcher: Arc::new(FakeLauncher(Arc::clone(&fakes))),
+            settings: Arc::clone(&settings),
             engine,
             fallback_engine,
             languages: vec!["en".into()],
@@ -376,6 +430,7 @@ impl Harness {
         Self {
             controller,
             fakes,
+            settings,
             _dir: dir,
         }
     }
@@ -386,7 +441,9 @@ impl Harness {
 
     pub fn shortcut(&self, action: Action, pressed: bool) {
         self.controller
-            .send(ControllerInput::Shortcut(ShortcutEvent { action, pressed }));
+            .send(ControllerInput::Shortcut(ShortcutEvent::new(
+                action, pressed,
+            )));
     }
 
     pub fn hold(&self, action: Action, held: Duration) {

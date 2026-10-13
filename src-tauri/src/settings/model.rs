@@ -4,6 +4,7 @@
 use serde::{Deserialize, Serialize};
 
 use crate::edit::{AppCategory, CleanupLevel, Style};
+use crate::hotkeys::{Action, validation};
 use crate::llm::{LlmProviderId, catalog};
 use crate::stt::SttEngineId;
 
@@ -19,6 +20,9 @@ pub struct Settings {
     pub ai: AiSettings,
     pub styles: StyleSettings,
     pub privacy: PrivacySettings,
+    pub experimental: ExperimentalSettings,
+    pub shortcuts: ShortcutSettings,
+    pub notices: NoticeSettings,
 }
 
 impl Default for Settings {
@@ -29,8 +33,41 @@ impl Default for Settings {
             ai: AiSettings::default(),
             styles: StyleSettings::default(),
             privacy: PrivacySettings::default(),
+            experimental: ExperimentalSettings::default(),
+            shortcuts: ShortcutSettings::default(),
+            notices: NoticeSettings::default(),
         }
     }
+}
+
+/// Settings › Experimental.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", default)]
+pub struct ExperimentalSettings {
+    /// Command Mode, off until the user turns it on (CMD-06).
+    pub command_mode: bool,
+    /// The one-time Command Mode intro has been shown.
+    pub command_mode_intro_seen: bool,
+    /// Ending a dictation with "press enter" presses Enter (CORE-16).
+    pub press_enter_command: bool,
+}
+
+/// Shortcuts the user sets, in handy-keys notation ("Opt+Return").
+#[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", default)]
+pub struct ShortcutSettings {
+    /// Unbound by default (CORE-15).
+    pub press_enter: Option<String>,
+}
+
+/// How often one-off notices have been shown.
+#[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", default)]
+pub struct NoticeSettings {
+    /// "Command mode is toggled off": at most 3 times, once a day.
+    pub command_mode_off_count: u32,
+    /// The local date it was last shown, YYYY-MM-DD.
+    pub command_mode_off_day: String,
 }
 
 /// Data and privacy.
@@ -167,6 +204,9 @@ impl Settings {
         if self.ai.ollama_model.len() > MAX_MODEL_LENGTH {
             return Err("Model names must be 1 to 120 characters.".into());
         }
+        if let Some(shortcut) = &self.shortcuts.press_enter {
+            validation::validate(shortcut, Action::PressEnter, &[])?;
+        }
         let url = self.ai.ollama_url.trim();
         if !(url.starts_with("http://") || url.starts_with("https://")) || url.len() > 200 {
             return Err("The Ollama address must start with http:// or https://.".into());
@@ -199,6 +239,17 @@ mod tests {
         assert_eq!(json["ai"]["ollamaUrl"], "http://localhost:11434");
         assert_eq!(json["styles"]["personal"], "formal");
         assert_eq!(json["privacy"]["contextAwareness"], true);
+        assert_eq!(json["experimental"]["commandMode"], false);
+        assert_eq!(json["shortcuts"]["pressEnter"], serde_json::Value::Null);
+    }
+
+    #[test]
+    fn a_press_enter_shortcut_must_be_valid() {
+        let mut settings = Settings::default();
+        settings.shortcuts.press_enter = Some("Opt+Return".into());
+        settings.validate().unwrap();
+        settings.shortcuts.press_enter = Some("Return".into());
+        assert!(settings.validate().is_err());
     }
 
     #[test]

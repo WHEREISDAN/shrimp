@@ -1,7 +1,6 @@
 //! Global shortcuts through handy-keys: an active `CGEventTap` that sees Fn and
 //! modifier-only chords and swallows bound input (needs Accessibility).
 
-use std::collections::HashSet;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::thread::JoinHandle;
@@ -10,7 +9,7 @@ use std::time::Duration;
 use handy_keys::{BlockingHotkeys, KeyboardListener};
 
 use super::permissions::accessibility_trusted;
-use crate::hotkeys::{Binding, Matcher, ShortcutEvent};
+use crate::hotkeys::{Binding, Matcher, ShortcutEvent, blocked_hotkeys};
 use crate::platform::{HotkeyBackend, PlatformError};
 
 const POLL_INTERVAL: Duration = Duration::from_millis(100);
@@ -55,10 +54,7 @@ impl HotkeyBackend for MacHotkeys {
 
     fn set_bindings(&mut self, bindings: &[Binding]) {
         lock(&self.matcher).set_bindings(bindings);
-        *lock(&self.blocking) = bindings
-            .iter()
-            .map(|binding| binding.hotkey)
-            .collect::<HashSet<_>>();
+        *lock(&self.blocking) = blocked_hotkeys(bindings);
     }
 
     fn stop(&mut self) {

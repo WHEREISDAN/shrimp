@@ -11,7 +11,9 @@ export interface AppInfo {
 
 /** Mirrors `dictation::DictationState`. */
 export type DictationState =
-  { phase: "idle" } | { phase: "recording"; mode: "hold" | "locked" } | { phase: "processing" };
+  | { phase: "idle" }
+  | { phase: "recording"; mode: "hold" | "locked"; command: boolean }
+  | { phase: "processing" };
 
 /** Mirrors `dictation::gestures::BarControl`. */
 export type BarControl = "start" | "stop" | "cancel" | "confirm";
@@ -23,7 +25,8 @@ export type NoticeAction =
   | "openMicrophoneSettings"
   | "openKeyboardSettings"
   | "retryModelDownload"
-  | "openAiSettings";
+  | "openAiSettings"
+  | "openExperimentalSettings";
 
 /** Mirrors `notify::Notice`. */
 export interface Notice {
@@ -32,6 +35,16 @@ export interface Notice {
   message: string;
   action: NoticeAction | null;
 }
+
+/** Mirrors `dictation::Answer`: a Command Mode answer shown in the Flow Bar. */
+export interface Answer {
+  id: number;
+  question: string;
+  text: string;
+}
+
+/** Mirrors `hotkeys::Action` for the shortcuts the user can set. */
+export type ShortcutAction = "pressEnter";
 
 /** Mirrors `stt::ModelState`, flattened into `ModelStatus`. */
 export type ModelState =
@@ -102,6 +115,10 @@ export interface Settings {
   };
   styles: Record<AppCategory, Style>;
   privacy: { contextAwareness: boolean };
+  experimental: { commandMode: boolean; commandModeIntroSeen: boolean; pressEnterCommand: boolean };
+  /** Shortcuts in handy-keys notation, e.g. "Opt+Return"; set with `setShortcut`. */
+  shortcuts: { pressEnter: string | null };
+  notices: { commandModeOffCount: number; commandModeOffDay: string };
 }
 
 /** A JSON merge patch for `update_settings`: any subset of the settings. */
@@ -110,6 +127,7 @@ export interface SettingsPatch {
   ai?: Partial<Settings["ai"]>;
   styles?: Partial<Settings["styles"]>;
   privacy?: Partial<Settings["privacy"]>;
+  experimental?: Partial<Settings["experimental"]>;
 }
 
 /** Mirrors `llm::catalog::ModelOption`. */
@@ -263,6 +281,9 @@ export const getSettings = (): Promise<Settings> => invoke<Settings>("get_settin
 export const updateSettings = (patch: SettingsPatch): Promise<Settings> =>
   invoke<Settings>("update_settings", { patch });
 
+export const setShortcut = (action: ShortcutAction, shortcut: string | null): Promise<Settings> =>
+  invoke<Settings>("set_shortcut", { action, shortcut });
+
 export const getAiOptions = (): Promise<AiOptions> => invoke<AiOptions>("get_ai_options");
 
 export const getApiKeys = (): Promise<ApiKeys> => invoke<ApiKeys>("get_api_keys");
@@ -325,6 +346,7 @@ export const EVENTS = {
   models: "models://status",
   navigate: "app://navigate",
   settings: "settings://changed",
+  answer: "command://answer",
 } as const;
 
 export function onEvent<T>(name: string, handler: (payload: T) => void): Promise<UnlistenFn> {

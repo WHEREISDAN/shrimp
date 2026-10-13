@@ -94,6 +94,9 @@ export const SETTINGS: Settings = {
   },
   styles: { personal: "veryCasual", work: "formal", email: "formal", other: "casual" },
   privacy: { contextAwareness: true },
+  experimental: { commandMode: false, commandModeIntroSeen: false, pressEnterCommand: false },
+  shortcuts: { pressEnter: null },
+  notices: { commandModeOffCount: 0, commandModeOffDay: "" },
 };
 
 export const AI_OPTIONS: AiOptions = {

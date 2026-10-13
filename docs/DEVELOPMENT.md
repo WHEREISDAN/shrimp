@@ -339,6 +339,10 @@ down`, or a helper that does the same) leaves Command looking held until the nex
   post helper keys at `kCGAnnotatedSessionEventTap`, after the session taps. Physical keys
   always send `FlagsChanged` and are not affected; Shrimp posts its own paste after the
   session taps for the same reason.
+- Command Mode's shortcut is Fn+Ctrl. Post Ctrl's `FlagsChanged` first and then Fn's
+  (both flags set) to start a command directly; Fn first starts a dictation, which Ctrl
+  then turns into a command. Turn Command Mode on first (Settings › Experimental, or
+  `update_settings` with `{"experimental": {"commandMode": true}}`).
 - A listen-only tap appended at the tail of the session (`tailAppendEventTap`) only sees
   what every other tap let through, which shows whether a shortcut was swallowed.
 - Another dictation app that uses Fn (for example Wispr Flow) also hooks the keyboard and

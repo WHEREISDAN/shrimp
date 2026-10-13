@@ -223,3 +223,52 @@ body {
     opacity: 0.8;
   }
 }
+
+/* Command Mode listens in the accent colour, so it can't pass for dictation. */
+.pill-command {
+  border-color: rgb(191 90 242 / 0.95);
+  box-shadow: 0 0 0 1px rgb(191 90 242 / 0.35);
+}
+
+.pill-command .bar {
+  background: rgb(214 160 255);
+}
+
+.answer {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 340px;
+  padding: 10px 12px;
+  border: 1px solid rgb(191 90 242 / 0.6);
+  border-radius: 12px;
+  background: rgb(28 28 30);
+  color: #f5f5f7;
+  font-size: 12.5px;
+  line-height: 1.4;
+}
+
+.answer-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.answer-question {
+  flex: 1;
+  margin: 1px 0 0;
+  color: rgb(235 235 245 / 0.6);
+}
+
+.answer-text {
+  max-height: 220px;
+  overflow-y: auto;
+  white-space: pre-wrap;
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+.answer-actions {
+  display: flex;
+  justify-content: flex-end;
+}

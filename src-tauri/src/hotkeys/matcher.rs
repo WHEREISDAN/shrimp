@@ -1,6 +1,6 @@
 use std::collections::HashSet;
 
-use handy_keys::KeyEvent;
+use handy_keys::{KeyEvent, Modifiers};
 
 use super::{Action, Binding};
 
@@ -9,6 +9,18 @@ use super::{Action, Binding};
 pub struct ShortcutEvent {
     pub action: Action,
     pub pressed: bool,
+    /// Modifiers held beyond the binding's, for pass-through bindings.
+    pub extra: Modifiers,
+}
+
+impl ShortcutEvent {
+    pub fn new(action: Action, pressed: bool) -> Self {
+        Self {
+            action,
+            pressed,
+            extra: Modifiers::empty(),
+        }
+    }
 }
 
 /// Turns raw key events into shortcut presses and releases. A shortcut is
@@ -37,23 +49,25 @@ impl Matcher {
     }
 
     fn press(&mut self, event: &KeyEvent) -> Vec<ShortcutEvent> {
-        let actions: Vec<Action> = self
+        let matched: Vec<(Action, Modifiers)> = self
             .bindings
             .iter()
             .filter(|binding| {
-                binding.hotkey.key == event.key
-                    && binding.hotkey.modifiers.matches(event.modifiers)
-                    && !self.pressed.contains(&binding.action)
+                binding.hotkey.key == event.key && !self.pressed.contains(&binding.action)
             })
-            .map(|binding| binding.action)
+            .filter_map(|binding| {
+                binding
+                    .extra_modifiers(event.modifiers)
+                    .map(|extra| (binding.action, extra))
+            })
             .collect();
-        actions
+        matched
             .into_iter()
-            .map(|action| {
+            .map(|(action, extra)| {
                 self.pressed.insert(action);
                 ShortcutEvent {
-                    action,
-                    pressed: true,
+                    extra,
+                    ..ShortcutEvent::new(action, true)
                 }
             })
             .collect()
@@ -74,10 +88,7 @@ impl Matcher {
             .into_iter()
             .map(|action| {
                 self.pressed.remove(&action);
-                ShortcutEvent {
-                    action,
-                    pressed: false,
-                }
+                ShortcutEvent::new(action, false)
             })
             .collect()
     }
@@ -115,7 +126,7 @@ mod tests {
     }
 
     fn event(action: Action, pressed: bool) -> ShortcutEvent {
-        ShortcutEvent { action, pressed }
+        ShortcutEvent::new(action, pressed)
     }
 
     #[test]
@@ -177,6 +188,56 @@ mod tests {
                 .process(&key(Modifiers::empty(), Key::Escape, true))
                 .is_empty()
         );
+    }
+
+    #[test]
+    fn fn_then_ctrl_presses_command_mode_while_push_to_talk_stays_held() {
+        let mut matcher = matcher();
+        assert_eq!(
+            matcher.process(&flags(Modifiers::FN, true)),
+            vec![event(Action::PushToTalk, true)]
+        );
+        assert_eq!(
+            matcher.process(&flags(Modifiers::FN | Modifiers::CTRL_LEFT, true)),
+            vec![event(Action::CommandMode, true)]
+        );
+        assert_eq!(
+            matcher.process(&flags(Modifiers::FN, false)),
+            vec![event(Action::CommandMode, false)]
+        );
+        assert_eq!(
+            matcher.process(&flags(Modifiers::empty(), false)),
+            vec![event(Action::PushToTalk, false)]
+        );
+    }
+
+    #[test]
+    fn ctrl_then_fn_presses_only_command_mode() {
+        let mut matcher = matcher();
+        assert!(
+            matcher
+                .process(&flags(Modifiers::CTRL_LEFT, true))
+                .is_empty()
+        );
+        assert_eq!(
+            matcher.process(&flags(Modifiers::FN | Modifiers::CTRL_LEFT, true)),
+            vec![event(Action::CommandMode, true)]
+        );
+    }
+
+    #[test]
+    fn press_enter_passes_extra_modifiers_through() {
+        let mut matcher = Matcher::default();
+        let binding = Binding::with_passthrough(Action::PressEnter, "Opt+Return".parse().unwrap());
+        matcher.set_bindings(&[binding]);
+        let pressed = matcher.process(&key(
+            Modifiers::OPT_LEFT | Modifiers::SHIFT_LEFT,
+            Key::Return,
+            true,
+        ));
+        assert_eq!(pressed.len(), 1);
+        assert_eq!(pressed[0].action, Action::PressEnter);
+        assert_eq!(pressed[0].extra, Modifiers::SHIFT);
     }
 
     #[test]

@@ -284,3 +284,25 @@ textarea {
   margin-top: 0.15rem;
   accent-color: var(--accent);
 }
+
+.shortcut-row {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.recorder {
+  min-width: 6.5rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.recorder.recording {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.intro-steps {
+  margin: 0 0 0.75rem;
+  padding-left: 1.2rem;
+  line-height: 1.5;
+}

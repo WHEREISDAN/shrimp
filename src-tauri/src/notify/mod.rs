@@ -34,6 +34,8 @@ pub enum NoticeAction {
     RetryModelDownload,
     /// Opens Shrimp's settings at the AI provider section.
     OpenAiSettings,
+    /// Opens Settings › Experimental (Command Mode is off).
+    OpenExperimentalSettings,
 }
 
 impl NoticeAction {
@@ -45,6 +47,7 @@ impl NoticeAction {
             | Self::OpenKeyboardSettings
             | Self::OpenAiSettings => "Open Settings",
             Self::RetryModelDownload => "Retry",
+            Self::OpenExperimentalSettings => "Go to settings",
         }
     }
 }

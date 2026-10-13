@@ -1,7 +1,9 @@
 //! AI edits between speech-to-text and insertion: spoken commands, snippets,
 //! dictionary corrections, the LLM cleanup with app-aware styles, and the
-//! rendering of lists and rich snippets for pasting.
+//! rendering of lists and rich snippets for pasting. Command Mode runs a
+//! spoken instruction on selected text.
 
+pub mod command;
 mod context_format;
 pub mod dictionary;
 pub mod guard;

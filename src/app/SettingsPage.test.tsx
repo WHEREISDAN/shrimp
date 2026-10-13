@@ -14,6 +14,15 @@ function backend(
     get_settings: () => settings,
     get_ai_options: () => AI_OPTIONS,
     get_api_keys: () => keys,
+    get_shortcuts: () => [{ action: "commandMode", name: "Command Mode", shortcut: "fn ⌃" }],
+    set_shortcut: (args) => {
+      const shortcut = args.shortcut as string | null;
+      if (shortcut === "Cmd+V") {
+        throw { code: "invalid", message: "This shortcut is not allowed" };
+      }
+      settings = { ...settings, shortcuts: { pressEnter: shortcut } };
+      return settings;
+    },
     update_settings: (args) => {
       const patch = args.patch as SettingsPatch;
       settings = {
@@ -21,6 +30,7 @@ function backend(
         stt: { ...settings.stt, ...patch.stt },
         ai: { ...settings.ai, ...patch.ai },
         privacy: { ...settings.privacy, ...patch.privacy },
+        experimental: { ...settings.experimental, ...patch.experimental },
       };
       return settings;
     },
@@ -269,5 +279,69 @@ describe("SettingsPage data and privacy", () => {
       ]),
     );
     await waitFor(() => expect(toggle).not.toBeChecked());
+  });
+});
+
+describe("SettingsPage experimental", () => {
+  it("introduces Command Mode once when it is turned on", async () => {
+    const { argsOf } = backend();
+    render(<SettingsPage />);
+    fireEvent.click(await screen.findByRole("switch", { name: "Command Mode" }));
+    const dialog = await screen.findByRole("dialog", { name: "Using Command Mode (beta)" });
+    expect(dialog).toHaveTextContent("fn ⌃");
+    fireEvent.click(within(dialog).getByRole("button", { name: "Disable" }));
+    await waitFor(() =>
+      expect(argsOf("update_settings")).toEqual([
+        { patch: { experimental: { commandMode: true } } },
+        { patch: { experimental: { commandModeIntroSeen: true, commandMode: false } } },
+      ]),
+    );
+    expect(screen.queryByRole("dialog")).toBeNull();
+  });
+
+  it("turns the press enter voice command on", async () => {
+    const { argsOf } = backend();
+    render(<SettingsPage />);
+    fireEvent.click(await screen.findByRole("switch", { name: "“Press enter” voice command" }));
+    await waitFor(() =>
+      expect(argsOf("update_settings")).toEqual([
+        { patch: { experimental: { pressEnterCommand: true } } },
+      ]),
+    );
+  });
+});
+
+describe("SettingsPage shortcuts", () => {
+  it("records a Press Enter shortcut when the keys are released", async () => {
+    const { argsOf } = backend();
+    render(<SettingsPage />);
+    const recorder = await screen.findByRole("button", { name: "Press Enter shortcut: Not set" });
+    fireEvent.click(recorder);
+    fireEvent.keyDown(recorder, { code: "AltLeft", altKey: true });
+    fireEvent.keyDown(recorder, { code: "Enter", altKey: true });
+    fireEvent.keyUp(recorder, { code: "Enter", altKey: true });
+    await waitFor(() =>
+      expect(argsOf("set_shortcut")).toEqual([{ action: "pressEnter", shortcut: "Opt+Return" }]),
+    );
+    expect(
+      await screen.findByRole("button", { name: "Press Enter shortcut: ⌥↩" }),
+    ).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Remove Press Enter shortcut" }));
+    await waitFor(() =>
+      expect(argsOf("set_shortcut")[1]).toEqual({ action: "pressEnter", shortcut: null }),
+    );
+  });
+
+  it("shows why a shortcut was refused, and Esc cancels recording", async () => {
+    backend();
+    render(<SettingsPage />);
+    const recorder = await screen.findByRole("button", { name: "Press Enter shortcut: Not set" });
+    fireEvent.click(recorder);
+    fireEvent.keyDown(recorder, { code: "KeyV", metaKey: true });
+    fireEvent.keyUp(recorder, { code: "KeyV", metaKey: true });
+    expect(await screen.findByRole("alert")).toHaveTextContent("This shortcut is not allowed");
+    fireEvent.click(recorder);
+    fireEvent.keyDown(recorder, { code: "Escape" });
+    expect(recorder).toHaveAccessibleName("Press Enter shortcut: Not set");
   });
 });

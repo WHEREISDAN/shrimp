@@ -2,7 +2,7 @@ import { emit } from "@tauri-apps/api/event";
 import { mockIPC } from "@tauri-apps/api/mocks";
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
-import { EVENTS, type DictationState, type Notice } from "../lib/ipc";
+import { EVENTS, type Answer, type DictationState, type Notice } from "../lib/ipc";
 import { FlowBar } from "./FlowBar";
 
 function backend() {
@@ -39,12 +39,12 @@ describe("FlowBar", () => {
     render(<FlowBar />);
     await screen.findByRole("button", { name: "Start dictation" });
 
-    await setState({ phase: "recording", mode: "hold" });
+    await setState({ phase: "recording", mode: "hold", command: false });
     await act(async () => emit(EVENTS.level, 0.8));
     expect(screen.getByRole("group", { name: "Recording" })).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Done" }));
 
-    await setState({ phase: "recording", mode: "locked" });
+    await setState({ phase: "recording", mode: "locked", command: false });
     fireEvent.click(screen.getByRole("button", { name: "Stop" }));
     fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
 
@@ -88,5 +88,34 @@ describe("FlowBar", () => {
       }),
     );
     expect(screen.queryByText(/No text field/)).not.toBeInTheDocument();
+  });
+
+  it("marks a Command Mode session", async () => {
+    backend();
+    render(<FlowBar />);
+    await screen.findByRole("button", { name: "Start dictation" });
+    await setState({ phase: "recording", mode: "hold", command: true });
+    expect(screen.getByRole("group", { name: "Command Mode" })).toHaveClass("pill-command");
+  });
+
+  it("shows a Command Mode answer until dismissed, with Copy", async () => {
+    const calls = backend();
+    render(<FlowBar />);
+    await screen.findByRole("button", { name: "Start dictation" });
+    const answer: Answer = { id: 1, question: "What's the capital of France?", text: "Paris." };
+    await act(async () => emit(EVENTS.answer, answer));
+    const panel = screen.getByRole("region", { name: "Command Mode answer" });
+    expect(panel).toHaveTextContent("What's the capital of France?");
+    expect(panel).toHaveTextContent("Paris.");
+    fireEvent.click(screen.getByRole("button", { name: "Copy" }));
+    await waitFor(() =>
+      expect(calls).toContainEqual({
+        cmd: "run_notice_action",
+        args: { action: "copyLastTranscript" },
+      }),
+    );
+    expect(screen.getByRole("button", { name: "Copied ✓" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Dismiss" }));
+    expect(screen.queryByRole("region", { name: "Command Mode answer" })).toBeNull();
   });
 });

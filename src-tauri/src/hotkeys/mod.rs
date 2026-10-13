@@ -2,6 +2,9 @@
 
 mod binding;
 mod matcher;
+pub mod validation;
 
-pub use binding::{Action, Binding, macos_defaults, macos_label};
+pub use binding::{
+    Action, Binding, backspace_cancel, blocked_hotkeys, macos_defaults, macos_label,
+};
 pub use matcher::{Matcher, ShortcutEvent};

@@ -9,6 +9,7 @@ mod globe;
 mod hotkeys;
 mod insert;
 mod keymap;
+mod launcher;
 mod pasteboard;
 mod permissions;
 mod sound;
@@ -27,6 +28,7 @@ pub fn platform(main_thread: MainThread) -> Platform {
         focus: Arc::new(focus::MacFocus),
         permissions: Arc::new(permissions::MacPermissions),
         sounds: Arc::new(sound::MacCuePlayer::new(main_thread)),
+        launcher: Arc::new(launcher::MacLauncher),
         default_bindings: macos_defaults(),
         label: macos_label,
         language: preferred_language(),

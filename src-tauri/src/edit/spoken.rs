@@ -147,9 +147,47 @@ fn next_word_is(text: &str, end: usize, word: &str) -> bool {
         .is_some_and(|next| next.eq_ignore_ascii_case(word))
 }
 
+/// The words that end a dictation with Enter (CORE-16).
+const PRESS_ENTER: &str = "press enter";
+
+/// Strips a final "press enter" and returns the text before it.
+pub fn press_enter_suffix(text: &str) -> Option<String> {
+    let trimmed = text
+        .trim_end()
+        .trim_end_matches(['.', '!', '?', ','])
+        .trim_end();
+    let cut = trimmed.len().checked_sub(PRESS_ENTER.len())?;
+    if !trimmed.is_char_boundary(cut) || !trimmed[cut..].eq_ignore_ascii_case(PRESS_ENTER) {
+        return None;
+    }
+    let before = &trimmed[..cut];
+    if before.ends_with(char::is_alphanumeric) {
+        return None;
+    }
+    Some(
+        before
+            .trim_end()
+            .trim_end_matches([',', ';'])
+            .trim_end()
+            .to_owned(),
+    )
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_final_press_enter_is_cut_off() {
+        assert_eq!(
+            press_enter_suffix("Ship it now, press enter."),
+            Some("Ship it now".into())
+        );
+        assert_eq!(press_enter_suffix("Press enter"), Some(String::new()));
+        assert_eq!(press_enter_suffix("Did you press enter? Yes."), None);
+        assert_eq!(press_enter_suffix("Don't express enter."), None);
+        assert_eq!(press_enter_suffix("ok"), None);
+    }
 
     #[test]
     fn line_and_paragraph_commands_insert_breaks() {

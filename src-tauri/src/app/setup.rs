@@ -11,7 +11,8 @@ use crate::audio::AudioSourceSpec;
 use crate::commands::ai::HttpClient;
 use crate::commands::dictation::{ShortcutInfo, Shortcuts};
 use crate::commands::permissions::AppPermissions;
-use crate::dictation::{self, DictationUi, Services, Timing};
+use crate::commands::settings::DefaultBindings;
+use crate::dictation::{self, ControllerInput, DictationUi, Services, Timing};
 use crate::edit::{EditTimeout, Editor, Library};
 use crate::hotkeys::Action;
 use crate::llm::{Providers, http};
@@ -35,11 +36,15 @@ pub fn setup(app: &mut App) -> Result<(), Box<dyn std::error::Error>> {
             shortcut: (platform.label)(&binding.hotkey),
         })
         .collect();
-    let push_to_talk_label = shortcuts
-        .iter()
-        .find(|info| info.action == Action::PushToTalk)
-        .map(|info| info.shortcut.clone())
-        .unwrap_or_default();
+    let label_of = |action| {
+        shortcuts
+            .iter()
+            .find(|info: &&ShortcutInfo| info.action == action)
+            .map(|info| info.shortcut.clone())
+            .unwrap_or_default()
+    };
+    let push_to_talk_label = label_of(Action::PushToTalk);
+    let command_mode_label = label_of(Action::CommandMode);
 
     let ui = Arc::new(TauriUi::new(handle.clone()));
     if let Some(conflict) = platform.globe_key.conflict() {
@@ -89,14 +94,18 @@ pub fn setup(app: &mut App) -> Result<(), Box<dyn std::error::Error>> {
 
     #[cfg(debug_assertions)]
     app.manage(crate::commands::dev::DevFocus(Arc::clone(&platform.focus)));
+    app.manage(DefaultBindings(platform.default_bindings.clone()));
     let controller = dictation::spawn(Services {
         hotkeys: platform.hotkeys,
         bindings: platform.default_bindings,
         push_to_talk_label,
+        command_mode_label,
         inserter: platform.inserter,
         focus: platform.focus,
         permissions: Arc::clone(&platform.permissions),
         sounds: platform.sounds,
+        launcher: platform.launcher,
+        settings: Arc::clone(&settings),
         engine: Arc::new(router),
         fallback_engine: Some(Arc::clone(&slot) as Arc<dyn SttEngine>),
         languages: platform.language.into_iter().collect(),
@@ -106,6 +115,10 @@ pub fn setup(app: &mut App) -> Result<(), Box<dyn std::error::Error>> {
         timing: Timing::default(),
     });
 
+    let shortcuts_changed = controller.clone();
+    settings.on_change(Box::new(move |_| {
+        shortcuts_changed.send(ControllerInput::SettingsChanged);
+    }));
     app.manage(controller);
     app.manage(settings);
     app.manage(secrets);

@@ -11,6 +11,7 @@ import { StylePage } from "./StylePage";
 export function App() {
   const [page, setPage] = useState<PageId>("home");
   const [revealShortcuts, setRevealShortcuts] = useState(0);
+  const [revealExperimental, setRevealExperimental] = useState(0);
 
   useTauriEvent<string>(EVENTS.navigate, (section) => {
     if (section === "shortcuts") {
@@ -18,6 +19,9 @@ export function App() {
       setRevealShortcuts((count) => count + 1);
     } else if (section === "settings") {
       setPage("settings");
+    } else if (section === "experimental") {
+      setPage("settings");
+      setRevealExperimental((count) => count + 1);
     }
   });
 
@@ -25,13 +29,23 @@ export function App() {
     <div className="shell">
       <Sidebar page={page} onSelect={setPage} />
       <main className="content">
-        <CurrentPage page={page} revealShortcuts={revealShortcuts} />
+        <CurrentPage
+          page={page}
+          revealShortcuts={revealShortcuts}
+          revealExperimental={revealExperimental}
+        />
       </main>
     </div>
   );
 }
 
-function CurrentPage({ page, revealShortcuts }: { page: PageId; revealShortcuts: number }) {
+interface CurrentPageProps {
+  page: PageId;
+  revealShortcuts: number;
+  revealExperimental: number;
+}
+
+function CurrentPage({ page, revealShortcuts, revealExperimental }: CurrentPageProps) {
   switch (page) {
     case "home":
       return <HomePage revealShortcuts={revealShortcuts} />;
@@ -42,6 +56,6 @@ function CurrentPage({ page, revealShortcuts }: { page: PageId; revealShortcuts:
     case "style":
       return <StylePage />;
     case "settings":
-      return <SettingsPage />;
+      return <SettingsPage revealExperimental={revealExperimental} />;
   }
 }

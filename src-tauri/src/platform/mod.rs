@@ -52,6 +52,8 @@ pub enum InsertOutcome {
 pub enum CopyReason {
     NoTextField,
     AccessibilityMissing,
+    /// The selection or app changed before Command Mode could replace it.
+    TargetChanged,
 }
 
 /// Text to paste: plain always, HTML too when it has lists or formatting.
@@ -292,6 +294,11 @@ pub trait CuePlayer: Send + Sync {
     fn play(&self, cue: Cue);
 }
 
+/// Opens URLs in the default browser (CMD-05 web searches).
+pub trait Launcher: Send + Sync {
+    fn open_url(&self, url: &str) -> Result<(), PlatformError>;
+}
+
 /// The OS services the app uses, built once at startup.
 pub struct Platform {
     pub hotkeys: Box<dyn HotkeyBackend>,
@@ -299,6 +306,7 @@ pub struct Platform {
     pub focus: Arc<dyn FocusInspector>,
     pub permissions: Arc<dyn Permissions>,
     pub sounds: Arc<dyn CuePlayer>,
+    pub launcher: Arc<dyn Launcher>,
     pub default_bindings: Vec<Binding>,
     /// Formats a binding for display, e.g. "fn Space" or "⌃⌘V".
     pub label: fn(&handy_keys::Hotkey) -> String,

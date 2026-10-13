@@ -102,16 +102,19 @@ edit/                   AI edit pipeline                                        
   library.rs            Library: the dictionary and snippets a dictation reads         (built)
   context_format.rs     casing and spacing from the text around the cursor (FMT-11)    (built)
   names.rs              respells names the way the screen shows them (CTX-02)          (built)
-  command.rs            Command Mode and Transforms                                    (P3)
+  command.rs            Command Mode prompt, tagged reply parsing (CMD-01..03)         (built)
 dictation/              orchestration                                                  (built)
   controller.rs         the dictation actor (state machine below)                      (built)
   gestures.rs           hold / double-tap / short-tap / busy recognition, pure         (built)
-  pipeline.rs           trim, transcribe, insert                                       (built)
+  pipeline.rs           trim, transcribe, insert, press Enter                          (built)
+  command.rs            a Command Mode session: target, search, replace, answer        (built)
+  bindings.rs           the shortcuts bound at each moment                             (built)
+  outcomes.rs           notices and paste-last memory per outcome                      (built)
   state.rs              DictationState, DictationUi, Timing, inputs, outcomes          (built)
 hotkeys/                bindings, platform independent                                 (built)
-  binding.rs            Action, Binding, macOS defaults and labels                     (built)
+  binding.rs            Action, Binding (with pass-through), macOS defaults, labels    (built)
   matcher.rs            raw key events to shortcut press/release                       (built)
-  validation.rs         shortcut rules and error texts (KEYS-03..05)                   (P4)
+  validation.rs         rules for recorded shortcuts (part of KEYS-03, KEYS-05)        (built)
 platform/               OS integration behind traits (next section)                    (built)
   mod.rs                traits + Platform bundle + GlobeKeyAction
   macos/                hotkeys, insert, pasteboard, keymap, focus, context, ax,
@@ -170,9 +173,10 @@ Built so far:
 | Kind     | Names                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
 | -------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Commands | `app_info`, `get_dictation_state`, `flow_bar_control`, `flow_bar_ready`, `flow_bar_layout`, `run_notice_action`, `get_shortcuts`, `get_models`, `download_default_model`, `get_permissions`, `open_permission_settings`                                                                                                                                                                                                                                                                  |
+| Phase 3  | `set_shortcut` (validates a recorded shortcut against every other one)                                                                                                                                                                                                                                                                                                                                                                                                                   |
 | Phase 2  | `get_settings`, `update_settings`, `get_ai_options`, `get_api_keys`, `set_api_key`, `delete_api_key`, `list_ollama_models`, `test_ai_provider`; dictionary and snippet CRUD and imports (`list_dictionary`, `add_dictionary_entry`, `update_dictionary_entry`, `set_dictionary_pinned`, `delete_dictionary_entries`, `preview_dictionary_import`, `import_dictionary`, `list_snippets`, `add_snippet`, `update_snippet`, `delete_snippets`, `preview_snippet_import`, `import_snippets`) |
 | Dev only | `dev_get_audio_source`, `dev_set_audio_source`, `dev_set_app_category`, `dev_edit_text`, `dev_read_context` (debug builds; see DEVELOPMENT.md)                                                                                                                                                                                                                                                                                                                                           |
-| Events   | `dictation://state`, `dictation://level` (Flow Bar only), `notify://notice`, `models://status`, `app://navigate`, `settings://changed`                                                                                                                                                                                                                                                                                                                                                   |
+| Events   | `dictation://state`, `dictation://level` (Flow Bar only), `notify://notice`, `command://answer` (Flow Bar only), `models://status`, `app://navigate`, `settings://changed`                                                                                                                                                                                                                                                                                                               |
 
 The Flow Bar calls `flow_bar_ready` once its notice listener is registered; notices raised
 before that (for example a missing permission at startup) are queued and delivered then. It
@@ -211,19 +215,21 @@ so transparent margins never sit over other apps.
                            └─ state → Idle                          ─ history://added ─▶ Home
 ```
 
-### Controller state machine (P1)
+### Controller state machine
 
 ```text
 Idle ── press PTT ─────────────▶ Recording(Hold)
 Idle ── press Hands-free ──────▶ Recording(Locked)
-Idle ── press Command Mode ────▶ Recording(Hold, Command)                       (P3)
+Idle ── press Command Mode ────▶ Recording(Hold, Command)      (off: "Command mode is toggled off")
+Recording(Hold) ── Ctrl joins Fn ──▶ Recording(Hold, Command)
 Recording(Hold) ── release < 0.5 s ──▶ AwaitSecondTap ── 2nd press ≤ 0.5 s ──▶ Recording(Locked)
                                               └── timeout ──▶ Idle (tip, CORE-03)
 Recording(Hold) ── release ──────▶ Processing
 Recording(Locked) ── press PTT / Hands-free / Flow Bar ■ ──▶ Processing
-Recording(*) ── Cancel (Esc) / Flow Bar ✕ ──▶ Idle (audio kept for Undo, CORE-11)
+Recording(*) ── Cancel (Esc; Backspace too for commands) / Flow Bar ✕ ──▶ Idle
 Recording(*) ── 20 min ──────────▶ Processing (warning at 19 min, CORE-08)
 Processing = Transcribing → Editing → Inserting → Idle
+Processing(Command) = Transcribing → reading the selection → search, or LLM → replace / answer
 Processing ── any dictation shortcut ──▶ rejected, "Transcript currently processing" (CORE-07)
 ```
 
@@ -243,7 +249,13 @@ Notes:
 - Esc stays bound (swallowed) until its key-up, so neither half of the press reaches the app.
 - A WAV source that runs out finishes the dictation as if the shortcut had been released.
 - If Ctrl joins a held Fn, the session is upgraded from dictation to Command Mode in place
-  **(P3)**.
+  (`Command::Upgrade`): recording goes on, and the selection is read for the command.
+  Command Mode follows push to talk's gestures with its own shortcut: hold, double press
+  to lock, a third quick press or a release before listening starts cancels (CMD-04).
+- The Press Enter shortcut (unbound by default, CORE-15) is not a gesture: each press
+  sends Enter, with any extra Shift, Control, Option or Command passed through. Its
+  binding is a pass-through binding: the matcher accepts extra modifiers and the hook
+  swallows every such combination.
 - Context capture runs in parallel with recording and is dropped if it is not ready when
   editing starts (CTX-01: never delay dictation).
 - The controller is a single task that owns all session state and receives `HotkeyEvent`s,
@@ -298,6 +310,11 @@ pub trait TextInserter: Send + Sync {
     fn press(&self, key: SyntheticKey, extra: Modifiers) -> Result<(), PlatformError>;
     /// Copies the selection with the copy shortcut, restoring the clipboard (CMD-02).
     fn copy_selection(&self) -> Result<Option<String>, PlatformError>;
+}
+
+/// Opens URLs in the default browser (Command Mode searches).
+pub trait Launcher: Send + Sync {
+    fn open_url(&self, url: &str) -> Result<(), PlatformError>;
 }
 
 /// The app a dictation is for: bundle ID (macOS) or executable name (Windows), and name.
@@ -596,8 +613,39 @@ settings, the dictionary and snippets (`Library`, read from SQLite per dictation
    expansions, so dictated `snake_case` stays literal. Dictionary terms found in the final
    text count as uses (DIC-04).
 
-Command Mode and Transforms (`edit/command.rs`, P3) send the instruction and the selection
-(or the field text) and paste the model's output verbatim, replacing the selection.
+### Command Mode
+
+Off until turned on in Settings › Experimental, with a one-time intro (CMD-06). A session
+(`dictation/command.rs`) runs after recording:
+
+1. **Instruction.** The recording is transcribed like a dictation (dictionary vocabulary,
+   cloud fallback) but not edited.
+2. **Target.** The selection and the field's text are read through Accessibility when the
+   session starts (`capture_for_command`: no window scan, fields up to 40,000 characters)
+   and awaited for up to 1 s. If Accessibility can't say what is selected, the selection
+   is copied with Cmd+C and the clipboard put back (CMD-02). Secure fields and remote
+   desktops are never read or copied.
+3. **Search.** An instruction that starts with "search", "search for", "look up" or
+   "google" opens `perplexity.ai/search` in the default browser with the selection
+   appended (CMD-05; Wispr Flow uses Perplexity too). `Launcher::open_url` opens it.
+4. **Model.** `Editor::command` (`edit/command.rs`) sends the instruction in
+   `<instruction>` tags and the selection (`<selected_text>`) or field text (`<document>`)
+   as data, with tags inside defused; the system prompt says only the instruction is
+   followed and asks for `<edit>new text</edit>` or `<answer>reply</answer>`. Untagged
+   output counts as an answer, so it never replaces text. At most 3,000 words.
+5. **Result.** An edit replaces the selection, or the whole field (selected through
+   `FocusInspector::select_range`, else Cmd+A) when nothing was selected; it is pasted
+   verbatim, without dictation formatting, as one undo step, and the clipboard is
+   restored. In an empty field an edit or an answer is pasted. Otherwise an answer, or
+   any result with no text field, appears in the Flow Bar's answer panel with Copy
+   (CMD-03) and becomes the last transcript. Before replacing a selection read through
+   Accessibility, it is read again: if the app or the selected text changed, the result
+   stays on the clipboard with a notice, so the user's text is never lost. A failed
+   model call changes nothing.
+
+The "press enter" voice command (Settings › Experimental, CORE-16) strips a final "press
+enter" from the transcript before the edit and presses Enter 120 ms after a successful
+paste; "press enter" alone just presses Enter.
 
 ## Context awareness
 
@@ -723,7 +771,11 @@ the next one.
 
 Built sections: `stt` (engine, OpenAI and Groq models), `ai` (provider, cleanup level,
 model per provider, Ollama model and address), `styles` (one per category, Formal by
-default) and `privacy` (`contextAwareness`, on by default). Later phases add shortcuts, microphone, languages, sounds, media, flowBar,
+default), `privacy` (`contextAwareness`, on by default), `experimental` (`commandMode`,
+`commandModeIntroSeen`, `pressEnterCommand`), `shortcuts` (`pressEnter`, set through
+`set_shortcut`) and `notices` (how often one-off notices were shown). Every change is
+announced to listeners: the webview's `settings://changed` and the controller, which
+rebinds shortcuts. Later phases add shortcuts, microphone, languages, sounds, media, flowBar,
 privacy, system, notifications, experimental, vibeCoding and onboarding.
 
 ### Secrets (built)

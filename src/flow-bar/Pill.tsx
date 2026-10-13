@@ -23,7 +23,11 @@ export function Pill({ state, levels, error }: PillProps) {
       );
     case "recording":
       return (
-        <div className="pill pill-recording" role="group" aria-label="Recording">
+        <div
+          className={state.command ? "pill pill-recording pill-command" : "pill pill-recording"}
+          role="group"
+          aria-label={state.command ? "Command Mode" : "Recording"}
+        >
           <ControlButton label="Cancel" onClick={send("cancel")}>
             <path d="M4 4l8 8M12 4l-8 8" />
           </ControlButton>

@@ -1,6 +1,8 @@
 //! Turns shortcut presses and Flow Bar clicks into dictation commands: hold to
 //! talk, double-tap or Fn+Space to lock hands-free, the short-tap guard and the
-//! busy guard. Pure and clock-free (callers pass `now`), so it is unit-tested.
+//! busy guard. Command Mode follows the same gestures with its own shortcut,
+//! and Ctrl joining a held Fn turns a dictation into a command. Pure and
+//! clock-free (callers pass `now`), so it is unit-tested.
 
 use std::time::{Duration, Instant};
 
@@ -51,6 +53,8 @@ pub enum Command {
     Start(RecordingMode),
     /// Switch the running recording to hands-free.
     Lock,
+    /// The running dictation becomes a Command Mode session (Ctrl joined Fn).
+    Upgrade,
     /// Stop recording, then transcribe and insert.
     Finish,
     Cancel(CancelReason),
@@ -93,6 +97,8 @@ pub struct Gestures {
     phase: Phase,
     push_to_talk_down: bool,
     next_token: u64,
+    /// The session is a Command Mode session (CMD-01).
+    command: bool,
 }
 
 impl Default for Gestures {
@@ -101,6 +107,7 @@ impl Default for Gestures {
             phase: Phase::Idle,
             push_to_talk_down: false,
             next_token: 0,
+            command: false,
         }
     }
 }
@@ -112,6 +119,11 @@ impl Gestures {
 
     pub fn is_busy(&self) -> bool {
         matches!(self.phase, Phase::Busy { .. })
+    }
+
+    /// The current (or last) session is Command Mode.
+    pub fn is_command(&self) -> bool {
+        self.command
     }
 
     pub fn mode(&self) -> Option<RecordingMode> {
@@ -154,43 +166,59 @@ impl Gestures {
     }
 
     fn next(&mut self, input: Input, now: Instant) -> (Phase, Option<Command>) {
-        use Action::{CopyLast, HandsFree, PasteLast, PushToTalk};
+        use Action::{CommandMode, CopyLast, HandsFree, PasteLast, PushToTalk};
         use Input::{Bar, Press, Release, TapTimeout};
 
         let busy = Phase::Busy { chord: false };
         let idle = Phase::Idle;
         let cancel = Some(Command::Cancel(CancelReason::User));
         let finish = Some(Command::Finish);
+        let command = self.command;
 
         match (self.phase, input) {
-            (Phase::Idle, Press(PushToTalk)) => (
-                Phase::Holding { pressed_at: now },
-                Some(Command::Start(RecordingMode::Hold)),
-            ),
-            (Phase::Idle, Press(HandsFree)) => (
-                self.locked(now, false, false),
-                Some(Command::Start(RecordingMode::Locked)),
-            ),
-            (Phase::Idle, Bar(BarControl::Start)) => (
-                self.locked(now, false, true),
-                Some(Command::Start(RecordingMode::Locked)),
-            ),
+            (Phase::Idle, Press(CommandMode)) => {
+                self.command = true;
+                (
+                    Phase::Holding { pressed_at: now },
+                    Some(Command::Start(RecordingMode::Hold)),
+                )
+            }
+            (Phase::Idle, Press(PushToTalk)) => {
+                self.command = false;
+                (
+                    Phase::Holding { pressed_at: now },
+                    Some(Command::Start(RecordingMode::Hold)),
+                )
+            }
+            (Phase::Idle, Press(HandsFree)) => {
+                self.command = false;
+                (
+                    self.locked(now, false, false),
+                    Some(Command::Start(RecordingMode::Locked)),
+                )
+            }
+            (Phase::Idle, Bar(BarControl::Start)) => {
+                self.command = false;
+                (
+                    self.locked(now, false, true),
+                    Some(Command::Start(RecordingMode::Locked)),
+                )
+            }
+            (Phase::Holding { .. }, Press(CommandMode)) if !command => {
+                self.command = true;
+                (self.phase, Some(Command::Upgrade))
+            }
+            (Phase::Holding { pressed_at }, Release(CommandMode)) if command => {
+                self.release_hold(pressed_at, now)
+            }
+            (Phase::AwaitingSecondTap { .. }, Press(CommandMode)) if command => {
+                (self.locked(now, true, false), Some(Command::Lock))
+            }
             (Phase::Idle, Press(PasteLast)) => (idle, Some(Command::PasteLast)),
             (Phase::Idle, Press(CopyLast)) => (idle, Some(Command::CopyLast)),
 
             (Phase::Holding { pressed_at }, Release(PushToTalk)) => {
-                if now.duration_since(pressed_at) < TAP_WINDOW {
-                    let token = self.take_token();
-                    (
-                        Phase::AwaitingSecondTap { token },
-                        Some(Command::ArmTapTimeout {
-                            token,
-                            after: TAP_WINDOW,
-                        }),
-                    )
-                } else {
-                    (busy, finish)
-                }
+                self.release_hold(pressed_at, now)
             }
             (Phase::AwaitingSecondTap { .. }, Press(PushToTalk)) => {
                 (self.locked(now, true, false), Some(Command::Lock))
@@ -209,7 +237,15 @@ impl Gestures {
                     ..
                 },
                 Press(PushToTalk),
-            ) => {
+            )
+            | (
+                Phase::Locked {
+                    since,
+                    by_double_tap,
+                    ..
+                },
+                Press(CommandMode),
+            ) if command || input == Press(PushToTalk) => {
                 if by_double_tap && now.duration_since(since) < TAP_WINDOW {
                     (idle, cancel)
                 } else {
@@ -240,10 +276,28 @@ impl Gestures {
             }
             (
                 Phase::Busy { .. },
-                Press(PushToTalk | HandsFree | PasteLast | CopyLast) | Bar(BarControl::Start),
+                Press(PushToTalk | HandsFree | PasteLast | CopyLast | CommandMode)
+                | Bar(BarControl::Start),
             ) => (busy, Some(Command::RejectBusy)),
 
             (phase, _) => (phase, None),
+        }
+    }
+
+    /// Releasing a held shortcut: a short press waits for a second tap,
+    /// a longer one finishes.
+    fn release_hold(&mut self, pressed_at: Instant, now: Instant) -> (Phase, Option<Command>) {
+        if now.duration_since(pressed_at) < TAP_WINDOW {
+            let token = self.take_token();
+            (
+                Phase::AwaitingSecondTap { token },
+                Some(Command::ArmTapTimeout {
+                    token,
+                    after: TAP_WINDOW,
+                }),
+            )
+        } else {
+            (Phase::Busy { chord: false }, Some(Command::Finish))
         }
     }
 
@@ -266,6 +320,7 @@ mod tests {
     use super::*;
 
     const PTT: Action = Action::PushToTalk;
+    const CMD: Action = Action::CommandMode;
 
     struct Script {
         gestures: Gestures,
@@ -284,6 +339,75 @@ mod tests {
             let now = self.start + Duration::from_millis(ms);
             self.gestures.handle(input, now)
         }
+    }
+
+    #[test]
+    fn command_mode_holds_like_push_to_talk() {
+        let mut s = Script::new();
+        assert_eq!(
+            s.at(0, Input::Press(CMD)),
+            Some(Command::Start(RecordingMode::Hold))
+        );
+        assert!(s.gestures.is_command());
+        assert_eq!(s.at(1_000, Input::Release(CMD)), Some(Command::Finish));
+        assert_eq!(s.at(1_100, Input::Press(CMD)), Some(Command::RejectBusy));
+    }
+
+    #[test]
+    fn ctrl_joining_a_held_fn_upgrades_the_dictation() {
+        let mut s = Script::new();
+        s.at(0, Input::Press(PTT));
+        assert!(!s.gestures.is_command());
+        assert_eq!(s.at(150, Input::Press(CMD)), Some(Command::Upgrade));
+        assert!(s.gestures.is_command());
+        assert_eq!(s.at(1_500, Input::Release(CMD)), Some(Command::Finish));
+        assert_eq!(s.at(1_550, Input::Release(PTT)), None);
+    }
+
+    #[test]
+    fn command_mode_double_press_locks_and_a_quick_release_cancels() {
+        let mut s = Script::new();
+        s.at(0, Input::Press(CMD));
+        let Some(Command::ArmTapTimeout { token, .. }) = s.at(150, Input::Release(CMD)) else {
+            panic!("expected a tap timeout");
+        };
+        assert_eq!(s.at(300, Input::Press(CMD)), Some(Command::Lock));
+        assert_eq!(s.at(650, Input::TapTimeout(token)), None);
+        assert_eq!(s.at(5_000, Input::Press(CMD)), Some(Command::Finish));
+
+        let mut s = Script::new();
+        s.at(0, Input::Press(CMD));
+        let Some(Command::ArmTapTimeout { token, .. }) = s.at(150, Input::Release(CMD)) else {
+            panic!("expected a tap timeout");
+        };
+        assert_eq!(
+            s.at(700, Input::TapTimeout(token)),
+            Some(Command::Cancel(CancelReason::ShortTap)),
+            "released before listening started"
+        );
+        assert!(s.gestures.is_command());
+    }
+
+    #[test]
+    fn a_third_quick_command_press_cancels_the_lock() {
+        let mut s = Script::new();
+        s.at(0, Input::Press(CMD));
+        s.at(100, Input::Release(CMD));
+        assert_eq!(s.at(200, Input::Press(CMD)), Some(Command::Lock));
+        assert_eq!(
+            s.at(350, Input::Press(CMD)),
+            Some(Command::Cancel(CancelReason::User))
+        );
+    }
+
+    #[test]
+    fn push_to_talk_after_a_command_is_a_dictation() {
+        let mut s = Script::new();
+        s.at(0, Input::Press(CMD));
+        s.at(900, Input::Release(CMD));
+        s.gestures.reset();
+        s.at(2_000, Input::Press(PTT));
+        assert!(!s.gestures.is_command());
     }
 
     #[test]

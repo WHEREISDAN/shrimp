@@ -7,7 +7,7 @@
 pub const SNIPPET_START: char = '\u{e000}';
 pub const SNIPPET_END: char = '\u{e001}';
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct Rendered {
     pub plain: String,
     pub html: Option<String>,

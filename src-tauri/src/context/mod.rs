@@ -11,7 +11,7 @@ pub mod web;
 pub mod words;
 
 pub use apps::AppKind;
-pub use capture::{PendingContext, capture};
+pub use capture::{PendingContext, capture, capture_for_command};
 
 use crate::edit::{Target, style};
 use crate::platform::{AppIdentity, Editable, FieldContext, FieldKind};

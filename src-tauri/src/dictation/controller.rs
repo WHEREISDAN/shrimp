@@ -7,7 +7,12 @@ use std::time::{Duration, Instant};
 use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender, unbounded_channel};
 use tokio::time::MissedTickBehavior;
 
+use handy_keys::Modifiers;
+
+use super::bindings::{self, Moment};
+use super::command::CommandRunner;
 use super::gestures::{BarControl, CancelReason, Command, Gestures, Input, RecordingMode};
+use super::outcomes;
 use super::pipeline::Pipeline;
 use super::state::{
     ControllerInput, DictationState, DictationUi, LastDictation, LastStatus, Outcome, Processed,
@@ -19,22 +24,30 @@ use crate::edit::Editor;
 use crate::hotkeys::{Action, Binding};
 use crate::notify::{Notice, NoticeAction};
 use crate::platform::{
-    CopyReason, CuePlayer, FocusInspector, HotkeyBackend, Permission, PermissionStatus,
-    Permissions, PlatformError, TextInserter,
+    CuePlayer, FocusInspector, HotkeyBackend, Launcher, Permission, PermissionStatus, Permissions,
+    PlatformError, SyntheticKey, TextInserter,
 };
+use crate::settings::SettingsStore;
 use crate::sounds::Cue;
 use crate::stt::SttEngine;
+
+/// "Command mode is toggled off" shows at most this often (CMD-06).
+const COMMAND_OFF_NOTICES: u32 = 3;
+const SECONDS_PER_DAY: u64 = 86_400;
 
 /// Everything the controller needs, injected so tests can use fakes.
 pub struct Services {
     pub hotkeys: Box<dyn HotkeyBackend>,
     pub bindings: Vec<Binding>,
-    /// Display name of the push-to-talk shortcut, for the short-tap tip.
+    /// Display names of the push-to-talk and Command Mode shortcuts, for tips.
     pub push_to_talk_label: String,
+    pub command_mode_label: String,
     pub inserter: Arc<dyn TextInserter>,
     pub focus: Arc<dyn FocusInspector>,
     pub permissions: Arc<dyn Permissions>,
     pub sounds: Arc<dyn CuePlayer>,
+    pub launcher: Arc<dyn Launcher>,
+    pub settings: Arc<SettingsStore>,
     /// The engine the settings choose.
     pub engine: Arc<dyn SttEngine>,
     /// Local Whisper, for when a cloud engine fails.
@@ -107,10 +120,13 @@ struct Controller {
     hotkeys: Box<dyn HotkeyBackend>,
     bindings: Vec<Binding>,
     push_to_talk_label: String,
+    command_mode_label: String,
     inserter: Arc<dyn TextInserter>,
     focus: Arc<dyn FocusInspector>,
     permissions: Arc<dyn Permissions>,
     sounds: Arc<dyn CuePlayer>,
+    launcher: Arc<dyn Launcher>,
+    settings: Arc<SettingsStore>,
     ui: Arc<dyn DictationUi>,
     pipeline: Pipeline,
     timing: Timing,
@@ -148,10 +164,13 @@ impl Controller {
             hotkeys: services.hotkeys,
             bindings: services.bindings,
             push_to_talk_label: services.push_to_talk_label,
+            command_mode_label: services.command_mode_label,
             inserter: services.inserter,
             focus: services.focus,
             permissions: services.permissions,
             sounds: services.sounds,
+            launcher: services.launcher,
+            settings: services.settings,
             ui: services.ui,
             pipeline,
             timing: services.timing,
@@ -189,17 +208,26 @@ impl Controller {
         match input {
             ControllerInput::Shortcut(event) if event.pressed => {
                 self.cancel_held |= event.action == Action::Cancel;
-                self.gesture(Input::Press(event.action));
+                match event.action {
+                    Action::PressEnter => self.press_enter(event.extra),
+                    Action::CommandMode if !self.settings.get().experimental.command_mode => {
+                        self.command_mode_off();
+                    }
+                    action => self.gesture(Input::Press(action)),
+                }
             }
             ControllerInput::Shortcut(event) => {
                 if event.action == Action::Cancel {
                     self.cancel_held = false;
                     if self.recording.is_none() {
-                        self.bind_cancel(false);
+                        self.refresh_bindings();
                     }
                 }
-                self.gesture(Input::Release(event.action));
+                if event.action != Action::PressEnter {
+                    self.gesture(Input::Release(event.action));
+                }
             }
+            ControllerInput::SettingsChanged => self.refresh_bindings(),
             ControllerInput::Bar(control) => self.gesture(Input::Bar(control)),
             ControllerInput::Menu(action) => {
                 self.paste_delay = self.timing.menu_paste_delay;
@@ -247,8 +275,10 @@ impl Controller {
                 self.sounds.play(Cue::Lock);
                 self.set_state(DictationState::Recording {
                     mode: RecordingMode::Locked.into(),
+                    command: self.gestures.is_command(),
                 });
             }
+            Command::Upgrade => self.upgrade(),
             Command::Finish => self.finish(),
             Command::Cancel(reason) => self.cancel(reason),
             Command::ArmTapTimeout { token, after } => {
@@ -275,10 +305,20 @@ impl Controller {
                 self.sessions += 1;
                 let session = self.sessions;
                 let app = self.focus.frontmost_app();
+                let command = self.gestures.is_command();
                 if let Some(app) = &app {
-                    log::info!("recording for {}", app.bundle_id);
+                    log::info!(
+                        "recording {} for {}",
+                        if command { "a command" } else { "a dictation" },
+                        app.bundle_id
+                    );
                 }
-                let context = context::capture(Arc::clone(&self.focus), app);
+                let focus = Arc::clone(&self.focus);
+                let context = if command {
+                    context::capture_for_command(focus, app)
+                } else {
+                    context::capture(focus, app)
+                };
                 self.recording = Some(Recording {
                     recorder,
                     session,
@@ -287,7 +327,7 @@ impl Controller {
                 self.sounds.play(Cue::Start);
                 let editor = Arc::clone(&self.pipeline.editor);
                 tauri::async_runtime::spawn(async move { editor.warm_up().await });
-                self.bind_cancel(true);
+                self.refresh_bindings();
                 self.send_after(
                     self.timing.session_warning,
                     ControllerInput::SessionWarning(session),
@@ -296,7 +336,10 @@ impl Controller {
                     self.timing.session_limit,
                     ControllerInput::SessionLimit(session),
                 );
-                self.set_state(DictationState::Recording { mode: mode.into() });
+                self.set_state(DictationState::Recording {
+                    mode: mode.into(),
+                    command,
+                });
             }
             Err(error) => {
                 log::warn!("could not start recording from {spec}: {error}");
@@ -333,24 +376,48 @@ impl Controller {
         }
     }
 
+    /// Ctrl joined a held Fn: the dictation becomes a command, which reads
+    /// the selection instead of the text around the cursor.
+    fn upgrade(&mut self) {
+        let Some(recording) = self.recording.as_mut() else {
+            return;
+        };
+        let app = recording.context.app().cloned();
+        recording.context = context::capture_for_command(Arc::clone(&self.focus), app);
+        let mode = self.gestures.mode().unwrap_or(RecordingMode::Hold);
+        self.set_state(DictationState::Recording {
+            mode: mode.into(),
+            command: true,
+        });
+        self.refresh_bindings();
+    }
+
     fn finish(&mut self) {
         let Some(recording) = self.recording.take() else {
             return;
         };
-        self.bind_cancel(false);
+        self.refresh_bindings();
         self.sounds.play(Cue::Stop);
         self.set_state(DictationState::Processing);
         let pipeline = self.pipeline.clone();
+        let runner = self.gestures.is_command().then(|| CommandRunner {
+            pipeline: self.pipeline.clone(),
+            focus: Arc::clone(&self.focus),
+            launcher: Arc::clone(&self.launcher),
+        });
         let tx = self.tx.clone();
         tauri::async_runtime::spawn(async move {
             let context = recording.context;
             let clip = tokio::task::spawn_blocking(move || recording.recorder.finish()).await;
             let processed = match clip {
-                Ok(Ok(clip)) => {
-                    pipeline
-                        .transcribe_and_insert(clip, context, Duration::ZERO)
-                        .await
-                }
+                Ok(Ok(clip)) => match &runner {
+                    Some(runner) => runner.run(clip, context).await,
+                    None => {
+                        pipeline
+                            .transcribe_and_insert(clip, context, Duration::ZERO)
+                            .await
+                    }
+                },
                 Ok(Err(error)) => Outcome::RecordingFailed(error.to_string()).into(),
                 Err(error) => Outcome::RecordingFailed(error.to_string()).into(),
             };
@@ -362,18 +429,30 @@ impl Controller {
         let Some(recording) = self.recording.take() else {
             return;
         };
-        self.bind_cancel(false);
+        self.refresh_bindings();
         self.set_state(DictationState::Idle);
+        let command = self.gestures.is_command();
         match reason {
             CancelReason::User => {
                 self.sounds.play(Cue::Cancel);
-                self.ui.notice(Notice::info("Dictation cancelled"));
+                self.ui.notice(Notice::info(if command {
+                    "Command cancelled"
+                } else {
+                    "Dictation cancelled"
+                }));
                 let tx = self.tx.clone();
                 tauri::async_runtime::spawn_blocking(move || {
                     if let Ok(clip) = recording.recorder.finish() {
                         let _ = tx.send(ControllerInput::Cancelled(clip));
                     }
                 });
+            }
+            CancelReason::ShortTap if command => {
+                drop(recording);
+                self.ui.notice(Notice::info(format!(
+                    "Hold {} while you speak a command, or double-press it for hands-free.",
+                    self.command_mode_label
+                )));
             }
             CancelReason::ShortTap => {
                 drop(recording);
@@ -434,51 +513,51 @@ impl Controller {
         for notice in processed.notices {
             self.ui.notice(notice);
         }
-        let outcome = processed.outcome;
-        let remember = |status, text, clip| Some(LastDictation { status, text, clip });
-        match outcome {
-            Outcome::Inserted(text) => {
-                self.last = remember(LastStatus::Inserted, Some(text), None);
-            }
-            Outcome::Copied(text, reason) => {
-                self.last = remember(LastStatus::Copied, Some(text), None);
-                self.ui.notice(match reason {
-                    CopyReason::NoTextField => Notice::warning(
-                        "No text field is focused. Your transcript is on the clipboard.",
-                    )
-                    .with_action(NoticeAction::CopyLastTranscript),
-                    CopyReason::AccessibilityMissing => Notice::error(
-                        "Shrimp needs Accessibility to paste. Your transcript is on the clipboard.",
-                    )
-                    .with_action(NoticeAction::OpenAccessibilitySettings),
-                });
-            }
-            Outcome::NoSpeech => self.ui.notice(Notice::info("No speech detected")),
-            Outcome::NothingToInsert => self.ui.notice(Notice::info("Nothing to insert")),
-            Outcome::RecordingFailed(message) => {
-                self.ui
-                    .notice(Notice::error(format!("Recording failed: {message}")));
-            }
-            Outcome::SttFailed {
-                clip,
-                message,
-                unavailable,
-            } => {
-                self.last = remember(LastStatus::Failed, None, Some(clip));
-                self.ui.notice(if unavailable {
-                    Notice::warning(message)
-                } else {
-                    Notice::error(format!("Couldn't transcribe: {message}"))
-                });
-            }
-            Outcome::InsertFailed(text, message) => {
-                self.last = remember(LastStatus::Failed, Some(text), None);
-                self.ui.notice(
-                    Notice::error(format!("Couldn't paste: {message}"))
-                        .with_action(NoticeAction::CopyLastTranscript),
-                );
-            }
+        if let Some(last) = outcomes::report(processed.outcome, self.ui.as_ref()) {
+            self.last = Some(last);
         }
+    }
+
+    /// The Press Enter shortcut (CORE-15); extra modifiers pass through.
+    fn press_enter(&self, extra: Modifiers) {
+        let inserter = Arc::clone(&self.inserter);
+        let ui = Arc::clone(&self.ui);
+        tauri::async_runtime::spawn_blocking(move || {
+            if let Err(error) = inserter.press(SyntheticKey::Enter, extra) {
+                ui.notice(Notice::error(format!("Couldn't press Enter: {error}")));
+            }
+        });
+    }
+
+    /// The Command Mode shortcut while it is off (CMD-06): a notice with a
+    /// way to the setting, at most once a day and three times in all.
+    fn command_mode_off(&self) {
+        if self.recording.is_some() || self.gestures.is_busy() {
+            return;
+        }
+        let settings = self.settings.get();
+        let today = (std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map_or(0, |elapsed| elapsed.as_secs())
+            / SECONDS_PER_DAY)
+            .to_string();
+        let notices = &settings.notices;
+        if notices.command_mode_off_count >= COMMAND_OFF_NOTICES
+            || notices.command_mode_off_day == today
+        {
+            return;
+        }
+        let patch = serde_json::json!({"notices": {
+            "commandModeOffCount": notices.command_mode_off_count + 1,
+            "commandModeOffDay": today,
+        }});
+        if let Err(error) = self.settings.update(&patch) {
+            log::warn!("could not count the notice: {error}");
+        }
+        self.ui.notice(
+            Notice::info("Command mode is toggled off")
+                .with_action(NoticeAction::OpenExperimentalSettings),
+        );
     }
 
     fn poll_audio(&mut self) {
@@ -491,7 +570,7 @@ impl Controller {
                 log::warn!("recording failed: {error}");
                 self.recording = None;
                 self.gestures.reset();
-                self.bind_cancel(false);
+                self.refresh_bindings();
                 self.sounds.play(Cue::Cancel);
                 self.set_state(DictationState::Idle);
                 self.ui
@@ -509,7 +588,7 @@ impl Controller {
         if self.hotkeys_started {
             return;
         }
-        self.bind_cancel(self.recording.is_some());
+        self.refresh_bindings();
         let tx = self.tx.clone();
         let on_event = Box::new(move |event| {
             let _ = tx.send(ControllerInput::Shortcut(event));
@@ -540,16 +619,15 @@ impl Controller {
         }
     }
 
-    /// Esc is only swallowed while a dictation records (CORE-06), and until
-    /// its key-up, so no half of the press reaches the app.
-    fn bind_cancel(&mut self, bound: bool) {
-        let keep = bound || self.cancel_held;
-        let bindings: Vec<Binding> = self
-            .bindings
-            .iter()
-            .filter(|binding| keep || binding.action != Action::Cancel)
-            .copied()
-            .collect();
+    /// Esc (and Backspace in Command Mode) is only swallowed while a session
+    /// records (CORE-06, CMD-04), and until its key-up, so no half of the
+    /// press reaches the app. The user's own shortcuts come from the settings.
+    fn refresh_bindings(&mut self) {
+        let moment = Moment {
+            cancelable: self.recording.is_some() || self.cancel_held,
+            command: self.gestures.is_command(),
+        };
+        let bindings = bindings::active(&self.bindings, &self.settings.get(), moment);
         self.hotkeys.set_bindings(&bindings);
     }
 

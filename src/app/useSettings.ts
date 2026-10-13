@@ -14,6 +14,8 @@ export interface SettingsStore {
   error: string | null;
   /** Saves a patch and shows what the backend stored. */
   update: (patch: SettingsPatch) => Promise<void>;
+  /** Shows settings another command saved. */
+  apply: (settings: Settings) => void;
 }
 
 /** The saved settings, kept current when they change elsewhere. */
@@ -41,5 +43,5 @@ export function useSettings(): SettingsStore {
     }
   }, []);
 
-  return { settings, error, update };
+  return { settings, error, update, apply: setSettings };
 }

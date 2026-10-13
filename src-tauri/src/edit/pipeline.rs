@@ -68,6 +68,8 @@ pub struct Edited {
     pub formatted: bool,
     pub notice: Option<Notice>,
     pub llm_ms: Option<u64>,
+    /// The dictation ended with "press enter" (CORE-16).
+    pub press_enter: bool,
 }
 
 /// The words the cleanup prompt lists: dictionary spellings, snippet
@@ -108,6 +110,14 @@ impl Editor {
             timeout,
             missing_key_shown: Mutex::new(HashSet::new()),
         }
+    }
+
+    pub(super) fn settings(&self) -> Settings {
+        self.settings.get()
+    }
+
+    pub(super) fn llm(&self) -> &Arc<dyn LlmSource> {
+        &self.llm
     }
 
     /// Dictionary terms for the speech engine, pinned and most used first,
@@ -156,6 +166,34 @@ impl Editor {
 
     pub async fn edit(&self, raw: &str, context: &DictationContext) -> Edited {
         let settings = self.settings.get();
+        let suffix = settings
+            .experimental
+            .press_enter_command
+            .then(|| spoken::press_enter_suffix(raw))
+            .flatten();
+        let press_enter = suffix.is_some();
+        let raw = suffix.as_deref().unwrap_or(raw);
+        let mut edited = self.edit_text(raw, context, &settings).await;
+        edited.press_enter = press_enter;
+        edited
+    }
+
+    async fn edit_text(
+        &self,
+        raw: &str,
+        context: &DictationContext,
+        settings: &Settings,
+    ) -> Edited {
+        if raw.trim().is_empty() {
+            return Edited {
+                text: Rendered::default(),
+                formatted: true,
+                notice: None,
+                llm_ms: None,
+                press_enter: false,
+            };
+        }
+        let settings = settings.clone();
         let library = self.snapshot().await;
         let target = context.target();
         if let Some(snippet) = snippets::match_alone(raw, &library.snippets) {
@@ -167,6 +205,7 @@ impl Editor {
                 formatted: true,
                 notice: None,
                 llm_ms: None,
+                press_enter: false,
             };
         }
 
@@ -254,6 +293,7 @@ impl Editor {
             formatted: formatted && kept_placeholders,
             notice,
             llm_ms,
+            press_enter: false,
         }
     }
 

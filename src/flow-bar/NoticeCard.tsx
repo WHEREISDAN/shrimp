@@ -7,6 +7,7 @@ const ACTION_LABELS: Record<NoticeAction, string> = {
   openKeyboardSettings: "Open Settings",
   retryModelDownload: "Retry",
   openAiSettings: "Open Settings",
+  openExperimentalSettings: "Go to settings",
 };
 
 interface NoticeCardProps {

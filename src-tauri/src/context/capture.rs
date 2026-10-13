@@ -3,6 +3,7 @@
 //! dictation (CTX-01).
 
 use std::sync::Arc;
+use std::time::Duration;
 
 use tokio::sync::oneshot::{self, error::TryRecvError};
 
@@ -13,6 +14,8 @@ use crate::platform::{AppIdentity, ContextRequest, FieldContext, FocusInspector}
 const AROUND: usize = 1_000;
 /// The whole field is read up to this size (code for identifiers).
 const TEXT_LIMIT: usize = 20_000;
+/// Command Mode works on fields up to this size.
+const COMMAND_TEXT_LIMIT: usize = 40_000;
 
 enum State {
     Waiting(oneshot::Receiver<Option<FieldContext>>),
@@ -34,7 +37,7 @@ impl std::fmt::Debug for PendingContext {
     }
 }
 
-/// Starts reading the focused field of `app`.
+/// Starts reading the focused field of `app` for a dictation.
 pub fn capture(focus: Arc<dyn FocusInspector>, app: Option<AppIdentity>) -> PendingContext {
     let request = ContextRequest {
         around: AROUND,
@@ -42,6 +45,28 @@ pub fn capture(focus: Arc<dyn FocusInspector>, app: Option<AppIdentity>) -> Pend
         scan_window: true,
         find_url: apps::kind(app.as_ref()) == AppKind::Browser,
     };
+    start(focus, app, request)
+}
+
+/// Starts reading the selection and the field's text for Command Mode.
+pub fn capture_for_command(
+    focus: Arc<dyn FocusInspector>,
+    app: Option<AppIdentity>,
+) -> PendingContext {
+    let request = ContextRequest {
+        around: 0,
+        text_limit: COMMAND_TEXT_LIMIT,
+        scan_window: false,
+        find_url: false,
+    };
+    start(focus, app, request)
+}
+
+fn start(
+    focus: Arc<dyn FocusInspector>,
+    app: Option<AppIdentity>,
+    request: ContextRequest,
+) -> PendingContext {
     let (tx, rx) = oneshot::channel();
     tauri::async_runtime::spawn_blocking(move || {
         let _ = tx.send(focus.read_field(&request));
@@ -63,6 +88,21 @@ impl PendingContext {
 
     pub fn app(&self) -> Option<&AppIdentity> {
         self.app.as_ref()
+    }
+
+    /// Waits up to `timeout` for the read, for Command Mode, which needs it.
+    pub async fn settled(&mut self, timeout: Duration) -> DictationContext {
+        if let State::Waiting(rx) = &mut self.state {
+            self.state = match tokio::time::timeout(timeout, rx).await {
+                Ok(Ok(field)) => State::Done(field.map(Box::new)),
+                Ok(Err(_)) => State::Done(None),
+                Err(_) => {
+                    log::debug!("context not read in time");
+                    return DictationContext::new(self.app.clone(), None);
+                }
+            };
+        }
+        self.ready()
     }
 
     /// What has been read so far; never waits.

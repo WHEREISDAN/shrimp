@@ -10,7 +10,11 @@ fn hold_to_talk_records_transcribes_and_inserts() {
     let h = Harness::speech(5.0);
     h.shortcut(Action::PushToTalk, true);
     wait_until("recording", || {
-        h.fakes.last_state() == Some(DictationState::Recording { mode: Mode::Hold })
+        h.fakes.last_state()
+            == Some(DictationState::Recording {
+                mode: Mode::Hold,
+                command: false,
+            })
     });
     let bindings = h.fakes.bindings.lock().unwrap().clone();
     assert!(
@@ -59,7 +63,10 @@ fn double_tap_locks_hands_free_until_the_next_press() {
     std::thread::sleep(Duration::from_millis(900));
     assert_eq!(
         h.fakes.last_state(),
-        Some(DictationState::Recording { mode: Mode::Locked })
+        Some(DictationState::Recording {
+            mode: Mode::Locked,
+            command: false
+        })
     );
     h.hold(Action::PushToTalk, Duration::from_millis(50));
     wait_until("insertion", || h.fakes.inserted() == [TEXT]);
@@ -198,7 +205,11 @@ fn flow_bar_clicks_start_stop_and_cancel() {
     let h = Harness::speech(5.0);
     h.controller.bar(BarControl::Start);
     wait_until("hands-free recording", || {
-        h.fakes.last_state() == Some(DictationState::Recording { mode: Mode::Locked })
+        h.fakes.last_state()
+            == Some(DictationState::Recording {
+                mode: Mode::Locked,
+                command: false,
+            })
     });
     std::thread::sleep(Duration::from_millis(700));
     h.controller.bar(BarControl::Stop);

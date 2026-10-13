@@ -13,7 +13,11 @@ use crate::platform::{CopyReason, InsertText};
 #[serde(rename_all = "camelCase", tag = "phase")]
 pub enum DictationState {
     Idle,
-    Recording { mode: Mode },
+    /// `command` marks a Command Mode session (CMD-01).
+    Recording {
+        mode: Mode,
+        command: bool,
+    },
     Processing,
 }
 
@@ -39,6 +43,18 @@ pub trait DictationUi: Send + Sync {
     /// Input level in 0..=1, about 30 times a second while recording.
     fn level(&self, level: f32);
     fn notice(&self, notice: Notice);
+    /// A Command Mode answer, shown in a panel instead of pasted (CMD-03).
+    fn answer(&self, _answer: Answer) {}
+}
+
+/// A Command Mode answer for the Flow Bar's panel. Mirrors `Answer` in src/lib/ipc.ts.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Answer {
+    pub id: u64,
+    /// The spoken instruction.
+    pub question: String,
+    pub text: String,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -83,6 +99,8 @@ pub enum ControllerInput {
     SessionWarning(u64),
     SessionLimit(u64),
     RetryHotkeys,
+    /// Shortcuts in the settings may have changed.
+    SettingsChanged,
     /// A cancelled recording, kept so paste-last can transcribe it.
     Cancelled(AudioClip),
     Processed(Processed),
@@ -106,7 +124,7 @@ impl From<Outcome> for Processed {
 }
 
 /// The final text of a dictation.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct Delivered {
     pub text: InsertText,
     /// False when AI edits were off, skipped or failed (FMT-10).
@@ -129,6 +147,14 @@ pub enum Outcome {
         unavailable: bool,
     },
     InsertFailed(Delivered, String),
+    /// "Press enter" alone: Enter was pressed, nothing pasted (CORE-16).
+    EnterPressed,
+    /// A Command Mode answer to show (CMD-03).
+    Answered(Answer),
+    /// A Command Mode search opened in the browser (CMD-05).
+    Searched,
+    /// Command Mode could not run; nothing was changed.
+    CommandFailed(String),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -162,10 +188,14 @@ mod tests {
 
     #[test]
     fn state_serializes_with_a_phase_tag() {
-        let json = serde_json::to_value(DictationState::Recording { mode: Mode::Locked }).unwrap();
+        let json = serde_json::to_value(DictationState::Recording {
+            mode: Mode::Locked,
+            command: true,
+        })
+        .unwrap();
         assert_eq!(
             json,
-            serde_json::json!({"phase": "recording", "mode": "locked"})
+            serde_json::json!({"phase": "recording", "mode": "locked", "command": true})
         );
         let json = serde_json::to_value(DictationState::Processing).unwrap();
         assert_eq!(json, serde_json::json!({"phase": "processing"}));

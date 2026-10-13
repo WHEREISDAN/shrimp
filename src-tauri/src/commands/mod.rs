@@ -29,6 +29,7 @@ pub const NAMES: &[&str] = &[
     "open_permission_settings",
     "get_settings",
     "update_settings",
+    "set_shortcut",
     "get_ai_options",
     "get_api_keys",
     "set_api_key",

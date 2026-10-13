@@ -80,6 +80,11 @@ pub fn run_notice_action(
             let _ = app.emit_to(window::MAIN_LABEL, NAVIGATE_EVENT, "settings");
             Ok(())
         }
+        NoticeAction::OpenExperimentalSettings => {
+            window::show_main(&app);
+            let _ = app.emit_to(window::MAIN_LABEL, NAVIGATE_EVENT, "experimental");
+            Ok(())
+        }
     }
 }
 

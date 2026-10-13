@@ -10,7 +10,8 @@ use std::sync::RwLock;
 use serde_json::Value;
 
 pub use model::{
-    AiSettings, PrivacySettings, SETTINGS_VERSION, Settings, SttSettings, StyleSettings,
+    AiSettings, ExperimentalSettings, NoticeSettings, PrivacySettings, SETTINGS_VERSION, Settings,
+    ShortcutSettings, SttSettings, StyleSettings,
 };
 
 type OnChange = Box<dyn Fn(&Settings) + Send + Sync>;
@@ -26,7 +27,7 @@ pub enum SettingsError {
 pub struct SettingsStore {
     path: Option<PathBuf>,
     current: RwLock<Settings>,
-    on_change: RwLock<Option<OnChange>>,
+    on_change: RwLock<Vec<OnChange>>,
 }
 
 impl SettingsStore {
@@ -36,7 +37,7 @@ impl SettingsStore {
         Self {
             path: Some(path),
             current: RwLock::new(settings),
-            on_change: RwLock::new(None),
+            on_change: RwLock::new(Vec::new()),
         }
     }
 
@@ -45,15 +46,16 @@ impl SettingsStore {
         Self {
             path: None,
             current: RwLock::new(settings),
-            on_change: RwLock::new(None),
+            on_change: RwLock::new(Vec::new()),
         }
     }
 
+    /// Adds a listener called after every saved change.
     pub fn on_change(&self, callback: OnChange) {
-        *self
-            .on_change
+        self.on_change
             .write()
-            .unwrap_or_else(|err| err.into_inner()) = Some(callback);
+            .unwrap_or_else(|err| err.into_inner())
+            .push(callback);
     }
 
     pub fn get(&self) -> Settings {
@@ -77,7 +79,12 @@ impl SettingsStore {
         }
         *current = next.clone();
         drop(current);
-        if let Some(callback) = &*self.on_change.read().unwrap_or_else(|err| err.into_inner()) {
+        for callback in self
+            .on_change
+            .read()
+            .unwrap_or_else(|err| err.into_inner())
+            .iter()
+        {
             callback(&next);
         }
         Ok(next)
