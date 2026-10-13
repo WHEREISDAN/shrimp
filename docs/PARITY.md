@@ -314,17 +314,17 @@ this file.
 | Status | ID     | Feature            | Acceptance criterion                                                                                                                                                                             | Phase |
 | ------ | ------ | ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ----- |
 | [ ]    | WIN-01 | Feature parity     | Every phase 1–4 item passes on Windows 10 and 11 (x64), with NVDA standing in for VoiceOver.                                                                                                     | 5     |
-| [ ]    | WIN-02 | Default shortcuts  | Ctrl+Win is push to talk (Start stays closed while held), Ctrl+Win+Space hands-free, Ctrl+Win+Alt Command Mode, Shift+Alt+Z paste last, Shift+Alt+X copy last, Win+Alt+1/2/O for Transforms.     | 5     |
-| [ ]    | WIN-03 | Reserved shortcuts | Standalone Ctrl, Win+E/R/L/D/Tab/I/S/X/P/Up/Down/Q, Ctrl+C and Ctrl+V are rejected.                                                                                                              | 5     |
+| [x]    | WIN-02 | Default shortcuts  | Ctrl+Win is push to talk (Start stays closed while held), Ctrl+Win+Space hands-free, Ctrl+Win+Alt Command Mode, Shift+Alt+Z paste last, Shift+Alt+X copy last, Win+Alt+1/2/O for Transforms.     | 5     |
+| [x]    | WIN-03 | Reserved shortcuts | Standalone Ctrl, Win+E/R/L/D/Tab/I/S/X/P/Up/Down/Q, Ctrl+C and Ctrl+V are rejected.                                                                                                              | 5     |
 | [ ]    | WIN-04 | Paste rules        | Shift+Insert pastes in coding editors and their terminals; the clipboard is held about 3 s for Outlook, Word and WhatsApp and about 5 s for remote desktops; text, HTML and images are restored. | 5     |
-| [ ]    | WIN-05 | Clipboard history  | Shrimp's clipboard writes stay out of Win+V history and cloud clipboard sync.                                                                                                                    | 5     |
-| [ ]    | WIN-06 | Elevated apps      | When a paste into an elevated app fails, Shrimp says "Run Shrimp as administrator to insert text everywhere".                                                                                    | 5     |
-| [ ]    | WIN-07 | Placeholder fields | A field that shows only placeholder text counts as empty for casing and spacing.                                                                                                                 | 5     |
-| [ ]    | WIN-08 | Per-app mute       | Mute while dictating mutes each playing app and restores its volume, and is on by default on Windows.                                                                                            | 5     |
-| [ ]    | WIN-09 | Tray menu          | The tray's right-click menu includes Paste last transcript, greyed out when there is none.                                                                                                       | 5     |
-| [ ]    | WIN-10 | Quiet start        | Launch at login is on after install and starts Shrimp in the background.                                                                                                                         | 5     |
-| [ ]    | WIN-11 | UI Automation      | Context awareness, Command Mode and auto-learn read text through UI Automation.                                                                                                                  | 5     |
-| [ ]    | WIN-12 | Media pause        | Pause music while dictating uses the system media transport controls.                                                                                                                            | 5     |
+| [x]    | WIN-05 | Clipboard history  | Shrimp's clipboard writes stay out of Win+V history and cloud clipboard sync.                                                                                                                    | 5     |
+| [x]    | WIN-06 | Elevated apps      | When a paste into an elevated app fails, Shrimp says "Run Shrimp as administrator to insert text everywhere".                                                                                    | 5     |
+| [x]    | WIN-07 | Placeholder fields | A field that shows only placeholder text counts as empty for casing and spacing.                                                                                                                 | 5     |
+| [x]    | WIN-08 | Per-app mute       | Mute while dictating mutes each playing app and restores its volume, and is on by default on Windows.                                                                                            | 5     |
+| [x]    | WIN-09 | Tray menu          | The tray's right-click menu includes Paste last transcript, greyed out when there is none.                                                                                                       | 5     |
+| [x]    | WIN-10 | Quiet start        | Launch at login is on after install and starts Shrimp in the background.                                                                                                                         | 5     |
+| [x]    | WIN-11 | UI Automation      | Context awareness, Command Mode and auto-learn read text through UI Automation.                                                                                                                  | 5     |
+| [x]    | WIN-12 | Media pause        | Pause music while dictating uses the system media transport controls.                                                                                                                            | 5     |
 
 ## Packaging and updates
 
@@ -506,6 +506,55 @@ tap, with a WAV file as the audio source.
 | ONB-08  | Live: with the recorded version set to 0.0.9 and Accessibility pretended lost, "Grant Shrimp's permissions again" appeared with "Shrimp lost Accessibility access after the update…". `a_grant_lost_in_an_update_is_asked_for_again`.                                                                                                                                                                                                                                                    |
 | A11Y-01 | Live: Tab went sidebar → Help → stats card → search → history row → More options; Enter, ↓, End and Esc worked in the menu, and Tab stayed inside the delete dialog until Esc closed it. `a11y.test.tsx`.                                                                                                                                                                                                                                                                                |
 | A11Y-02 | Live AX dump (as VoiceOver reads it) of Home and Settings › General: every control has a name and role except the window's traffic lights; axe-core over five screens and jsx-a11y lint. Reduce Motion is a `prefers-reduced-motion` stylesheet rule and was not toggled live.                                                                                                                                                                                                           |
+| WIN-02  | Live on Windows: holding Ctrl+Win dictated into Notepad and the Start menu stayed closed (Notepad kept the foreground); Ctrl+Win+Space started and stopped hands-free; Ctrl+Win+Alt rewrote the Notepad selection through Command Mode; Shift+Alt+Z pasted and Shift+Alt+X copied the last transcript; Win+Alt+1 started Polish and opened no taskbar jump list. Settings › Shortcuts listed every default.                                                                              |
+| WIN-03  | Live on Windows: recording Ctrl+C and Ctrl alone ended with "This shortcut is not allowed: Ctrl+C" and "…: Ctrl". The Win shortcuts were not pressed, because they act on the desktop (Win+L locks it); `windows_rejects_its_reserved_shortcuts` covers each one.                                                                                                                                                                                                                        |
+| WIN-05  | Live on Windows with clipboard history on: after dictations and their clipboard restores, `Clipboard.GetHistoryItemsAsync` listed only copies made on purpose (Copy last transcript and the test's own items); no paste or restore by Shrimp appeared.                                                                                                                                                                                                                                   |
+| WIN-06  | Live on Windows: dictating into a Notepad started as administrator showed "Run Shrimp as administrator to insert text everywhere. Your transcript is on the clipboard." with Copy, and nothing reached that Notepad.                                                                                                                                                                                                                                                                     |
+| WIN-07  | Live on Windows: the context read of an Edge input showing only its placeholder ("Search the docs") and of a contenteditable showing a CSS placeholder (`aria-placeholder`) gave an empty field. Unit tests cover the placeholder rule.                                                                                                                                                                                                                                                  |
+| WIN-08  | Live on Windows: the playing apps (a helper's tone among them) were muted about 208 ms after the dictation started and unmuted when it ended; every session was unmuted afterwards. On by default through `platform::MUTE_BY_DEFAULT` (settings test).                                                                                                                                                                                                                                   |
+| WIN-09  | Live logs on Windows: after a fresh start the tray menu was built with Paste last transcript disabled, and after a dictation with it enabled. The menu was not opened on screen: the icon sits in the taskbar's overflow area, which belongs to Explorer.                                                                                                                                                                                                                                |
+| WIN-10  | Live on Windows: the silent per-user install wrote the `Run` value `"…\Shrimp\shrimp.exe" --background` and the first start showed Launch at login on. That command, with onboarding finished, started Shrimp hidden with Notepad still in front (unfinished onboarding shows the window, as on macOS). `WM_ENDSESSION` exits cleanly, so no crash screen follows a logoff. Uninstalling removed the value.                                                                              |
+| WIN-11  | Live on Windows: context reads through UI Automation took 30 ms in Notepad, 40 ms in Command Prompt and 61 ms in Edge (2–3 s on the first contact with a Chromium page); Command Mode read the Notepad selection and replaced it with the rewrite ("Make this more formal.", Ollama `qwen3.5:4b` in 922 ms); auto-learn polled the field every second and added "Formalyx" when "formal" was respelled.                                                                                  |
+| WIN-12  | Live on Windows: a helper's media session in the system media transport controls was paused while dictating and resumed afterwards; Spotify, already paused, was left alone.                                                                                                                                                                                                                                                                                                             |
+
+Verified on Windows, in phase 5:
+
+"Live on Windows" means the debug `Shrimp Dev` on Windows 10 IoT Enterprise LTSC 21H2
+(build 19044, x64; i9-9900K, RTX 2080 Ti, one 1920×1080 display at 100 %), with a WAV file
+as the audio source, driven by `SendInput` from a helper in the console session into a
+scratch Notepad, an InPrivate Edge page and Command Prompt, and by tauri-mcp.
+
+- Re-verified live on Windows for `WIN-01`: CORE-01, CORE-03, CORE-04, CORE-06, CORE-09,
+  CORE-11, CORE-13 (Mouse 4), INS-01 (Notepad, Edge), INS-02, INS-05, INS-06, INS-11
+  (Command Prompt), BAR-01, BAR-03 to BAR-06, KEYS-04, KEYS-08, CMD-01, TRF-01 (the
+  shortcut), DIC-07, CTX-03, FMT-11, STY-05, ENG-01 (`tests/whisper_local.rs` on the CPU
+  and with Vulkan), ENG-02, MIC-02, MIC-06, APP-01, APP-02, APP-06 (the `Run` value),
+  APP-09, PRIV-02 (Credential Manager), ONB-01 (microphone only) and A11Y-02 (names and
+  roles from the UI Automation tree of Home and Settings › General).
+- MIC-01 on Windows: a dictation recorded from the default device (Focusrite USB Audio,
+  wired) through WASAPI and ended with "No speech detected" in the quiet room; nothing was
+  kept.
+- `WIN-01` stays open: no Windows 11 PC was available, NVDA isn't installed (names and
+  roles were read from the UI Automation tree), and there is a single display at 100 %, so
+  other scaling and moving the bar between displays rest on Tauri's per-monitor DPI
+  handling. Cloud engines and providers had no key; every AI run used Ollama.
+- WIN-04: VS Code, Cursor, JetBrains IDEs, Windows Terminal, Office, WhatsApp and remote
+  desktop clients aren't installed. Shift+Insert for editors and their terminals and the
+  longer clipboard hold are unit tests (`insert_options`, `reads_clipboard_late`). The
+  restore of text, HTML and an image ran live: the HTML, the text and the image's
+  `CF_DIB` came back byte for byte and the image read back pixel for pixel.
+- APP-01 on Windows: closing the main window to the tray released the microphone of the
+  Settings meter (Windows' own record of microphone use) and showing it again restarted
+  the meter.
+- PKG-02 stays open: no code-signing certificate was available, so the installer is
+  unsigned (`Get-AuthenticodeSignature`: NotSigned); `scripts/windows/sign.ps1` signs
+  every binary once `SHRIMP_WINDOWS_SIGN_THUMBPRINT` is set. Built with `release.ps1`
+  (10.2 MiB), it installed silently with a standard user token into
+  `%LOCALAPPDATA%\Shrimp` without a prompt, registered in the current user's Apps and
+  features, added Start menu and desktop shortcuts, and `uninstall.exe /S` removed the
+  program, the shortcuts, the uninstall entry and the login item.
+- No Bluetooth microphone and no lid; the login itself was not run (the `Run` value and
+  its exact command were).
 
 Verified by tests and recorded results only, in phase 4:
 
