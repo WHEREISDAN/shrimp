@@ -306,3 +306,15 @@ textarea {
   padding-left: 1.2rem;
   line-height: 1.5;
 }
+
+/* Reduce Motion (A11Y-02): nothing slides, fades or scrolls smoothly. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

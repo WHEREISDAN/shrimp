@@ -109,6 +109,7 @@ export function MenuButton({ label, items, tabIndex = 0 }: MenuButtonProps) {
           id={menuId}
           className="menu"
           role="menu"
+          tabIndex={-1}
           aria-label={label}
           onKeyDown={onMenuKeyDown}
           onClick={(event) => event.stopPropagation()}

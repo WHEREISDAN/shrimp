@@ -1,6 +1,6 @@
 {
   "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["typescript", "react", "react-perf", "import", "vitest"],
+  "plugins": ["typescript", "react", "react-perf", "import", "vitest", "jsx-a11y"],
   "categories": {
     "correctness": "error",
     "suspicious": "warn"
@@ -12,7 +12,14 @@
       {
         "allow": ["**/*.css", "@testing-library/jest-dom/vitest"]
       }
-    ]
+    ],
+    "jsx-a11y/prefer-tag-over-role": "off",
+    "jsx-a11y/no-autofocus": "off",
+    "jsx-a11y/media-has-caption": "off",
+    "jsx-a11y/interactive-supports-focus": "off",
+    "jsx-a11y/no-noninteractive-element-interactions": "off",
+    "jsx-a11y/no-static-element-interactions": "off",
+    "jsx-a11y/label-has-associated-control": "off"
   },
   "ignorePatterns": ["dist", "src-tauri"]
 }

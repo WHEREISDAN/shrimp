@@ -10,6 +10,7 @@ import {
   type Notice,
   type TransformView,
 } from "../lib/ipc";
+import { useTranslation } from "react-i18next";
 import { useInterfaceLanguage } from "../i18n";
 import { useTauriEvent } from "../lib/useTauriEvent";
 import { AnswerCard } from "./AnswerCard";
@@ -35,6 +36,7 @@ const ANSWER_DURATION_MS = 90_000;
 const silence = (): number[] => Array.from({ length: WAVE_BARS }, () => 0);
 
 export function FlowBar() {
+  const { t } = useTranslation();
   const [state, setState] = useState<DictationState>({ phase: "idle" });
   const [levels, setLevels] = useState<number[]>(silence);
   const [notices, dispatch] = useReducer(noticeQueue, EMPTY_QUEUE);
@@ -48,7 +50,7 @@ export function FlowBar() {
   const [language, setLanguage] = useState<string | undefined>(undefined);
   useInterfaceLanguage(language);
   const [now, setNow] = useState(() => Date.now() / 1000);
-  const rootRef = useRef<HTMLDivElement>(null);
+  const rootRef = useRef<HTMLElement>(null);
   useContentSize(rootRef);
 
   useEffect(() => {
@@ -149,8 +151,9 @@ export function FlowBar() {
   const resting = (placement?.alwaysShow ?? true) && now >= hiddenUntil;
   const edge = placement?.edge ?? "bottom";
   return (
-    <div
+    <section
       className={`flow-bar edge-${edge}`}
+      aria-label={t("bar.region")}
       ref={rootRef}
       onMouseEnter={() => hover(true)}
       onMouseLeave={() => hover(false)}
@@ -173,6 +176,6 @@ export function FlowBar() {
       {(state.phase !== "idle" || resting) && (
         <Pill state={state} levels={levels} error={notice?.level === "error"} privacy={privacy} />
       )}
-    </div>
+    </section>
   );
 }

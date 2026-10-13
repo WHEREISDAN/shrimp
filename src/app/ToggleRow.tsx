@@ -27,6 +27,7 @@ export function ToggleRow({ label, description, checked, disabled, onChange }: T
         id={id}
         type="checkbox"
         role="switch"
+        aria-checked={checked}
         checked={checked}
         disabled={disabled}
         aria-describedby={description ? `${id}-description` : undefined}

@@ -1216,6 +1216,24 @@ Debug builds can pretend permission states with `dev_set_permissions` or, from l
 `SHRIMP_PRETEND_PERMISSIONS` (`platform::SwitchablePermissions`); a pretended permission's
 request or settings pane does nothing.
 
+## Accessibility (A11Y-01, A11Y-02)
+
+- **Keyboard.** Every control is a native button, input or select, so Tab, Space and
+  Enter work; lists that would be many Tab stops use a roving tab index (History's rows,
+  Settings' pages, radio cards, the Style tabs) with the arrows inside them; menus open
+  with Enter or ↓ and move with the arrows, Home and End; dialogs keep Tab inside and Esc
+  closes them; ⌘[ ⌘] and ⌥↑/⌥↓ move between pages.
+- **Screen readers.** Icon buttons carry `aria-label`s, switches report `aria-checked`,
+  each page and dialog has a heading, errors use `role="alert"` and other notices
+  `role="status"`, the Flow Bar is a named region, and `<html lang>` follows the app
+  language. `src/a11y.test.tsx` runs axe-core (every rule but colour contrast, which jsdom
+  can't measure) over every page, every settings page, each onboarding step, the history
+  menu and its dialog, and the Flow Bar, and oxlint's `jsx-a11y` plugin checks the JSX.
+  In the signed app the macOS Accessibility tree (what VoiceOver reads) was checked to
+  give every web control a name.
+- **Reduce Motion.** With the system setting on, the main window drops animations and
+  transitions and the Flow Bar stops its pulsing dots and waveform easing.
+
 ## Security and privacy
 
 - Capabilities grant the webview only `core:default` and the MCP plugin's log-forwarding
