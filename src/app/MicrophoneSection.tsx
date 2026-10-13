@@ -50,15 +50,18 @@ export function MicrophoneSection({ reveal = 0 }: MicrophoneSectionProps) {
   useTauriEvent<MicrophoneList>(EVENTS.microphones, setList);
   useTauriEvent<number>(EVENTS.micLevel, setLevel);
 
-  // The meter follows the microphone in use, so it restarts when that changes.
+  // The meter follows the microphone in use, so it restarts when that changes,
+  // and runs only while the window is open: closing it to the tray stops it.
   const active = list?.active ?? null;
+  const [windowShown, setWindowShown] = useState(true);
+  useTauriEvent<boolean>(EVENTS.mainVisible, setWindowShown);
   useEffect(() => {
-    if (!active) {
+    if (!active || !windowShown) {
       return;
     }
     void startMicPreview().catch(() => undefined);
     return () => void stopMicPreview().catch(() => undefined);
-  }, [active]);
+  }, [active, windowShown]);
 
   useEffect(() => {
     if (reveal === 0) {

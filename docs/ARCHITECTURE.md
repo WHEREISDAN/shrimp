@@ -253,7 +253,7 @@ Built so far:
 | Phase 4b | `get_app_health`, `dismiss_crash`, `check_storage`, `open_storage_settings`, `repair_data`, `reset_app` (both restart the app); `get_insights`, `get_voice_profile`, `generate_voice_profile` (rejects with `{kind}`), `copy_image` and `save_image` (a raw PNG request body; the file name in an `x-file-name` header); `list_history`, `copy_history`, `set_history_raw` (Undo/Redo AI edit), `retry_history`, `history_audio` (raw WAV bytes), `extract_history_audio`, `delete_history`, `set_history_storage` ("never" needs "delete all") |
 | Phase 2  | `get_settings`, `update_settings`, `get_ai_options`, `get_api_keys`, `set_api_key`, `delete_api_key`, `list_ollama_models`, `test_ai_provider`; dictionary and snippet CRUD and imports (`list_dictionary`, `add_dictionary_entry`, `update_dictionary_entry`, `set_dictionary_pinned`, `delete_dictionary_entries`, `preview_dictionary_import`, `import_dictionary`, `list_snippets`, `add_snippet`, `update_snippet`, `delete_snippets`, `preview_snippet_import`, `import_snippets`)                                                        |
 | Dev only | `dev_get_audio_source`, `dev_set_audio_source`, `dev_set_app_category`, `dev_edit_text`, `dev_read_context`, `dev_set_microphones`, `dev_set_permissions` (debug builds; see DEVELOPMENT.md)                                                                                                                                                                                                                                                                                                                                                    |
-| Events   | `dictation://state`, `dictation://level` (Flow Bar only), `notify://notice`, `command://answer` and `transform://changes` (Flow Bar only), `models://status`, `app://navigate`, `settings://changed`, `shortcuts://recording`, `notify://dismiss` (a notice whose cause went away), `mic://devices`, `mic://level`, `flow-bar://hover` (Flow Bar only)                                                                                                                                                                                          |
+| Events   | `dictation://state`, `dictation://level` (Flow Bar only), `notify://notice`, `command://answer` and `transform://changes` (Flow Bar only), `models://status`, `app://navigate`, `settings://changed`, `shortcuts://recording`, `notify://dismiss` (a notice whose cause went away), `mic://devices`, `mic://level`, `flow-bar://hover` (Flow Bar only), `app://main-visible` (main window shown or closed to the tray)                                                                                                                          |
 
 The Flow Bar shows the resting pill only when "Show Flow Bar at all times" is on and it
 isn't hidden for an hour (BAR-04); with nothing to show it reports 0 × 0 and Rust hides
@@ -653,7 +653,9 @@ for usage.
   microphone and Don't show again, at most 3 times and once a week.
 - **Hot-plug** is a 2 s poll of the device list and the lid. The picker's level meter
   opens the device a dictation would use and reports `mic://level` about 20 times a
-  second while Settings shows it.
+  second while Settings shows it. Closing the main window to the tray stops it and sends
+  `app://main-visible` false, because the hidden page stays mounted (WebView2 even reports
+  it visible); showing the window again sends true and the meter restarts.
 - **Fakes.** `FakeDevices` (tests) and, in debug builds, `SwitchableDevices` with
   `dev_set_microphones` give devices that play a tone or a WAV, stay silent, open slowly
   or never deliver, and disconnect when removed.

@@ -25,6 +25,8 @@ pub const MICROPHONES_EVENT: &str = "mic://devices";
 pub const FLOW_BAR_HOVER_EVENT: &str = "flow-bar://hover";
 pub const HISTORY_EVENT: &str = "history://changed";
 pub const HEALTH_EVENT: &str = "app://health";
+/// The main window was shown (true) or closed to the tray (false).
+pub const MAIN_VISIBLE_EVENT: &str = "app://main-visible";
 
 pub struct TauriUi {
     app: AppHandle,

@@ -1,4 +1,9 @@
-use tauri::{AppHandle, Manager, Runtime, Window, WindowEvent};
+use std::sync::Arc;
+
+use tauri::{AppHandle, Emitter, Manager, Runtime, Window, WindowEvent};
+
+use super::events::MAIN_VISIBLE_EVENT;
+use crate::mic::Microphones;
 
 pub const MAIN_LABEL: &str = "main";
 
@@ -14,6 +19,7 @@ pub fn show_main<R: Runtime>(app: &AppHandle<R>) {
     if let Err(err) = shown {
         log::warn!("failed to show main window: {err}");
     }
+    let _ = app.emit_to(MAIN_LABEL, MAIN_VISIBLE_EVENT, true);
 }
 
 /// Shrimp keeps running in the tray, so closing the main window only hides it.
@@ -25,6 +31,12 @@ pub fn on_window_event<R: Runtime>(window: &Window<R>, event: &WindowEvent) {
         if let Err(err) = window.hide() {
             log::warn!("failed to hide main window: {err}");
         }
+        // A hidden page stays mounted (WebView2 even keeps it "visible"), so the
+        // microphone meter of Settings would keep the microphone open.
+        if let Some(microphones) = window.app_handle().try_state::<Arc<Microphones>>() {
+            microphones.stop_preview();
+        }
+        let _ = window.emit_to(MAIN_LABEL, MAIN_VISIBLE_EVENT, false);
     }
 }
 

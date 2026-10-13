@@ -808,6 +808,7 @@ export const EVENTS = {
   flowBarHover: "flow-bar://hover",
   history: "history://changed",
   health: "app://health",
+  mainVisible: "app://main-visible",
 } as const;
 
 export function onEvent<T>(name: string, handler: (payload: T) => void): Promise<UnlistenFn> {
