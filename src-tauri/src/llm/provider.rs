@@ -52,6 +52,9 @@ pub struct LlmRequest {
     pub system: String,
     pub messages: Vec<Message>,
     pub max_output_tokens: u32,
+    /// A different answer is wanted (a transform's Retry). Providers that run
+    /// deterministic by default (Ollama) sample more freely.
+    pub varied: bool,
 }
 
 impl LlmRequest {
@@ -63,6 +66,7 @@ impl LlmRequest {
                 content: user,
             }],
             max_output_tokens,
+            varied: false,
         }
     }
 }
@@ -97,6 +101,25 @@ pub enum LlmError {
     Failed(String),
     #[error("cancelled")]
     Cancelled,
+}
+
+impl LlmError {
+    /// A short reason for a notice, e.g. "Ollama isn't running".
+    pub fn describe(&self, provider: LlmProviderId) -> String {
+        let name = provider.label();
+        match self {
+            Self::MissingKey => format!("no {name} API key"),
+            Self::Unauthorized(_) => format!("{name} rejected your API key"),
+            Self::RateLimited(_) => format!("{name} rate limit reached"),
+            Self::Quota(_) => format!("your {name} account is out of credits"),
+            Self::Offline(_) => format!("can't reach {name}"),
+            Self::Timeout => format!("{name} took too long"),
+            Self::Unavailable(message) if message.contains(name) => message.clone(),
+            Self::Unavailable(_) => format!("{name} is unavailable"),
+            Self::Failed(message) => message.clone(),
+            Self::Cancelled => "cancelled".into(),
+        }
+    }
 }
 
 /// One LLM backend, configured with its model when constructed.

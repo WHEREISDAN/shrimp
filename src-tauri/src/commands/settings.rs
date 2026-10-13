@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use serde_json::Value;
+use serde_json::{Value, json};
 use tauri::State;
 
 use super::CommandError;
@@ -42,8 +42,25 @@ pub fn set_shortcut(
     settings: State<'_, Arc<SettingsStore>>,
     defaults: State<'_, DefaultBindings>,
 ) -> Result<Settings, CommandError> {
-    let field = match action {
-        Action::PressEnter => "pressEnter",
+    let current = settings.get();
+    if let Some(text) = &shortcut {
+        let taken = taken_shortcuts(&defaults.0, &current, action);
+        validation::validate(text, action, &taken)
+            .map_err(|message| CommandError::new("invalid", message))?;
+    }
+    let patch = match action {
+        Action::PressEnter => json!({"shortcuts": {"pressEnter": shortcut}}),
+        Action::Polish => json!({"transforms": {"polish": {"shortcut": shortcut}}}),
+        Action::PromptEngineer => json!({"transforms": {"promptEngineer": {"shortcut": shortcut}}}),
+        Action::ViewChanges => json!({"transforms": {"viewChangesShortcut": shortcut}}),
+        Action::CustomTransform(index) => {
+            let mut custom = current.transforms.custom.clone();
+            let transform = custom
+                .get_mut(usize::from(index))
+                .ok_or_else(|| CommandError::new("notFound", "That transform no longer exists."))?;
+            transform.shortcut = shortcut;
+            json!({"transforms": {"custom": custom}})
+        }
         other => {
             return Err(CommandError::new(
                 "unsupported",
@@ -51,10 +68,18 @@ pub fn set_shortcut(
             ));
         }
     };
-    if let Some(text) = &shortcut {
-        validation::validate(text, action, &defaults.0)
-            .map_err(|message| CommandError::new("invalid", message))?;
-    }
-    let patch = serde_json::json!({"shortcuts": {field: shortcut}});
     settings.update(&patch).map_err(settings_error)
+}
+
+/// The default bindings and every user shortcut except `action`'s own.
+fn taken_shortcuts(defaults: &[Binding], settings: &Settings, action: Action) -> Vec<Binding> {
+    let mut user: Vec<(Action, &str)> = settings.transforms.shortcuts();
+    if let Some(shortcut) = &settings.shortcuts.press_enter {
+        user.push((Action::PressEnter, shortcut));
+    }
+    let user_bindings = user
+        .into_iter()
+        .filter(|(other, _)| *other != action)
+        .filter_map(|(other, text)| text.parse().ok().map(|hotkey| Binding::new(other, hotkey)));
+    defaults.iter().copied().chain(user_bindings).collect()
 }

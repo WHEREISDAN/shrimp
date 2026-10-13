@@ -1,6 +1,7 @@
 //! The shortcuts the keyboard hook holds at each moment: the platform
 //! defaults, Esc only while recording (and Backspace too in Command Mode,
-//! CMD-04), and the shortcuts the user set (Press Enter, CORE-15).
+//! CMD-04), and the shortcuts the user set (Press Enter, CORE-15, and the
+//! transforms once they are turned on).
 
 use handy_keys::Hotkey;
 
@@ -32,6 +33,27 @@ pub fn active(defaults: &[Binding], settings: &Settings, moment: Moment) -> Vec<
         .and_then(|text| text.parse::<Hotkey>().ok())
     {
         bindings.push(Binding::with_passthrough(Action::PressEnter, hotkey));
+    }
+    let transforms = &settings.transforms;
+    if transforms.enabled {
+        let complete = |action: Action| match action {
+            Action::CustomTransform(index) => transforms
+                .custom
+                .get(usize::from(index))
+                .is_some_and(|transform| transform.is_complete()),
+            _ => true,
+        };
+        bindings.extend(
+            transforms
+                .shortcuts()
+                .into_iter()
+                .filter(|(action, _)| complete(*action))
+                .filter_map(|(action, text)| {
+                    text.parse::<Hotkey>()
+                        .ok()
+                        .map(|hotkey| Binding::new(action, hotkey))
+                }),
+        );
     }
     bindings
 }
@@ -91,5 +113,27 @@ mod tests {
             .find(|binding| binding.action == Action::PressEnter)
             .unwrap();
         assert!(press_enter.passthrough);
+    }
+
+    #[test]
+    fn transform_shortcuts_are_bound_once_transforms_are_on() {
+        let mut settings = Settings::default();
+        let bound =
+            |settings: &Settings| actions(&active(&macos_defaults(), settings, Moment::default()));
+        assert!(!bound(&settings).contains(&Action::Polish));
+        settings.transforms.enabled = true;
+        settings
+            .transforms
+            .custom
+            .push(crate::settings::CustomTransform {
+                id: "draft".into(),
+                shortcut: Some("Opt+3".into()),
+                ..Default::default()
+            });
+        let actions = bound(&settings);
+        assert!(actions.contains(&Action::Polish));
+        assert!(actions.contains(&Action::PromptEngineer));
+        assert!(actions.contains(&Action::ViewChanges));
+        assert!(!actions.contains(&Action::CustomTransform(0)), "incomplete");
     }
 }

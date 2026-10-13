@@ -77,7 +77,7 @@ pub enum CommandReply {
 
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
 pub enum CommandError {
-    #[error("{provider} failed: {error}", provider = .0.label(), error = .1)]
+    #[error("{}", .1.describe(*.0))]
     Llm(LlmProviderId, LlmError),
     #[error("the model returned no text")]
     Empty,

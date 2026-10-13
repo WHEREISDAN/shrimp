@@ -3,6 +3,7 @@ use std::time::Duration;
 use serde::Serialize;
 
 use super::gestures::{BarControl, RecordingMode};
+use super::transform::{TransformRun, TransformView};
 use crate::audio::AudioClip;
 use crate::hotkeys::{Action, ShortcutEvent};
 use crate::notify::Notice;
@@ -45,6 +46,8 @@ pub trait DictationUi: Send + Sync {
     fn notice(&self, notice: Notice);
     /// A Command Mode answer, shown in a panel instead of pasted (CMD-03).
     fn answer(&self, _answer: Answer) {}
+    /// What the last transform changed (TRF-04).
+    fn changes(&self, _view: TransformView) {}
 }
 
 /// A Command Mode answer for the Flow Bar's panel. Mirrors `Answer` in src/lib/ipc.ts.
@@ -101,9 +104,21 @@ pub enum ControllerInput {
     RetryHotkeys,
     /// Shortcuts in the settings may have changed.
     SettingsChanged,
+    /// The changes view's buttons and "See changes" (TRF-04).
+    Transform(TransformAction),
     /// A cancelled recording, kept so paste-last can transcribe it.
     Cancelled(AudioClip),
     Processed(Processed),
+}
+
+/// What the user can do with the last transform.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum TransformAction {
+    View,
+    Copy,
+    Retry,
+    Undo,
 }
 
 /// A finished pipeline run and the notices it raised on the way (an AI
@@ -155,6 +170,14 @@ pub enum Outcome {
     Searched,
     /// Command Mode could not run; nothing was changed.
     CommandFailed(String),
+    /// A transform replaced the text (TRF-01..03).
+    Transformed(Box<TransformRun>),
+    /// A transform could not run; the message says why (TRF-06).
+    TransformFailed(String),
+    /// The transform's result was swapped back for the original.
+    TransformUndone,
+    /// The text moved before the result could replace it; it is on the clipboard.
+    TransformCopied(Delivered),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

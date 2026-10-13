@@ -7,6 +7,7 @@ import { SettingsPage } from "./SettingsPage";
 import { Sidebar, type PageId } from "./Sidebar";
 import { SnippetsPage } from "./SnippetsPage";
 import { StylePage } from "./StylePage";
+import { TransformsPage } from "./TransformsPage";
 
 export function App() {
   const [page, setPage] = useState<PageId>("home");
@@ -55,6 +56,8 @@ function CurrentPage({ page, revealShortcuts, revealExperimental }: CurrentPageP
       return <SnippetsPage />;
     case "style":
       return <StylePage />;
+    case "transforms":
+      return <TransformsPage />;
     case "settings":
       return <SettingsPage revealExperimental={revealExperimental} />;
   }

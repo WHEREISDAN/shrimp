@@ -3,6 +3,7 @@
 //! `update_settings(patch)`; Rust validates, saves and announces each change.
 
 mod model;
+pub mod transforms;
 
 use std::path::{Path, PathBuf};
 use std::sync::RwLock;
@@ -13,6 +14,7 @@ pub use model::{
     AiSettings, ExperimentalSettings, NoticeSettings, PrivacySettings, SETTINGS_VERSION, Settings,
     ShortcutSettings, SttSettings, StyleSettings,
 };
+pub use transforms::{CustomTransform, PolishRules, TransformSettings};
 
 type OnChange = Box<dyn Fn(&Settings) + Send + Sync>;
 

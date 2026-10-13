@@ -7,7 +7,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use tauri::{AppHandle, Emitter};
 
 use super::flow_bar::FLOW_BAR_LABEL;
-use crate::dictation::{Answer, DictationState, DictationUi};
+use crate::dictation::{Answer, DictationState, DictationUi, TransformView};
 use crate::notify::Notice;
 
 pub const STATE_EVENT: &str = "dictation://state";
@@ -17,6 +17,7 @@ pub const MODELS_EVENT: &str = "models://status";
 pub const NAVIGATE_EVENT: &str = "app://navigate";
 pub const SETTINGS_EVENT: &str = "settings://changed";
 pub const ANSWER_EVENT: &str = "command://answer";
+pub const CHANGES_EVENT: &str = "transform://changes";
 
 pub struct TauriUi {
     app: AppHandle,
@@ -68,6 +69,12 @@ impl DictationUi for TauriUi {
     fn answer(&self, answer: Answer) {
         if let Err(error) = self.app.emit_to(FLOW_BAR_LABEL, ANSWER_EVENT, answer) {
             log::warn!("could not show the answer: {error}");
+        }
+    }
+
+    fn changes(&self, view: TransformView) {
+        if let Err(error) = self.app.emit_to(FLOW_BAR_LABEL, CHANGES_EVENT, view) {
+            log::warn!("could not show the changes: {error}");
         }
     }
 

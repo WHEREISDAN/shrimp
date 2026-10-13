@@ -67,7 +67,10 @@ pub fn body(model: &str, request: &LlmRequest) -> Value {
         // Ignored by models without thinking; turns it off for the rest.
         "think": false,
         "keep_alive": KEEP_ALIVE,
-        "options": {"temperature": 0, "num_predict": request.max_output_tokens},
+        "options": {
+            "temperature": if request.varied { 0.8 } else { 0.0 },
+            "num_predict": request.max_output_tokens,
+        },
     })
 }
 
@@ -112,6 +115,14 @@ impl LlmProvider for Ollama {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_varied_request_samples_with_temperature() {
+        let mut request = LlmRequest::single("Clean up.".into(), "um hi".into(), 256);
+        assert_eq!(body("qwen3.5:4b", &request)["options"]["temperature"], 0.0);
+        request.varied = true;
+        assert_eq!(body("qwen3.5:4b", &request)["options"]["temperature"], 0.8);
+    }
 
     #[test]
     fn builds_a_chat_request_with_thinking_off() {

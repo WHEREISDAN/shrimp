@@ -1,10 +1,11 @@
-export type PageId = "home" | "dictionary" | "snippets" | "style" | "settings";
+export type PageId = "home" | "dictionary" | "snippets" | "style" | "transforms" | "settings";
 
 const ITEMS: { id: PageId; label: string }[] = [
   { id: "home", label: "Home" },
   { id: "dictionary", label: "Dictionary" },
   { id: "snippets", label: "Snippets" },
   { id: "style", label: "Style" },
+  { id: "transforms", label: "Transforms" },
   { id: "settings", label: "Settings" },
 ];
 

@@ -70,9 +70,26 @@ pub fn report(outcome: Outcome, ui: &dyn DictationUi) -> Option<LastDictation> {
             ui.answer(answer);
             remember(LastStatus::Inserted, Some(text), None)
         }
-        Outcome::CommandFailed(message) => {
+        Outcome::CommandFailed(message) | Outcome::TransformFailed(message) => {
             ui.notice(Notice::error(message));
             None
+        }
+        Outcome::Transformed(run) => {
+            let text = Delivered {
+                text: InsertText::plain(run.result.clone()),
+                formatted: true,
+            };
+            remember(LastStatus::Inserted, Some(text), None)
+        }
+        Outcome::TransformUndone => {
+            ui.notice(Notice::info("Undone"));
+            None
+        }
+        Outcome::TransformCopied(text) => {
+            ui.notice(Notice::warning(
+                "The text changed, so the result is on the clipboard.",
+            ));
+            remember(LastStatus::Copied, Some(text), None)
         }
     }
 }

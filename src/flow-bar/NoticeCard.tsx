@@ -8,6 +8,7 @@ const ACTION_LABELS: Record<NoticeAction, string> = {
   retryModelDownload: "Retry",
   openAiSettings: "Open Settings",
   openExperimentalSettings: "Go to settings",
+  viewTransformChanges: "See changes",
 };
 
 interface NoticeCardProps {

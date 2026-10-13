@@ -37,6 +37,7 @@ pub fn run() {
                 commands::dictation::flow_bar_ready,
                 commands::dictation::flow_bar_layout,
                 commands::dictation::run_notice_action,
+                commands::dictation::transform_action,
                 commands::dictation::get_shortcuts,
                 commands::models::get_models,
                 commands::models::download_default_model,

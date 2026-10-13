@@ -3,6 +3,7 @@
 
 use serde::{Deserialize, Serialize};
 
+use super::transforms::TransformSettings;
 use crate::edit::{AppCategory, CleanupLevel, Style};
 use crate::hotkeys::{Action, validation};
 use crate::llm::{LlmProviderId, catalog};
@@ -23,6 +24,7 @@ pub struct Settings {
     pub experimental: ExperimentalSettings,
     pub shortcuts: ShortcutSettings,
     pub notices: NoticeSettings,
+    pub transforms: TransformSettings,
 }
 
 impl Default for Settings {
@@ -36,6 +38,7 @@ impl Default for Settings {
             experimental: ExperimentalSettings::default(),
             shortcuts: ShortcutSettings::default(),
             notices: NoticeSettings::default(),
+            transforms: TransformSettings::default(),
         }
     }
 }
@@ -207,6 +210,7 @@ impl Settings {
         if let Some(shortcut) = &self.shortcuts.press_enter {
             validation::validate(shortcut, Action::PressEnter, &[])?;
         }
+        self.transforms.validate()?;
         let url = self.ai.ollama_url.trim();
         if !(url.starts_with("http://") || url.starts_with("https://")) || url.len() > 200 {
             return Err("The Ollama address must start with http:// or https://.".into());

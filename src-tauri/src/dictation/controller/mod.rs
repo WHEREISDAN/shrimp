@@ -1,23 +1,24 @@
 //! The dictation actor: one task owns all session state and reacts to
 //! shortcuts, Flow Bar clicks, timers and pipeline results on one channel.
 
+mod shortcuts;
+mod transforms;
+
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
 use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender, unbounded_channel};
 use tokio::time::MissedTickBehavior;
 
-use handy_keys::Modifiers;
-
-use super::bindings::{self, Moment};
 use super::command::CommandRunner;
 use super::gestures::{BarControl, CancelReason, Command, Gestures, Input, RecordingMode};
 use super::outcomes;
 use super::pipeline::Pipeline;
 use super::state::{
     ControllerInput, DictationState, DictationUi, LastDictation, LastStatus, Outcome, Processed,
-    Timing,
+    Timing, TransformAction,
 };
+use super::transform::TransformRun;
 use crate::audio::{AudioError, AudioSourceSpec, Recorder, level};
 use crate::context::{self, DictationContext, PendingContext};
 use crate::edit::Editor;
@@ -25,15 +26,11 @@ use crate::hotkeys::{Action, Binding};
 use crate::notify::{Notice, NoticeAction};
 use crate::platform::{
     CuePlayer, FocusInspector, HotkeyBackend, Launcher, Permission, PermissionStatus, Permissions,
-    PlatformError, SyntheticKey, TextInserter,
+    PlatformError, TextInserter,
 };
 use crate::settings::SettingsStore;
 use crate::sounds::Cue;
 use crate::stt::SttEngine;
-
-/// "Command mode is toggled off" shows at most this often (CMD-06).
-const COMMAND_OFF_NOTICES: u32 = 3;
-const SECONDS_PER_DAY: u64 = 86_400;
 
 /// Everything the controller needs, injected so tests can use fakes.
 pub struct Services {
@@ -142,6 +139,12 @@ struct Controller {
     paste_delay: Duration,
     /// Esc is down; it stays bound until released.
     cancel_held: bool,
+    /// When the last dictation was pasted, for transforms (TRF-01).
+    last_inserted_at: Option<Instant>,
+    /// The last transform, for its changes view (TRF-04).
+    last_transform: Option<TransformRun>,
+    /// A retry is running; its result updates the changes view.
+    retrying: bool,
 }
 
 impl Controller {
@@ -185,6 +188,9 @@ impl Controller {
             accessibility_notice_shown: false,
             paste_delay: Duration::ZERO,
             cancel_held: false,
+            last_inserted_at: None,
+            last_transform: None,
+            retrying: false,
         }
     }
 
@@ -213,6 +219,10 @@ impl Controller {
                     Action::CommandMode if !self.settings.get().experimental.command_mode => {
                         self.command_mode_off();
                     }
+                    Action::Polish | Action::PromptEngineer | Action::CustomTransform(_) => {
+                        self.start_transform(event.action);
+                    }
+                    Action::ViewChanges => self.transform_action(TransformAction::View),
                     action => self.gesture(Input::Press(action)),
                 }
             }
@@ -223,11 +233,12 @@ impl Controller {
                         self.refresh_bindings();
                     }
                 }
-                if event.action != Action::PressEnter {
+                if is_gesture(event.action) {
                     self.gesture(Input::Release(event.action));
                 }
             }
             ControllerInput::SettingsChanged => self.refresh_bindings(),
+            ControllerInput::Transform(action) => self.transform_action(action),
             ControllerInput::Bar(control) => self.gesture(Input::Bar(control)),
             ControllerInput::Menu(action) => {
                 self.paste_delay = self.timing.menu_paste_delay;
@@ -513,51 +524,17 @@ impl Controller {
         for notice in processed.notices {
             self.ui.notice(notice);
         }
+        match &processed.outcome {
+            Outcome::Inserted(_) if !self.gestures.is_command() => {
+                self.last_inserted_at = Some(Instant::now());
+            }
+            Outcome::Transformed(run) => self.transformed(run),
+            Outcome::TransformUndone => self.last_transform = None,
+            _ => {}
+        }
         if let Some(last) = outcomes::report(processed.outcome, self.ui.as_ref()) {
             self.last = Some(last);
         }
-    }
-
-    /// The Press Enter shortcut (CORE-15); extra modifiers pass through.
-    fn press_enter(&self, extra: Modifiers) {
-        let inserter = Arc::clone(&self.inserter);
-        let ui = Arc::clone(&self.ui);
-        tauri::async_runtime::spawn_blocking(move || {
-            if let Err(error) = inserter.press(SyntheticKey::Enter, extra) {
-                ui.notice(Notice::error(format!("Couldn't press Enter: {error}")));
-            }
-        });
-    }
-
-    /// The Command Mode shortcut while it is off (CMD-06): a notice with a
-    /// way to the setting, at most once a day and three times in all.
-    fn command_mode_off(&self) {
-        if self.recording.is_some() || self.gestures.is_busy() {
-            return;
-        }
-        let settings = self.settings.get();
-        let today = (std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .map_or(0, |elapsed| elapsed.as_secs())
-            / SECONDS_PER_DAY)
-            .to_string();
-        let notices = &settings.notices;
-        if notices.command_mode_off_count >= COMMAND_OFF_NOTICES
-            || notices.command_mode_off_day == today
-        {
-            return;
-        }
-        let patch = serde_json::json!({"notices": {
-            "commandModeOffCount": notices.command_mode_off_count + 1,
-            "commandModeOffDay": today,
-        }});
-        if let Err(error) = self.settings.update(&patch) {
-            log::warn!("could not count the notice: {error}");
-        }
-        self.ui.notice(
-            Notice::info("Command mode is toggled off")
-                .with_action(NoticeAction::OpenExperimentalSettings),
-        );
     }
 
     fn poll_audio(&mut self) {
@@ -619,18 +596,6 @@ impl Controller {
         }
     }
 
-    /// Esc (and Backspace in Command Mode) is only swallowed while a session
-    /// records (CORE-06, CMD-04), and until its key-up, so no half of the
-    /// press reaches the app. The user's own shortcuts come from the settings.
-    fn refresh_bindings(&mut self) {
-        let moment = Moment {
-            cancelable: self.recording.is_some() || self.cancel_held,
-            command: self.gestures.is_command(),
-        };
-        let bindings = bindings::active(&self.bindings, &self.settings.get(), moment);
-        self.hotkeys.set_bindings(&bindings);
-    }
-
     fn set_state(&self, state: DictationState) {
         *lock(&self.state) = state;
         self.ui.state(state);
@@ -649,6 +614,19 @@ impl Controller {
             let _ = tx.send(input);
         });
     }
+}
+
+/// Shortcuts whose release the gestures need.
+fn is_gesture(action: Action) -> bool {
+    matches!(
+        action,
+        Action::PushToTalk
+            | Action::HandsFree
+            | Action::Cancel
+            | Action::PasteLast
+            | Action::CopyLast
+            | Action::CommandMode
+    )
 }
 
 fn minutes(duration: Duration) -> String {

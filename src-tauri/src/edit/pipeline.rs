@@ -11,6 +11,7 @@ use super::library::{Library, Snapshot};
 use super::markdown::{self, Rendered, SNIPPET_END, SNIPPET_START};
 use super::prompts::{self, PromptOptions};
 use super::style::{self, Style, Target};
+use super::transforms::AutoApply;
 use super::{CleanupLevel, context_format, dictionary, names, snippets, spoken};
 use crate::context::DictationContext;
 use crate::llm::{LlmError, LlmProviderId, LlmRequest, LlmSource, http};
@@ -94,6 +95,8 @@ pub struct Editor {
     timeout: EditTimeout,
     /// Providers whose missing-key notice was shown this session.
     missing_key_shown: Mutex<HashSet<LlmProviderId>>,
+    /// When a transform last ran after a dictation (TRF-05).
+    pub(super) last_auto_apply: Mutex<Option<Instant>>,
 }
 
 impl Editor {
@@ -109,6 +112,7 @@ impl Editor {
             library,
             timeout,
             missing_key_shown: Mutex::new(HashSet::new()),
+            last_auto_apply: Mutex::new(None),
         }
     }
 
@@ -241,7 +245,7 @@ impl Editor {
         };
         let llm_ms = (level != CleanupLevel::None).then(|| started.elapsed().as_millis() as u64);
 
-        let (body, formatted, notice) = match edited {
+        let (body, formatted, mut notice) = match edited {
             Ok(body) => (body, true, None),
             Err(failure) => {
                 if let Some(failure) = &failure {
@@ -274,6 +278,15 @@ impl Editor {
                     (expanded.unwrap_or(fallback), false)
                 }
             };
+        let skip = notice.is_some() || !held.is_empty();
+        let expanded = match self.auto_apply(&expanded, skip).await {
+            AutoApply::Applied(text) => text,
+            AutoApply::Skipped => expanded,
+            AutoApply::Failed(failure) => {
+                notice = Some(failure);
+                expanded
+            }
+        };
         let mut text = markdown::render(&expanded);
         if text.html.is_none()
             && let Some(around) = context.surroundings()

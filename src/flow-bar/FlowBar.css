@@ -272,3 +272,31 @@ body {
   display: flex;
   justify-content: flex-end;
 }
+
+.changes {
+  width: 380px;
+}
+
+.diff ins {
+  background: rgb(48 209 88 / 0.25);
+  color: #d8ffe0;
+  text-decoration: none;
+}
+
+.diff del {
+  background: rgb(255 69 58 / 0.22);
+  color: rgb(255 200 196 / 0.85);
+}
+
+.answer-actions {
+  gap: 6px;
+}
+
+.notice-action.primary {
+  background: rgb(191 90 242 / 0.85);
+}
+
+.diff del + ins,
+.diff ins + del {
+  margin-left: 3px;
+}

@@ -26,7 +26,8 @@ export type NoticeAction =
   | "openKeyboardSettings"
   | "retryModelDownload"
   | "openAiSettings"
-  | "openExperimentalSettings";
+  | "openExperimentalSettings"
+  | "viewTransformChanges";
 
 /** Mirrors `notify::Notice`. */
 export interface Notice {
@@ -44,7 +45,48 @@ export interface Answer {
 }
 
 /** Mirrors `hotkeys::Action` for the shortcuts the user can set. */
-export type ShortcutAction = "pressEnter";
+export type ShortcutAction =
+  "pressEnter" | "polish" | "promptEngineer" | "viewChanges" | { customTransform: number };
+
+/** Mirrors `dictation::TransformView`: what the last transform changed. */
+export interface TransformView {
+  id: number;
+  name: string;
+  original: string;
+  result: string;
+}
+
+/** Mirrors `dictation::TransformAction`: the changes view's buttons. */
+export type TransformAction = "view" | "copy" | "retry" | "undo";
+
+/** Mirrors `settings::PolishRules`. */
+export interface PolishRules {
+  concise: boolean;
+  clarity: boolean;
+  reorder: boolean;
+  structure: boolean;
+  tone: boolean;
+}
+
+/** Mirrors `settings::CustomTransform`. */
+export interface CustomTransform {
+  id: string;
+  name: string;
+  prompt: string;
+  shortcut: string | null;
+  samples: string[];
+}
+
+/** Mirrors `settings::TransformSettings`. */
+export interface TransformSettings {
+  enabled: boolean;
+  polish: { rules: PolishRules; instructions: string[]; shortcut: string | null };
+  promptEngineer: { prompt: string; shortcut: string | null };
+  custom: CustomTransform[];
+  viewChangesShortcut: string | null;
+  /** "polish", "promptEngineer" or a custom transform's id. */
+  autoApply: string | null;
+}
 
 /** Mirrors `stt::ModelState`, flattened into `ModelStatus`. */
 export type ModelState =
@@ -119,6 +161,7 @@ export interface Settings {
   /** Shortcuts in handy-keys notation, e.g. "Opt+Return"; set with `setShortcut`. */
   shortcuts: { pressEnter: string | null };
   notices: { commandModeOffCount: number; commandModeOffDay: string };
+  transforms: TransformSettings;
 }
 
 /** A JSON merge patch for `update_settings`: any subset of the settings. */
@@ -128,6 +171,14 @@ export interface SettingsPatch {
   styles?: Partial<Settings["styles"]>;
   privacy?: Partial<Settings["privacy"]>;
   experimental?: Partial<Settings["experimental"]>;
+  /** `null` restores a default (a whole section, or Polish's rules). */
+  transforms?: {
+    enabled?: boolean;
+    polish?: { rules?: Partial<PolishRules> | null; instructions?: string[] };
+    promptEngineer?: { prompt?: string } | null;
+    custom?: CustomTransform[];
+    autoApply?: string | null;
+  };
 }
 
 /** Mirrors `llm::catalog::ModelOption`. */
@@ -284,6 +335,9 @@ export const updateSettings = (patch: SettingsPatch): Promise<Settings> =>
 export const setShortcut = (action: ShortcutAction, shortcut: string | null): Promise<Settings> =>
   invoke<Settings>("set_shortcut", { action, shortcut });
 
+export const transformAction = (action: TransformAction): Promise<void> =>
+  invoke("transform_action", { action });
+
 export const getAiOptions = (): Promise<AiOptions> => invoke<AiOptions>("get_ai_options");
 
 export const getApiKeys = (): Promise<ApiKeys> => invoke<ApiKeys>("get_api_keys");
@@ -347,6 +401,7 @@ export const EVENTS = {
   navigate: "app://navigate",
   settings: "settings://changed",
   answer: "command://answer",
+  changes: "transform://changes",
 } as const;
 
 export function onEvent<T>(name: string, handler: (payload: T) => void): Promise<UnlistenFn> {

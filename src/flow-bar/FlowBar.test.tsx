@@ -2,7 +2,13 @@ import { emit } from "@tauri-apps/api/event";
 import { mockIPC } from "@tauri-apps/api/mocks";
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
-import { EVENTS, type Answer, type DictationState, type Notice } from "../lib/ipc";
+import {
+  EVENTS,
+  type Answer,
+  type DictationState,
+  type Notice,
+  type TransformView,
+} from "../lib/ipc";
 import { FlowBar } from "./FlowBar";
 
 function backend() {
@@ -117,5 +123,34 @@ describe("FlowBar", () => {
     expect(screen.getByRole("button", { name: "Copied ✓" })).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Dismiss" }));
     expect(screen.queryByRole("region", { name: "Command Mode answer" })).toBeNull();
+  });
+
+  it("shows a transform's changes with Copy, Retry, Undo and Accept edits", async () => {
+    const calls = backend();
+    render(<FlowBar />);
+    await screen.findByRole("button", { name: "Start dictation" });
+    const view: TransformView = {
+      id: 1,
+      name: "Polish",
+      original: "teh report is late",
+      result: "The report is late.",
+    };
+    await act(async () => emit(EVENTS.changes, view));
+    const card = screen.getByRole("region", { name: "Polish changes" });
+    expect(card.querySelector("del")).toHaveTextContent("teh");
+    expect(card.querySelector("ins")).toHaveTextContent("The");
+    fireEvent.click(screen.getByRole("button", { name: "Copy" }));
+    fireEvent.click(screen.getByRole("button", { name: "Retry" }));
+    fireEvent.click(screen.getByRole("button", { name: "Undo" }));
+    await waitFor(() => {
+      const actions = calls
+        .filter((call) => call.cmd === "transform_action")
+        .map((call) => (call.args as { action: string }).action);
+      expect(actions).toEqual(["copy", "retry", "undo"]);
+    });
+    expect(screen.queryByRole("region", { name: "Polish changes" })).toBeNull();
+    await act(async () => emit(EVENTS.changes, view));
+    fireEvent.click(screen.getByRole("button", { name: "Accept edits" }));
+    expect(screen.queryByRole("region", { name: "Polish changes" })).toBeNull();
   });
 });

@@ -17,6 +17,14 @@ pub enum Action {
     CommandMode,
     /// Sends Enter to the focused app; unbound by default (CORE-15).
     PressEnter,
+    /// Rewrites the selection with the Polish rules (TRF-01).
+    Polish,
+    /// Turns the selection into a structured AI prompt (TRF-02).
+    PromptEngineer,
+    /// A custom transform, by its position in the settings (TRF-03).
+    CustomTransform(u8),
+    /// Shows what the last transform changed (TRF-04).
+    ViewChanges,
 }
 
 impl Action {
@@ -29,6 +37,10 @@ impl Action {
             Self::CopyLast => "Copy last transcript",
             Self::CommandMode => "Command Mode",
             Self::PressEnter => "Press Enter",
+            Self::Polish => "Polish",
+            Self::PromptEngineer => "Prompt Engineer",
+            Self::CustomTransform(_) => "a custom transform",
+            Self::ViewChanges => "View changes",
         }
     }
 }

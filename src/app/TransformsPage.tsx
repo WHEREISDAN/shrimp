@@ -1,0 +1,145 @@
+import { useState } from "react";
+import { setShortcut, type CustomTransform, type Settings } from "../lib/ipc";
+import { CustomTransformCard } from "./CustomTransformCard";
+import { Page } from "./Page";
+import { PolishCard } from "./PolishCard";
+import { PromptEngineerCard } from "./PromptEngineerCard";
+import { ShortcutRecorder } from "./ShortcutRecorder";
+import { ToggleRow } from "./ToggleRow";
+import { useAutosave } from "./useAutosave";
+import { useSettings } from "./useSettings";
+
+const MAX_CUSTOM = 8;
+
+/** Shortcuts come from the backend, which saves them on their own. */
+function withSavedShortcuts(
+  drafts: CustomTransform[],
+  saved: CustomTransform[],
+): CustomTransform[] {
+  return drafts.map((draft) => ({
+    ...draft,
+    shortcut: saved.find((transform) => transform.id === draft.id)?.shortcut ?? draft.shortcut,
+  }));
+}
+
+function newTransform(existing: CustomTransform[], taken: (string | null)[]): CustomTransform {
+  return {
+    id: crypto.randomUUID(),
+    name: "",
+    prompt: "",
+    shortcut: existing.length === 0 && !taken.includes("Opt+3") ? "Opt+3" : null,
+    samples: [],
+  };
+}
+
+export function TransformsPage() {
+  const { settings, error, update, apply } = useSettings();
+  // Custom transforms being edited, until the saved list catches up (TRF-03).
+  const [edits, setEdits] = useState<CustomTransform[] | null>(null);
+
+  useAutosave(edits, edits !== null, (current) => {
+    if (!current || !settings) {
+      return;
+    }
+    const list = withSavedShortcuts(current, settings.transforms.custom);
+    void update({ transforms: { custom: list } }).then(() =>
+      setEdits((now) => (now === current ? null : now)),
+    );
+  });
+
+  const applySaved = (saved: Settings) => {
+    apply(saved);
+    setEdits((current) => current && withSavedShortcuts(current, saved.transforms.custom));
+  };
+
+  const drafts = edits ?? settings?.transforms.custom;
+  if (!settings || !drafts) {
+    return (
+      <Page title="Transforms">
+        {error ? <p className="error">{error}</p> : <p className="muted">Loading…</p>}
+      </Page>
+    );
+  }
+  const transforms = settings.transforms;
+  const taken = [transforms.polish.shortcut, transforms.promptEngineer.shortcut];
+
+  return (
+    <Page title="Transforms">
+      {error && (
+        <p className="error" role="alert">
+          {error}
+        </p>
+      )}
+      <section className="card stack" aria-labelledby="transforms-heading">
+        <h2 id="transforms-heading">Rewrite any text with AI</h2>
+        <ToggleRow
+          label="Transforms"
+          description="Select text anywhere and press a transform's shortcut: the result replaces it, and “See changes” shows what changed. Your text is sent to your AI provider."
+          checked={transforms.enabled}
+          onChange={(enabled) => void update({ transforms: { enabled } })}
+        />
+      </section>
+      <fieldset className="plain-fieldset stack" disabled={!transforms.enabled}>
+        <PolishCard settings={settings} update={update} apply={applySaved} />
+        <PromptEngineerCard settings={settings} update={update} apply={applySaved} />
+        {drafts.map((transform, index) => (
+          <CustomTransformCard
+            key={transform.id}
+            index={index}
+            transform={transform}
+            apply={applySaved}
+            onChange={(next) => setEdits(drafts.map((t) => (t.id === next.id ? next : t)))}
+            onDelete={() => {
+              const next = drafts.filter((t) => t.id !== transform.id);
+              setEdits(null);
+              void update({
+                transforms: {
+                  custom: next,
+                  autoApply: transforms.autoApply === transform.id ? null : transforms.autoApply,
+                },
+              });
+            }}
+          />
+        ))}
+        {drafts.length < MAX_CUSTOM && (
+          <button
+            type="button"
+            className="add-transform"
+            onClick={() => setEdits([...drafts, newTransform(drafts, taken)])}
+          >
+            New transform
+          </button>
+        )}
+        <section className="card stack" aria-labelledby="auto-apply-heading">
+          <h2 id="auto-apply-heading">After dictation</h2>
+          <label className="select-field field">
+            <span>Apply a transform after every dictation</span>
+            <select
+              value={transforms.autoApply ?? ""}
+              onChange={(event) =>
+                void update({ transforms: { autoApply: event.target.value || null } })
+              }
+            >
+              <option value="">Off</option>
+              <option value="polish">Polish</option>
+              <option value="promptEngineer">Prompt Engineer</option>
+              {transforms.custom
+                .filter((transform) => transform.name.trim() && transform.prompt.trim())
+                .map((transform) => (
+                  <option key={transform.id} value={transform.id}>
+                    {transform.name}
+                  </option>
+                ))}
+            </select>
+          </label>
+          <p className="muted">If the transform fails, your dictation is pasted as it was.</p>
+          <ShortcutRecorder
+            label="See changes"
+            value={transforms.viewChangesShortcut}
+            onSave={async (shortcut) => applySaved(await setShortcut("viewChanges", shortcut))}
+          />
+        </section>
+      </fieldset>
+    </Page>
+  );
+}

@@ -36,6 +36,8 @@ pub enum NoticeAction {
     OpenAiSettings,
     /// Opens Settings › Experimental (Command Mode is off).
     OpenExperimentalSettings,
+    /// Shows what the last transform changed (TRF-04).
+    ViewTransformChanges,
 }
 
 impl NoticeAction {
@@ -48,6 +50,7 @@ impl NoticeAction {
             | Self::OpenAiSettings => "Open Settings",
             Self::RetryModelDownload => "Retry",
             Self::OpenExperimentalSettings => "Go to settings",
+            Self::ViewTransformChanges => "See changes",
         }
     }
 }

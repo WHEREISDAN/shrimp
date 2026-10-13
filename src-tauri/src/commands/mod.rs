@@ -22,6 +22,7 @@ pub const NAMES: &[&str] = &[
     "flow_bar_ready",
     "flow_bar_layout",
     "run_notice_action",
+    "transform_action",
     "get_shortcuts",
     "get_models",
     "download_default_model",

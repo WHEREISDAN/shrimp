@@ -13,7 +13,7 @@ pub use shrimp_lib::audio::{AudioClip, AudioSourceSpec};
 pub use shrimp_lib::dictation::gestures::BarControl;
 pub use shrimp_lib::dictation::{
     self, Answer, ControllerHandle, ControllerInput, DictationState, DictationUi, Mode, Services,
-    Timing,
+    Timing, TransformAction, TransformView,
 };
 pub use shrimp_lib::edit::{CleanupLevel, EditTimeout, Editor, FixedLibrary, Snapshot};
 pub use shrimp_lib::hotkeys::{Action, Binding, ShortcutEvent, macos_defaults};
@@ -53,6 +53,7 @@ pub struct Fakes {
     pub selection_copy: Mutex<Option<String>>,
     pub opened: Mutex<Vec<String>>,
     pub answers: Mutex<Vec<Answer>>,
+    pub changes: Mutex<Vec<TransformView>>,
     /// Ranges selected through the focus inspector.
     pub selected_ranges: Mutex<Vec<TextRange>>,
     pub copied: Mutex<Vec<String>>,
@@ -360,6 +361,10 @@ impl DictationUi for FakeUi {
 
     fn answer(&self, answer: Answer) {
         self.0.answers.lock().unwrap().push(answer);
+    }
+
+    fn changes(&self, view: TransformView) {
+        self.0.changes.lock().unwrap().push(view);
     }
 }
 

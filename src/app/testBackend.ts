@@ -97,6 +97,18 @@ export const SETTINGS: Settings = {
   experimental: { commandMode: false, commandModeIntroSeen: false, pressEnterCommand: false },
   shortcuts: { pressEnter: null },
   notices: { commandModeOffCount: 0, commandModeOffDay: "" },
+  transforms: {
+    enabled: false,
+    polish: {
+      rules: { concise: true, clarity: true, reorder: true, structure: true, tone: true },
+      instructions: [],
+      shortcut: "Opt+1",
+    },
+    promptEngineer: { prompt: "Turn the text into a clear prompt.", shortcut: "Opt+2" },
+    custom: [],
+    viewChangesShortcut: "Opt+O",
+    autoApply: null,
+  },
 };
 
 export const AI_OPTIONS: AiOptions = {

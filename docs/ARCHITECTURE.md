@@ -103,11 +103,14 @@ edit/                   AI edit pipeline                                        
   context_format.rs     casing and spacing from the text around the cursor (FMT-11)    (built)
   names.rs              respells names the way the screen shows them (CTX-02)          (built)
   command.rs            Command Mode prompt, tagged reply parsing (CMD-01..03)         (built)
+  transforms.rs         Polish, Prompt Engineer, custom transforms, auto-apply         (built)
 dictation/              orchestration                                                  (built)
-  controller.rs         the dictation actor (state machine below)                      (built)
+  controller/           the dictation actor (state machine below); shortcuts.rs for
+                        Press Enter and bindings, transforms.rs for transform runs     (built)
   gestures.rs           hold / double-tap / short-tap / busy recognition, pure         (built)
   pipeline.rs           trim, transcribe, insert, press Enter                          (built)
   command.rs            a Command Mode session: target, search, replace, answer        (built)
+  transform.rs          a transform run: source text, replace in place, retry, undo    (built)
   bindings.rs           the shortcuts bound at each moment                             (built)
   outcomes.rs           notices and paste-last memory per outcome                      (built)
   state.rs              DictationState, DictationUi, Timing, inputs, outcomes          (built)
@@ -173,10 +176,10 @@ Built so far:
 | Kind     | Names                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
 | -------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Commands | `app_info`, `get_dictation_state`, `flow_bar_control`, `flow_bar_ready`, `flow_bar_layout`, `run_notice_action`, `get_shortcuts`, `get_models`, `download_default_model`, `get_permissions`, `open_permission_settings`                                                                                                                                                                                                                                                                  |
-| Phase 3  | `set_shortcut` (validates a recorded shortcut against every other one)                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| Phase 3  | `set_shortcut` (validates a recorded shortcut against every other one), `transform_action` (the changes view's Copy, Retry and Undo)                                                                                                                                                                                                                                                                                                                                                     |
 | Phase 2  | `get_settings`, `update_settings`, `get_ai_options`, `get_api_keys`, `set_api_key`, `delete_api_key`, `list_ollama_models`, `test_ai_provider`; dictionary and snippet CRUD and imports (`list_dictionary`, `add_dictionary_entry`, `update_dictionary_entry`, `set_dictionary_pinned`, `delete_dictionary_entries`, `preview_dictionary_import`, `import_dictionary`, `list_snippets`, `add_snippet`, `update_snippet`, `delete_snippets`, `preview_snippet_import`, `import_snippets`) |
 | Dev only | `dev_get_audio_source`, `dev_set_audio_source`, `dev_set_app_category`, `dev_edit_text`, `dev_read_context` (debug builds; see DEVELOPMENT.md)                                                                                                                                                                                                                                                                                                                                           |
-| Events   | `dictation://state`, `dictation://level` (Flow Bar only), `notify://notice`, `command://answer` (Flow Bar only), `models://status`, `app://navigate`, `settings://changed`                                                                                                                                                                                                                                                                                                               |
+| Events   | `dictation://state`, `dictation://level` (Flow Bar only), `notify://notice`, `command://answer` and `transform://changes` (Flow Bar only), `models://status`, `app://navigate`, `settings://changed`                                                                                                                                                                                                                                                                                     |
 
 The Flow Bar calls `flow_bar_ready` once its notice listener is registered; notices raised
 before that (for example a missing permission at startup) are queued and delivered then. It
@@ -496,7 +499,8 @@ pub trait LlmProvider: Send + Sync {
     async fn complete(&self, request: &LlmRequest) -> Result<LlmResponse, LlmError>;
     async fn warm_up(&self) {}                        // open the connection / load the model
 }
-// LlmRequest { system, messages: Vec<Message { role, content }>, max_output_tokens }
+// LlmRequest { system, messages: Vec<Message { role, content }>, max_output_tokens,
+//              varied /* a Retry: Ollama samples instead of temperature 0 */ }
 // LlmResponse { text }
 // LlmError: MissingKey | Unauthorized | RateLimited | Quota | Offline | Timeout
 //           | Unavailable(String) | Failed(String) | Cancelled
@@ -643,6 +647,30 @@ Off until turned on in Settings › Experimental, with a one-time intro (CMD-06)
    stays on the clipboard with a notice, so the user's text is never lost. A failed
    model call changes nothing.
 
+### Transforms
+
+Turned on from the Transforms page, which binds their shortcuts (TRF-01..06): Polish
+(Opt+1) with five toggleable rules and up to 5 custom instructions, Prompt Engineer
+(Opt+2) with an editable prompt, up to 8 custom transforms (name, prompt, shortcut, up to
+5 writing samples of 50–500 words; the first suggests Opt+3; edits save on their own),
+and See changes (Opt+O). They live in `settings.transforms`.
+
+A run (`dictation/transform.rs`) reads the selection like Command Mode, else the whole
+field, else, in an empty field, the last dictation pasted within the past minute; text
+of 1 to 1,000 words is sent in `<text>` tags as data (`edit/transforms.rs`), and the
+result replaces it in place as one undoable paste. Errors use Wispr's texts: "Select
+text to apply a transform", "Oops, too long to polish. Try again with under 1000
+words.", "Transform timed out", "Transform returned no text". The run keeps the
+original, the result and where the result starts in the field, so the changes view
+(Flow Bar, a word diff) can Copy it, Retry (the earlier result goes in as data with
+"write it differently", and Ollama samples at temperature 0.8 for this one request) or
+Undo; Retry and Undo first check that the result is still where it was pasted and
+otherwise leave the text on the clipboard.
+
+Auto-apply runs the chosen transform inside the edit pipeline, before casing and
+spacing, unless the dictation raised a notice, held snippets or followed another within
+5 seconds; when it fails, the dictation is inserted as it was, with a notice (TRF-05).
+
 The "press enter" voice command (Settings › Experimental, CORE-16) strips a final "press
 enter" from the transcript before the edit and presses Enter 120 ms after a successful
 paste; "press enter" alone just presses Enter.
@@ -773,7 +801,8 @@ Built sections: `stt` (engine, OpenAI and Groq models), `ai` (provider, cleanup 
 model per provider, Ollama model and address), `styles` (one per category, Formal by
 default), `privacy` (`contextAwareness`, on by default), `experimental` (`commandMode`,
 `commandModeIntroSeen`, `pressEnterCommand`), `shortcuts` (`pressEnter`, set through
-`set_shortcut`) and `notices` (how often one-off notices were shown). Every change is
+`set_shortcut`), `notices` (how often one-off notices were shown) and `transforms`.
+Shortcut fields default to unbound field by field, so a merge patch's `null` clears one. Every change is
 announced to listeners: the webview's `settings://changed` and the controller, which
 rebinds shortcuts. Later phases add shortcuts, microphone, languages, sounds, media, flowBar,
 privacy, system, notifications, experimental, vibeCoding and onboarding.
