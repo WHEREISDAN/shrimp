@@ -82,12 +82,14 @@ fn menu<R: Runtime>(app: &AppHandle<R>, settings: &Settings) -> tauri::Result<Me
         MenuItem::with_id(app, id, text, enabled, accelerator)
     };
     let [paste_keys, copy_keys, quit_keys] = TRAY_ACCELERATORS;
+    let paste_available = PASTE_LAST_AVAILABLE.load(Ordering::Relaxed);
+    log::debug!("tray menu: paste last transcript enabled: {paste_available}");
     let open = item(OPEN_ID, t!("tray.open"), true, None)?;
     let shortcuts = item(SHORTCUTS_ID, t!("tray.shortcuts"), true, None)?;
     let paste_last = item(
         PASTE_LAST_ID,
         t!("tray.pasteLast"),
-        PASTE_LAST_AVAILABLE.load(Ordering::Relaxed),
+        paste_available,
         paste_keys,
     )?;
     let copy_last = item(COPY_LAST_ID, t!("tray.copyLast"), true, copy_keys)?;
