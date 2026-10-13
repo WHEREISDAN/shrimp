@@ -60,6 +60,12 @@ pub enum NoticeAction {
     OpenSoundSettings,
     /// The same, from a warning about no sound.
     TroubleshootMicrophone,
+    /// Opens Settings › Languages (LANG-04).
+    OpenLanguageSettings,
+    /// Adds the language the dictation sounded like.
+    AddDetectedLanguage,
+    /// Stops the different-language card.
+    DismissLanguageCard,
 }
 
 impl NoticeAction {
@@ -82,6 +88,9 @@ impl NoticeAction {
             Self::DismissBluetoothAdvice => "Don't show again",
             Self::OpenSoundSettings => "Open Sound Settings",
             Self::TroubleshootMicrophone => "Troubleshoot",
+            Self::OpenLanguageSettings => "Open language settings",
+            Self::AddDetectedLanguage => "Add language",
+            Self::DismissLanguageCard => "Don't show again",
         }
     }
 }

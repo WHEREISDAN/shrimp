@@ -4,6 +4,7 @@ import type { ApiKeys, Settings, SettingsPatch } from "../lib/ipc";
 import { SettingsPage } from "./SettingsPage";
 import {
   AI_OPTIONS,
+  LANGUAGES,
   MICROPHONES,
   MODELS,
   mockBackend,
@@ -25,6 +26,12 @@ function backend(
     get_shortcuts: () => SHORTCUTS,
     get_models: () => MODELS,
     get_microphones: () => MICROPHONES,
+    get_languages: () => LANGUAGES,
+    set_languages: (args) => ({
+      autoDetect: args.autoDetect,
+      selected: args.selected,
+      active: null,
+    }),
     select_microphone: () => MICROPHONES,
     rank_microphone: () => MICROPHONES,
     forget_microphone: () => MICROPHONES,
@@ -427,6 +434,50 @@ describe("SettingsPage sound", () => {
         { patch: { media: { mute: true, pause: false } } },
         { patch: { media: { pause: true, mute: false } } },
       ]),
+    );
+  });
+});
+
+describe("SettingsPage languages", () => {
+  it("searches, keeps one variant per language and saves", async () => {
+    const { argsOf } = backend();
+    render(<SettingsPage />);
+    const section = await screen.findByRole("region", { name: "Languages" });
+    expect(await within(section).findByText("English (US)")).toBeInTheDocument();
+    fireEvent.click(within(section).getByRole("button", { name: "Change" }));
+    const dialog = screen.getByRole("dialog", { name: "Languages" });
+    fireEvent.change(within(dialog).getByRole("searchbox", { name: "Search languages" }), {
+      target: { value: "engl" },
+    });
+    expect(within(dialog).queryByRole("checkbox", { name: "French" })).toBeNull();
+    fireEvent.click(within(dialog).getByRole("checkbox", { name: "English (UK)" }));
+    expect(within(dialog).getByRole("checkbox", { name: "English (US)" })).not.toBeChecked();
+    fireEvent.change(within(dialog).getByRole("searchbox", { name: "Search languages" }), {
+      target: { value: "" },
+    });
+    fireEvent.click(within(dialog).getByRole("checkbox", { name: "French" }));
+    fireEvent.click(within(dialog).getByRole("button", { name: "Save" }));
+    await waitFor(() =>
+      expect(argsOf("set_languages")).toEqual([{ autoDetect: false, selected: ["en-GB", "fr"] }]),
+    );
+  });
+
+  it("refuses to save with no language and auto-detect off", async () => {
+    const { argsOf } = backend();
+    render(<SettingsPage />);
+    const section = await screen.findByRole("region", { name: "Languages" });
+    fireEvent.click(await within(section).findByRole("button", { name: "Change" }));
+    const dialog = screen.getByRole("dialog", { name: "Languages" });
+    fireEvent.click(within(dialog).getByRole("checkbox", { name: "English (US)" }));
+    fireEvent.click(within(dialog).getByRole("button", { name: "Save" }));
+    expect(within(dialog).getByRole("alert")).toHaveTextContent(
+      "Please select at least one language or turn on auto-detect",
+    );
+    expect(argsOf("set_languages")).toEqual([]);
+    fireEvent.click(within(dialog).getByRole("switch", { name: "Auto-detect" }));
+    fireEvent.click(within(dialog).getByRole("button", { name: "Save" }));
+    await waitFor(() =>
+      expect(argsOf("set_languages")).toEqual([{ autoDetect: true, selected: [] }]),
     );
   });
 });

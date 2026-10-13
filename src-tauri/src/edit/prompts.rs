@@ -17,6 +17,8 @@ pub struct PromptOptions<'a> {
     pub triggers: &'a [String],
     /// Names and identifiers visible on the user's screen (CTX-02).
     pub screen_terms: &'a [String],
+    /// How the user's language variant is written (LANG-03).
+    pub language_rule: Option<&'static str>,
 }
 
 const ROLE: &str = "\
@@ -115,6 +117,10 @@ pub fn system_prompt(options: &PromptOptions<'_>) -> String {
         prompt.push_str(&options.terms.join(", "));
         prompt.push('.');
     }
+    if let Some(rule) = options.language_rule {
+        prompt.push_str("\n- ");
+        prompt.push_str(rule);
+    }
     if !options.screen_terms.is_empty() {
         prompt.push_str(
             "\n- These names and terms are on the user's screen. When the speaker says one, \
@@ -190,6 +196,7 @@ mod tests {
             terms: &[],
             triggers: &[],
             screen_terms: &[],
+            language_rule: None,
         }
     }
 

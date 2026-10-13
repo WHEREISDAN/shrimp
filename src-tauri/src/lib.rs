@@ -7,6 +7,7 @@ pub mod context;
 pub mod dictation;
 pub mod edit;
 pub mod hotkeys;
+pub mod lang;
 pub mod llm;
 pub mod mic;
 pub mod notify;
@@ -44,6 +45,9 @@ pub fn run() {
                 commands::shortcuts::cancel_shortcut_recording,
                 commands::shortcuts::remove_shortcut,
                 commands::shortcuts::reset_shortcuts,
+                commands::languages::get_languages,
+                commands::languages::set_languages,
+                commands::languages::set_active_language,
                 commands::microphones::get_microphones,
                 commands::microphones::select_microphone,
                 commands::microphones::rank_microphone,

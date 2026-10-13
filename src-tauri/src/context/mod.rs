@@ -30,11 +30,17 @@ pub struct DictationContext {
     pub app: Option<AppIdentity>,
     /// None until the read finishes, and when nothing could be read.
     pub field: Option<FieldContext>,
+    /// The language it was spoken in (a Whisper code), once transcribed.
+    pub language: Option<String>,
 }
 
 impl DictationContext {
     pub fn new(app: Option<AppIdentity>, field: Option<FieldContext>) -> Self {
-        Self { app, field }
+        Self {
+            app,
+            field,
+            language: None,
+        }
     }
 
     pub fn app_kind(&self) -> AppKind {

@@ -97,6 +97,60 @@ impl SttEngine for LocalWhisper {
         .await
         .map_err(|err| SttError::Failed(format!("transcription task failed: {err}")))?
     }
+
+    async fn detect_language(&self, clip: &AudioClip) -> Option<(String, f32)> {
+        let mut samples = clip.samples().to_vec();
+        let context = Arc::clone(&self.context);
+        tokio::task::spawn_blocking(move || {
+            if samples.len() < MIN_SAMPLES {
+                samples.resize(MIN_SAMPLES, 0.0);
+            }
+            let mut state = context.create_state().ok()?;
+            let probabilities = language_probabilities(&mut state, &samples).ok()?;
+            probabilities
+                .iter()
+                .enumerate()
+                .max_by(|a, b| a.1.total_cmp(b.1))
+                .and_then(|(id, probability)| {
+                    let code = whisper_rs::get_lang_str(i32::try_from(id).ok()?)?;
+                    Some((code.to_owned(), *probability))
+                })
+        })
+        .await
+        .ok()
+        .flatten()
+    }
+}
+
+/// Whisper's probability for every language, from the first 30 s.
+fn language_probabilities(
+    state: &mut whisper_rs::WhisperState,
+    samples: &[f32],
+) -> Result<Vec<f32>, whisper_rs::WhisperError> {
+    state.pcm_to_mel(samples, threads() as usize)?;
+    let (_, probabilities) = state.lang_detect(0, threads() as usize)?;
+    Ok(probabilities)
+}
+
+/// The most likely of `allowed` (LANG-02): several languages selected
+/// means detection among them only.
+fn detect_among(
+    state: &mut whisper_rs::WhisperState,
+    samples: &[f32],
+    allowed: &[String],
+) -> Option<String> {
+    let probabilities = language_probabilities(state, samples).ok()?;
+    allowed
+        .iter()
+        .filter_map(|code| {
+            let id = usize::try_from(whisper_rs::get_lang_id(code)?).ok()?;
+            Some((code, *probabilities.get(id)?))
+        })
+        .max_by(|a, b| a.1.total_cmp(&b.1))
+        .map(|(code, probability)| {
+            log::info!("detected {code} among {allowed:?} ({probability:.2})");
+            code.clone()
+        })
 }
 
 fn utf8(path: &Path) -> Result<&str, SttError> {
@@ -159,11 +213,34 @@ fn run(
     let failed = |err: whisper_rs::WhisperError| SttError::Failed(err.to_string());
     let mut state = context.create_state().map_err(failed)?;
 
-    let language = match options.languages.as_slice() {
-        [only] if whisper_rs::get_lang_id(only).is_some() => only.as_str(),
+    let known: Vec<String> = options
+        .languages
+        .iter()
+        .filter(|code| whisper_rs::get_lang_id(code).is_some())
+        .cloned()
+        .collect();
+    let detected = match known.as_slice() {
+        [] | [_] => None,
+        several => detect_among(&mut state, &samples, several),
+    };
+    let language = match (known.as_slice(), &detected) {
+        (_, Some(code)) => code.as_str(),
+        ([only], None) => only.as_str(),
         _ => "auto",
     };
-    let prompt = vocabulary_prompt(&options.vocabulary);
+    let hint = options
+        .hints
+        .iter()
+        .find(|(code, _)| code == language)
+        .map(|(_, hint)| hint.as_str());
+    let prompt = [
+        hint.unwrap_or_default(),
+        &vocabulary_prompt(&options.vocabulary),
+    ]
+    .into_iter()
+    .filter(|part| !part.is_empty())
+    .collect::<Vec<_>>()
+    .join(" ");
     let mut params = FullParams::new(SamplingStrategy::Greedy { best_of: 1 });
     params.set_language(Some(language));
     params.set_n_threads(threads());

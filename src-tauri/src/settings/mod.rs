@@ -3,6 +3,7 @@
 //! `update_settings(patch)`; Rust validates, saves and announces each change.
 
 pub mod audio;
+pub mod languages;
 mod model;
 pub mod shortcuts;
 pub mod transforms;
@@ -13,6 +14,7 @@ use std::sync::RwLock;
 use serde_json::Value;
 
 pub use audio::{KnownMicrophone, MediaSettings, MicrophoneSettings, SoundSettings};
+pub use languages::LanguageSettings;
 pub use model::{
     AiSettings, DictionarySettings, ExperimentalSettings, NoticeSettings, PrivacySettings,
     SETTINGS_VERSION, Settings, SttSettings, StyleSettings, VibeCodingSettings,

@@ -16,6 +16,7 @@ use super::style::{self, Style, Target};
 use super::transforms::AutoApply;
 use super::{CleanupLevel, context_format, dictionary, file_tags, names, snippets, spoken};
 use crate::context::DictationContext;
+use crate::lang;
 use crate::llm::{LlmError, LlmProviderId, LlmRequest, LlmSource, http};
 use crate::notify::Notice;
 use crate::platform::FieldKind;
@@ -83,6 +84,7 @@ struct PromptTerms<'a> {
     terms: &'a [String],
     triggers: &'a [String],
     screen: &'a [String],
+    language_rule: Option<&'static str>,
 }
 
 impl Edited {
@@ -197,6 +199,10 @@ impl Editor {
         let raw = suffix.as_deref().unwrap_or(raw);
         let mut edited = self.edit_text(raw, context, &settings).await;
         edited.press_enter = press_enter;
+        // Spelling follows the language variant whatever the model wrote (LANG-03).
+        let variant = lang::variant(&settings.languages, context.language.as_deref());
+        edited.text.plain = lang::shape(&edited.text.plain, variant);
+        edited.text.html = edited.text.html.map(|html| lang::shape(&html, variant));
         edited
     }
 
@@ -267,6 +273,11 @@ impl Editor {
                         terms: &terms,
                         triggers: &triggers,
                         screen: &screen_terms,
+                        language_rule: lang::variant(
+                            &settings.languages,
+                            context.language.as_deref(),
+                        )
+                        .and_then(lang::prompt_rule),
                     },
                 )
                 .await
@@ -371,6 +382,7 @@ impl Editor {
             terms: terms.terms,
             triggers: terms.triggers,
             screen_terms: terms.screen,
+            language_rule: terms.language_rule,
         };
         let request = LlmRequest::single(
             prompts::system_prompt(&options),

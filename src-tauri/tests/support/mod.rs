@@ -84,6 +84,11 @@ pub struct Fakes {
     pub transcribed: Mutex<Vec<usize>>,
     pub failures_left: AtomicUsize,
     pub stt_delay: Mutex<Duration>,
+    /// The languages each transcription was asked for.
+    pub languages: Mutex<Vec<Vec<String>>>,
+    /// What the fake engine transcribes in, and what a language check finds.
+    pub spoken: Mutex<Option<String>>,
+    pub detected: Mutex<Option<(String, f32)>>,
 }
 
 impl Fakes {
@@ -282,6 +287,11 @@ impl SttEngine for FakeEngine {
             .lock()
             .unwrap()
             .push(options.vocabulary.clone());
+        self.0
+            .languages
+            .lock()
+            .unwrap()
+            .push(options.languages.clone());
         let delay = *self.0.stt_delay.lock().unwrap();
         tokio::time::sleep(delay).await;
         self.0
@@ -304,8 +314,12 @@ impl SttEngine for FakeEngine {
                 .unwrap()
                 .clone()
                 .unwrap_or(TEXT.into()),
-            language: Some("en".into()),
+            language: Some(self.0.spoken.lock().unwrap().clone().unwrap_or("en".into())),
         })
+    }
+
+    async fn detect_language(&self, _: &AudioClip) -> Option<(String, f32)> {
+        self.0.detected.lock().unwrap().clone()
     }
 }
 
@@ -512,7 +526,6 @@ impl Harness {
             settings: Arc::clone(&settings),
             engine,
             fallback_engine,
-            languages: vec!["en".into()],
             editor,
             ui,
             source,

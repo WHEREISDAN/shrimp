@@ -79,6 +79,14 @@ impl SttEngine for SttRouter {
             .map_err(|err| SttError::Failed(err.to_string()))??;
         engine.transcribe(clip, options).await
     }
+
+    async fn detect_language(&self, clip: &AudioClip) -> Option<(String, f32)> {
+        if self.id() == SttEngineId::LocalWhisper {
+            self.local.detect_language(clip).await
+        } else {
+            None
+        }
+    }
 }
 
 #[cfg(test)]

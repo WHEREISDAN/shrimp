@@ -6,6 +6,7 @@ pub mod app;
 #[cfg(debug_assertions)]
 pub mod dev;
 pub mod dictation;
+pub mod languages;
 pub mod library;
 pub mod microphones;
 pub mod models;
@@ -30,6 +31,9 @@ pub const NAMES: &[&str] = &[
     "cancel_shortcut_recording",
     "remove_shortcut",
     "reset_shortcuts",
+    "get_languages",
+    "set_languages",
+    "set_active_language",
     "get_microphones",
     "select_microphone",
     "rank_microphone",

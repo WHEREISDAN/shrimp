@@ -335,8 +335,8 @@ pub struct Platform {
     pub default_bindings: Vec<Binding>,
     /// Formats a binding for display, e.g. "fn Space" or "⌃⌘V".
     pub label: fn(&crate::hotkeys::Trigger) -> String,
-    /// The user's preferred language (ISO 639-1), the dictation language
-    /// until the language settings arrive.
+    /// The user's preferred language as a BCP 47 tag ("en-GB"), the first
+    /// language to dictate in.
     pub language: Option<String>,
     /// What the Fn key does by itself, which a Fn shortcut must not trigger.
     pub globe_key: GlobeKeyAction,

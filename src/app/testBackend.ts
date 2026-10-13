@@ -3,6 +3,7 @@ import { fireEvent } from "@testing-library/react";
 import type {
   AiOptions,
   DictionaryEntry,
+  Languages,
   MicrophoneList,
   ModelStatus,
   Settings,
@@ -115,6 +116,8 @@ export const SETTINGS: Settings = {
     bluetoothAdviceCount: 0,
     bluetoothAdviceAt: 0,
     bluetoothAdviceOff: false,
+    languageCardDay: "",
+    languageCardOff: false,
   },
   transforms: {
     enabled: false,
@@ -131,6 +134,7 @@ export const SETTINGS: Settings = {
   microphone: { selected: null, ranking: [] },
   sounds: { dictation: true, notifications: true },
   media: { mute: false, pause: false },
+  languages: { autoDetect: false, selected: ["en-US"], active: null },
 };
 
 export const MODELS: ModelStatus[] = [
@@ -159,6 +163,20 @@ export const MODELS: ModelStatus[] = [
     state: "active",
   },
 ];
+
+export const LANGUAGES: Languages = {
+  options: [
+    { id: "zh-Hans", name: "Chinese (Simplified)", group: "zh" },
+    { id: "zh-Hant", name: "Chinese (Traditional)", group: "zh" },
+    { id: "en-CA", name: "English (Canada)", group: "en" },
+    { id: "en-GB", name: "English (UK)", group: "en" },
+    { id: "en-US", name: "English (US)", group: "en" },
+    { id: "fr", name: "French", group: null },
+    { id: "de", name: "German", group: "de" },
+    { id: "de-CH", name: "Swiss German", group: "de" },
+  ],
+  chosen: { autoDetect: false, selected: ["en-US"], active: null },
+};
 
 export const MICROPHONES: MicrophoneList = {
   selected: null,

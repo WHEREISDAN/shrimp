@@ -135,6 +135,7 @@ async fn dictionary_terms_fix_misrecognised_words() {
     let options = SttOptions {
         languages: vec!["en".into()],
         vocabulary: vec!["Nguyen".into(), "Shrimp".into(), "Tauri".into()],
+        ..SttOptions::default()
     };
     let biased = transcribe(&engine, &clip, &options).await.unwrap().text;
     println!("without the dictionary: {plain}\nwith it: {biased}");
@@ -173,4 +174,99 @@ async fn whispered_speech_transcribes_after_its_level_is_raised() {
             "{expected:?} missing from {text:?}"
         );
     }
+}
+
+fn languages(codes: &[&str]) -> SttOptions {
+    SttOptions {
+        languages: codes.iter().map(|code| (*code).to_owned()).collect(),
+        ..SttOptions::default()
+    }
+}
+
+#[tokio::test(flavor = "multi_thread")]
+#[ignore = "needs downloaded Whisper and VAD models"]
+async fn several_languages_are_told_apart_among_the_selected_ones() {
+    // `say -v Thomas` and `say -v Paulina` (LANG-02).
+    let engine = engine();
+    let options = languages(&["en", "fr", "es"]);
+    for (fixture, language, expected) in [
+        ("french.wav", "fr", "rapport"),
+        ("spanish.wav", "es", "informe"),
+        ("hello-shrimp.wav", "en", "local dictation"),
+    ] {
+        let started = Instant::now();
+        let transcript = transcribe(&engine, &clip(fixture), &options).await.unwrap();
+        println!(
+            "{fixture}: {:?} as {:?} in {:?}",
+            transcript.text,
+            transcript.language,
+            started.elapsed()
+        );
+        assert_eq!(transcript.language.as_deref(), Some(language));
+        assert!(words(&transcript.text).contains(expected), "{transcript:?}");
+    }
+    let detected = engine.detect_language(&clip("french.wav")).await.unwrap();
+    println!("language check: {detected:?}");
+    assert_eq!(detected.0, "fr");
+    assert!(detected.1 > 0.75);
+}
+
+#[tokio::test(flavor = "multi_thread")]
+#[ignore = "needs downloaded Whisper and VAD models"]
+async fn chinese_variants_steer_the_script() {
+    // `say -v Meijia` reading Traditional text and `say -v Sinji` Cantonese (LANG-03).
+    let engine = engine();
+    let clip = clip("chinese.wav");
+    let hinted = |id: &str| SttOptions {
+        languages: vec!["zh".into()],
+        hints: vec![(
+            "zh".into(),
+            shrimp_lib::lang::whisper_hint(id).unwrap().into(),
+        )],
+        ..SttOptions::default()
+    };
+    let shaped = |text: String, id: &str| shrimp_lib::lang::shape(&text, Some(id));
+    let traditional = shaped(
+        transcribe(&engine, &clip, &hinted("zh-Hant"))
+            .await
+            .unwrap()
+            .text,
+        "zh-Hant",
+    );
+    let simplified = shaped(
+        transcribe(&engine, &clip, &hinted("zh-Hans"))
+            .await
+            .unwrap()
+            .text,
+        "zh-Hans",
+    );
+    println!("Traditional: {traditional:?}\nSimplified: {simplified:?}");
+    assert!(
+        traditional.contains('們') || traditional.contains('會'),
+        "{traditional}"
+    );
+    assert!(
+        simplified.contains('们') || simplified.contains('会'),
+        "{simplified}"
+    );
+
+    let cantonese = SttOptions {
+        languages: vec!["yue".into()],
+        hints: vec![(
+            "yue".into(),
+            shrimp_lib::lang::whisper_hint("yue").unwrap().into(),
+        )],
+        ..SttOptions::default()
+    };
+    let text = shaped(
+        transcribe(&engine, &self::clip("cantonese.wav"), &cantonese)
+            .await
+            .unwrap()
+            .text,
+        "yue",
+    );
+    println!("Cantonese: {text:?}");
+    // Whisper writes Cantonese speech as standard written Chinese; Shrimp
+    // gives it Hong Kong's Traditional characters.
+    assert!(text.contains('會') && !text.contains('会'), "{text}");
 }

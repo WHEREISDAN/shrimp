@@ -36,7 +36,10 @@ export type NoticeAction =
   | "keepMicrophone"
   | "dismissBluetoothAdvice"
   | "openSoundSettings"
-  | "troubleshootMicrophone";
+  | "troubleshootMicrophone"
+  | "openLanguageSettings"
+  | "addDetectedLanguage"
+  | "dismissLanguageCard";
 
 /** Mirrors `notify::Notice`. */
 export interface Notice {
@@ -76,6 +79,29 @@ export interface MicrophoneList {
   /** The device a dictation would record from now. */
   active: string | null;
   devices: MicrophoneEntry[];
+}
+
+/** Mirrors `lang::catalog::LanguageOption`. */
+export interface LanguageOption {
+  /** A Whisper code ("fr") or a variant ("en-GB"). */
+  id: string;
+  name: string;
+  /** Variants in one group exclude each other. */
+  group: string | null;
+}
+
+/** Mirrors `settings::LanguageSettings`. */
+export interface LanguageChoice {
+  autoDetect: boolean;
+  selected: string[];
+  /** One of `selected`, chosen from the Flow Bar; null detects among them. */
+  active: string | null;
+}
+
+/** Mirrors `commands::languages::Languages`. */
+export interface Languages {
+  options: LanguageOption[];
+  chosen: LanguageChoice;
 }
 
 /** Mirrors `hotkeys::Action`: everything a shortcut can trigger. */
@@ -241,6 +267,8 @@ export interface Settings {
     bluetoothAdviceCount: number;
     bluetoothAdviceAt: number;
     bluetoothAdviceOff: boolean;
+    languageCardDay: string;
+    languageCardOff: boolean;
   };
   transforms: TransformSettings;
   vibeCoding: { fileTagging: boolean };
@@ -252,6 +280,7 @@ export interface Settings {
   sounds: { dictation: boolean; notifications: boolean };
   /** At most one is on. */
   media: { mute: boolean; pause: boolean };
+  languages: LanguageChoice;
 }
 
 /** A JSON merge patch for `update_settings`: any subset of the settings. */
@@ -423,6 +452,16 @@ export const removeShortcut = (action: ShortcutAction, index: number): Promise<v
 export const resetShortcuts = (): Promise<void> => invoke("reset_shortcuts");
 
 export const getModels = (): Promise<ModelStatus[]> => invoke<ModelStatus[]>("get_models");
+
+export const getLanguages = (): Promise<Languages> => invoke<Languages>("get_languages");
+
+/** Saves the Languages dialog; rejects when neither a language nor auto-detect is chosen. */
+export const setLanguages = (autoDetect: boolean, selected: string[]): Promise<LanguageChoice> =>
+  invoke<LanguageChoice>("set_languages", { autoDetect, selected });
+
+/** The Flow Bar's language switch; null detects among the user's languages. */
+export const setActiveLanguage = (id: string | null): Promise<LanguageChoice> =>
+  invoke<LanguageChoice>("set_active_language", { id });
 
 export const getMicrophones = (): Promise<MicrophoneList> =>
   invoke<MicrophoneList>("get_microphones");

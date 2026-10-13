@@ -4,6 +4,7 @@
 use serde::{Deserialize, Serialize};
 
 use super::audio::{MediaSettings, MicrophoneSettings, SoundSettings};
+use super::languages::LanguageSettings;
 use super::shortcuts::ShortcutSettings;
 use super::transforms::TransformSettings;
 use crate::edit::{AppCategory, CleanupLevel, Style};
@@ -31,6 +32,7 @@ pub struct Settings {
     pub microphone: MicrophoneSettings,
     pub sounds: SoundSettings,
     pub media: MediaSettings,
+    pub languages: LanguageSettings,
 }
 
 impl Default for Settings {
@@ -50,6 +52,7 @@ impl Default for Settings {
             microphone: MicrophoneSettings::default(),
             sounds: SoundSettings::default(),
             media: MediaSettings::default(),
+            languages: LanguageSettings::default(),
         }
     }
 }
@@ -108,6 +111,9 @@ pub struct NoticeSettings {
     pub bluetooth_advice_at: u64,
     /// "Don't show again".
     pub bluetooth_advice_off: bool,
+    /// "Speaking a different language?": the local date it was last shown, at most daily (LANG-04).
+    pub language_card_day: String,
+    pub language_card_off: bool,
 }
 
 /// Data and privacy.
@@ -258,6 +264,7 @@ impl Settings {
         self.shortcuts.validate(&self.transforms)?;
         self.microphone.validate()?;
         self.media.validate()?;
+        self.languages.validate()?;
         self.transforms.validate()?;
         let url = self.ai.ollama_url.trim();
         if !(url.starts_with("http://") || url.starts_with("https://")) || url.len() > 200 {

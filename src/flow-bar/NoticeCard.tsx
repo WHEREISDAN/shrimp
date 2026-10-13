@@ -18,6 +18,9 @@ const ACTION_LABELS: Record<NoticeAction, string> = {
   dismissBluetoothAdvice: "Don't show again",
   openSoundSettings: "Open Sound Settings",
   troubleshootMicrophone: "Troubleshoot",
+  openLanguageSettings: "Open language settings",
+  addDetectedLanguage: "Add language",
+  dismissLanguageCard: "Don't show again",
 };
 
 interface NoticeCardProps {

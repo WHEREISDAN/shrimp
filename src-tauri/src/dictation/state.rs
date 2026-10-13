@@ -143,6 +143,13 @@ pub enum ControllerInput {
     SecureInput(Option<String>),
     /// The cancel notice's Undo: transcribe and insert the cancelled audio (CORE-11).
     UndoCancel,
+    /// What Whisper heard after a dictation (LANG-04).
+    LanguageDetected {
+        code: String,
+        probability: f32,
+    },
+    /// The different-language card's Add language.
+    AddDetectedLanguage,
     Bar(BarControl),
     /// Paste or copy last transcript from the tray menu.
     Menu(Action),
@@ -177,6 +184,8 @@ pub struct Processed {
     pub notices: Vec<Notice>,
     /// Where a dictation was pasted, to learn from corrections (DIC-07).
     pub learn: Option<LearnTarget>,
+    /// The audio, to check afterwards whether another language was spoken (LANG-04).
+    pub language_check: Option<AudioClip>,
 }
 
 impl From<Outcome> for Processed {
@@ -185,6 +194,7 @@ impl From<Outcome> for Processed {
             outcome,
             notices: Vec::new(),
             learn: None,
+            language_check: None,
         }
     }
 }

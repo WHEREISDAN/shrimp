@@ -31,6 +31,9 @@ pub struct SttOptions {
     /// Personal dictionary terms that bias recognition (Whisper's initial
     /// prompt, the cloud APIs' prompt or keyword fields).
     pub vocabulary: Vec<String>,
+    /// Text that leads Whisper's prompt for a language, by code: it steers
+    /// Chinese towards Simplified or Traditional characters (LANG-03).
+    pub hints: Vec<(String, String)>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -64,4 +67,10 @@ pub trait SttEngine: Send + Sync {
         clip: &AudioClip,
         options: &SttOptions,
     ) -> Result<Transcript, SttError>;
+
+    /// The language most likely spoken and its probability, for engines that
+    /// can tell (LANG-04).
+    async fn detect_language(&self, _clip: &AudioClip) -> Option<(String, f32)> {
+        None
+    }
 }

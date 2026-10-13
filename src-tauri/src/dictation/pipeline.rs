@@ -10,7 +10,9 @@ use super::state::{Delivered, Outcome, Processed};
 use crate::audio::{AudioClip, level};
 use crate::context::{AppKind, DictationContext, PendingContext};
 use crate::edit::Editor;
+use crate::lang;
 use crate::notify::Notice;
+use crate::settings::SettingsStore;
 
 use crate::platform::{
     FieldKind, InsertOptions, InsertOutcome, InsertText, PasteSplit, SyntheticKey, TextInserter,
@@ -37,8 +39,8 @@ pub struct Pipeline {
     pub fallback: Option<Arc<dyn SttEngine>>,
     pub editor: Arc<Editor>,
     pub inserter: Arc<dyn TextInserter>,
-    /// Languages the user speaks; the dictionary is added per dictation.
-    pub languages: Vec<String>,
+    /// The languages to transcribe in (LANG-01..05), read per dictation.
+    pub settings: Arc<SettingsStore>,
     pub clipboard_hold: Duration,
     /// Remote desktops read the clipboard late (INS-10).
     pub remote_clipboard_hold: Duration,
@@ -51,11 +53,14 @@ impl Pipeline {
         mut context: PendingContext,
         paste_delay: Duration,
     ) -> Processed {
-        let (raw, mut notices) = match self.transcribe_clip(clip, &context.ready()).await {
+        let language_check = (!self.settings.get().languages.auto_detect).then(|| clip.clone());
+        let (raw, language, mut notices) = match self.transcribe_clip(clip, &context.ready()).await
+        {
             Ok(transcribed) => transcribed,
             Err(outcome) => return outcome.into(),
         };
-        let context = context.ready();
+        let mut context = context.ready();
+        context.language = language;
         let edited = self.editor.edit(&raw, &context).await;
         notices.extend(edited.notice);
         if edited.text.plain.trim().is_empty() {
@@ -68,6 +73,7 @@ impl Pipeline {
                 outcome,
                 notices,
                 learn: None,
+                language_check: None,
             };
         }
         let delivered = Delivered {
@@ -104,6 +110,7 @@ impl Pipeline {
             outcome,
             notices,
             learn,
+            language_check,
         }
     }
 
@@ -113,10 +120,12 @@ impl Pipeline {
         &self,
         clip: AudioClip,
         context: &DictationContext,
-    ) -> Result<(String, Vec<Notice>), Outcome> {
+    ) -> Result<(String, Option<String>, Vec<Notice>), Outcome> {
+        let languages = self.settings.get().languages;
         let options = SttOptions {
-            languages: self.languages.clone(),
+            languages: lang::stt_languages(&languages),
             vocabulary: self.editor.vocabulary(context).await,
+            hints: lang::whisper_hints(&languages),
         };
         let mut notices = Vec::new();
         let transcript = match transcribe(self.engine.as_ref(), &clip, &options).await {
@@ -134,7 +143,7 @@ impl Pipeline {
             ok => ok,
         };
         match transcript {
-            Ok(transcript) => Ok((transcript.text, notices)),
+            Ok(transcript) => Ok((transcript.text, transcript.language, notices)),
             Err(SttError::NoSpeech) => Err(Outcome::NoSpeech),
             Err(SttError::Unavailable(message)) => Err(Outcome::SttFailed {
                 clip,

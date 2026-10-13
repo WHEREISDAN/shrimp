@@ -15,6 +15,7 @@ use crate::commands::permissions::AppPermissions;
 use crate::commands::shortcuts::DefaultBindings;
 use crate::dictation::{self, ControllerInput, DictationUi, Services, Timing};
 use crate::edit::{EditTimeout, Editor, Library};
+use crate::lang;
 use crate::llm::{Providers, http};
 use crate::mic::Microphones;
 use crate::notify::{Notice, NoticeAction};
@@ -45,6 +46,7 @@ pub fn setup(app: &mut App) -> Result<(), Box<dyn std::error::Error>> {
     settings.on_change(Box::new(move |settings| {
         let _ = emitter.emit(SETTINGS_EVENT, settings);
     }));
+    first_languages(&settings, platform.language.as_deref());
     let secrets = Arc::new(Secrets::new(Box::new(Keychain::new(
         app.config().identifier.clone(),
     ))));
@@ -119,7 +121,6 @@ pub fn setup(app: &mut App) -> Result<(), Box<dyn std::error::Error>> {
         settings: Arc::clone(&settings),
         engine: Arc::new(router),
         fallback_engine: Some(Arc::clone(&slot) as Arc<dyn SttEngine>),
-        languages: platform.language.into_iter().collect(),
         editor: Arc::clone(&editor),
         ui: dictation_ui,
         source: audio_source(),
@@ -153,6 +154,20 @@ pub fn setup(app: &mut App) -> Result<(), Box<dyn std::error::Error>> {
         tauri::async_runtime::spawn(Arc::clone(&chosen_model).prepare(id));
     }));
     Ok(())
+}
+
+/// On first launch the Mac's language becomes the language to dictate in.
+fn first_languages(settings: &SettingsStore, locale: Option<&str>) {
+    let languages = settings.get().languages;
+    if languages.auto_detect || !languages.selected.is_empty() {
+        return;
+    }
+    let id = locale
+        .and_then(lang::catalog::from_locale)
+        .unwrap_or_else(|| "en-US".to_owned());
+    if let Err(error) = settings.update(&serde_json::json!({"languages": {"selected": [id]}})) {
+        log::warn!("could not set the first language: {error}");
+    }
 }
 
 /// The dictionary and snippets database; an unreadable file is set aside for

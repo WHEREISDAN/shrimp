@@ -159,6 +159,7 @@ mod tests {
         SttOptions {
             languages: vec!["en".into()],
             vocabulary: vec!["Shrimp".into(), "Tauri<x>".into()],
+            ..SttOptions::default()
         }
     }
 

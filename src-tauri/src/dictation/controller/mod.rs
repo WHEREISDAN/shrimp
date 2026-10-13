@@ -1,6 +1,7 @@
 //! The dictation actor: one task owns all session state and reacts to
 //! shortcuts, Flow Bar clicks, timers and pipeline results on one channel.
 
+mod language;
 mod microphone;
 mod recording;
 mod shortcuts;
@@ -57,8 +58,6 @@ pub struct Services {
     pub engine: Arc<dyn SttEngine>,
     /// Local Whisper, for when a cloud engine fails.
     pub fallback_engine: Option<Arc<dyn SttEngine>>,
-    /// Languages the user speaks (ISO 639-1); empty means auto-detect.
-    pub languages: Vec<String>,
     pub editor: Arc<Editor>,
     pub ui: Arc<dyn DictationUi>,
     pub source: AudioSourceSpec,
@@ -179,6 +178,8 @@ struct Controller {
     learn_timing: LearnTiming,
     /// The action and binding position of a shortcut being recorded.
     shortcut_target: Option<(Action, Option<usize>)>,
+    /// The language the different-language card offers to add (LANG-04).
+    detected_language: Option<String>,
     secure_input: Arc<Mutex<Option<String>>>,
 }
 
@@ -194,7 +195,7 @@ impl Controller {
             fallback: services.fallback_engine,
             editor: services.editor,
             inserter: Arc::clone(&services.inserter),
-            languages: services.languages,
+            settings: Arc::clone(&services.settings),
             clipboard_hold: services.timing.clipboard_hold,
             remote_clipboard_hold: services.timing.remote_clipboard_hold,
         };
@@ -230,6 +231,7 @@ impl Controller {
             generation: Arc::new(AtomicU64::new(0)),
             learn_timing: services.timing.learn,
             shortcut_target: None,
+            detected_language: None,
             secure_input: Arc::new(Mutex::new(None)),
         }
     }
@@ -285,6 +287,10 @@ impl Controller {
             ControllerInput::Recording(update) => self.recording_update(update),
             ControllerInput::SecureInput(owner) => self.secure_input_changed(owner),
             ControllerInput::UndoCancel => self.undo_cancel(),
+            ControllerInput::LanguageDetected { code, probability } => {
+                self.language_detected(code, probability);
+            }
+            ControllerInput::AddDetectedLanguage => self.add_detected_language(),
             ControllerInput::SettingsChanged => self.refresh_bindings(),
             ControllerInput::Transform(action) => self.transform_action(action),
             ControllerInput::Bar(control) => self.gesture(Input::Bar(control)),
@@ -604,6 +610,9 @@ impl Controller {
             Outcome::Transformed(run) => self.transformed(run),
             Outcome::TransformUndone => self.last_transform = None,
             _ => {}
+        }
+        if let (Some(clip), Outcome::Inserted(_)) = (processed.language_check, &processed.outcome) {
+            self.check_language(clip);
         }
         if let Some(target) = processed.learn
             && self.settings.get().dictionary.auto_learn

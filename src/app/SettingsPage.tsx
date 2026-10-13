@@ -10,6 +10,7 @@ import {
 import { AiProviderSection } from "./AiProviderSection";
 import { CommandModeIntro } from "./CommandModeIntro";
 import { ExperimentalSection } from "./ExperimentalSection";
+import { LanguagesSection } from "./LanguagesSection";
 import { MicrophoneSection } from "./MicrophoneSection";
 import { Page } from "./Page";
 import { PrivacySection } from "./PrivacySection";
@@ -24,12 +25,15 @@ interface SettingsPageProps {
   revealExperimental?: number;
   /** Increments each time Settings › Microphone should come into view. */
   revealMicrophone?: number;
+  /** Increments each time Settings › Languages should come into view. */
+  revealLanguages?: number;
   onOpenShortcuts?: () => void;
 }
 
 export function SettingsPage({
   revealExperimental = 0,
   revealMicrophone = 0,
+  revealLanguages = 0,
   onOpenShortcuts = () => undefined,
 }: SettingsPageProps) {
   const { settings, error, update } = useSettings();
@@ -109,6 +113,7 @@ export function SettingsPage({
           />
           <ShortcutsSection onOpenShortcuts={onOpenShortcuts} />
           <MicrophoneSection reveal={revealMicrophone} />
+          <LanguagesSection reveal={revealLanguages} />
           <SoundSection settings={settings} update={update} />
           <PrivacySection settings={settings} update={update} />
           <VibeCodingSection settings={settings} update={update} />

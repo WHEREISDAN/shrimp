@@ -63,11 +63,8 @@ fn has_fn_key() -> bool {
     has
 }
 
-/// The user's first preferred language as an ISO 639-1 code, e.g. "en".
+/// The user's first preferred language as a BCP 47 tag, e.g. "en-GB".
 fn preferred_language() -> Option<String> {
     let tag = NSLocale::preferredLanguages().firstObject()?.to_string();
-    tag.split(['-', '_'])
-        .next()
-        .filter(|code| !code.is_empty())
-        .map(str::to_lowercase)
+    (!tag.is_empty()).then_some(tag)
 }

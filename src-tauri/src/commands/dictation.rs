@@ -96,6 +96,19 @@ pub fn run_notice_action(
         NoticeAction::OpenSoundSettings | NoticeAction::TroubleshootMicrophone => {
             platform::open_sound_settings().map_err(|err| CommandError::new("platform", err))
         }
+        NoticeAction::OpenLanguageSettings => {
+            window::show_main(&app);
+            let _ = app.emit_to(window::MAIN_LABEL, NAVIGATE_EVENT, "languages");
+            Ok(())
+        }
+        NoticeAction::AddDetectedLanguage => {
+            controller.send(ControllerInput::AddDetectedLanguage);
+            Ok(())
+        }
+        NoticeAction::DismissLanguageCard => settings
+            .update(&serde_json::json!({"notices": {"languageCardOff": true}}))
+            .map(|_| ())
+            .map_err(|err| CommandError::new("invalid", err)),
         NoticeAction::UndoCancel => {
             controller.send(ControllerInput::UndoCancel);
             Ok(())

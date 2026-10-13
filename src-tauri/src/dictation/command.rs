@@ -72,7 +72,7 @@ pub struct CommandRunner {
 
 impl CommandRunner {
     pub async fn run(&self, clip: AudioClip, mut context: PendingContext) -> Processed {
-        let (instruction, mut notices) =
+        let (instruction, _language, mut notices) =
             match self.pipeline.transcribe_clip(clip, &context.ready()).await {
                 Ok(transcribed) => transcribed,
                 Err(outcome) => return outcome.into(),
@@ -171,6 +171,7 @@ impl CommandRunner {
             ));
         }
         Processed {
+            language_check: None,
             outcome,
             notices,
             learn: None,

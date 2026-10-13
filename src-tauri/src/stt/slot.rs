@@ -68,4 +68,8 @@ impl SttEngine for EngineSlot {
         };
         engine.transcribe(clip, options).await
     }
+
+    async fn detect_language(&self, clip: &AudioClip) -> Option<(String, f32)> {
+        self.current()?.detect_language(clip).await
+    }
 }

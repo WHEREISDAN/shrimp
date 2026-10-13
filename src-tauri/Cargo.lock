@@ -20,6 +20,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "ahash"
+version = "0.8.12"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5a15f179cd60c4584b8a8c596927aadc462e27f2ca70c04e0071964a73ba7a75"
+dependencies = [
+ "cfg-if",
+ "getrandom 0.3.4",
+ "once_cell",
+ "version_check",
+ "zerocopy",
+]
+
+[[package]]
 name = "aho-corasick"
 version = "1.1.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2245,6 +2258,15 @@ dependencies = [
  "cfg-if",
  "crunchy",
  "zerocopy",
+]
+
+[[package]]
+name = "hanconv"
+version = "0.5.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8b2ee1abcf01ffb8e45da7504884eb64c24eb8d1ebf679d1671720c93285118f"
+dependencies = [
+ "ahash",
 ]
 
 [[package]]
@@ -5279,6 +5301,7 @@ dependencies = [
  "async-trait",
  "block2",
  "cpal",
+ "hanconv",
  "handy-keys",
  "hound",
  "keyring",

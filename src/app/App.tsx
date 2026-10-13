@@ -15,6 +15,7 @@ export function App() {
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const [revealExperimental, setRevealExperimental] = useState(0);
   const [revealMicrophone, setRevealMicrophone] = useState(0);
+  const [revealLanguages, setRevealLanguages] = useState(0);
   const openShortcuts = () => setShortcutsOpen(true);
 
   useTauriEvent<string>(EVENTS.navigate, (section) => {
@@ -24,6 +25,9 @@ export function App() {
       setPage("settings");
     } else if (section === "dictionary") {
       setPage("dictionary");
+    } else if (section === "languages") {
+      setPage("settings");
+      setRevealLanguages((count) => count + 1);
     } else if (section === "microphone") {
       setPage("settings");
       setRevealMicrophone((count) => count + 1);
@@ -42,6 +46,7 @@ export function App() {
           onOpenShortcuts={openShortcuts}
           revealExperimental={revealExperimental}
           revealMicrophone={revealMicrophone}
+          revealLanguages={revealLanguages}
         />
       </main>
       {shortcutsOpen && <ShortcutsDialog onClose={() => setShortcutsOpen(false)} />}
@@ -54,6 +59,7 @@ interface CurrentPageProps {
   onOpenShortcuts: () => void;
   revealExperimental: number;
   revealMicrophone: number;
+  revealLanguages: number;
 }
 
 function CurrentPage({
@@ -61,6 +67,7 @@ function CurrentPage({
   onOpenShortcuts,
   revealExperimental,
   revealMicrophone,
+  revealLanguages,
 }: CurrentPageProps) {
   switch (page) {
     case "home":
@@ -78,6 +85,7 @@ function CurrentPage({
         <SettingsPage
           revealExperimental={revealExperimental}
           revealMicrophone={revealMicrophone}
+          revealLanguages={revealLanguages}
           onOpenShortcuts={onOpenShortcuts}
         />
       );
