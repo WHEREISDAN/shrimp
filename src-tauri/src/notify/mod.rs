@@ -107,38 +107,6 @@ pub enum NoticeAction {
     UpdateVoiceProfile,
 }
 
-impl NoticeAction {
-    pub fn label(self) -> &'static str {
-        match self {
-            Self::CopyLastTranscript => "Copy",
-            Self::OpenAccessibilitySettings
-            | Self::OpenMicrophoneSettings
-            | Self::OpenKeyboardSettings
-            | Self::OpenAiSettings => "Open Settings",
-            Self::RetryModelDownload => "Retry",
-            Self::OpenExperimentalSettings => "Go to settings",
-            Self::ViewTransformChanges => "See changes",
-            Self::OpenDictionary => "View",
-            Self::UndoCancel => "Undo",
-            Self::ChooseMicrophone => "Choose microphone",
-            Self::SwitchMicrophone => "Switch microphone",
-            Self::SwitchToNewMicrophone => "Switch",
-            Self::KeepMicrophone => "Don't switch",
-            Self::DismissBluetoothAdvice => "Don't show again",
-            Self::OpenSoundSettings => "Open Sound Settings",
-            Self::TroubleshootMicrophone => "Troubleshoot",
-            Self::OpenLanguageSettings => "Open language settings",
-            Self::AddDetectedLanguage => "Add language",
-            Self::DismissLanguageCard => "Don't show again",
-            Self::ShowFlowBar => "Undo",
-            Self::OpenHistory => "Open History",
-            Self::OpenInsights => "View insights",
-            Self::SeeVoiceProfile => "See profile",
-            Self::UpdateVoiceProfile => "Update profile",
-        }
-    }
-}
-
 static NEXT_ID: AtomicU64 = AtomicU64::new(1);
 
 impl Notice {

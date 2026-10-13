@@ -204,7 +204,7 @@ describe("ErrorScreen", () => {
     render(
       <ErrorScreen health={{ crash: null, data: null, storage: { freeBytes: 52_000_000 } }} />,
     );
-    expect(screen.getByRole("heading", { name: "Storage Full" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Storage full" })).toBeInTheDocument();
     expect(screen.getByText("52 MB free")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Check again" }));
     await waitFor(() => expect(argsOf("check_storage")).toHaveLength(1));

@@ -11,6 +11,7 @@ use super::transforms::TransformSettings;
 use crate::edit::{AppCategory, CleanupLevel, Style};
 use crate::llm::{LlmProviderId, catalog};
 use crate::stt::{DEFAULT_WHISPER_MODEL, SttEngineId, find_whisper_model};
+use crate::t;
 
 pub const SETTINGS_VERSION: u32 = 1;
 const MAX_MODEL_LENGTH: usize = 120;
@@ -389,7 +390,11 @@ impl Settings {
             (AppCategory::Other, self.styles.other),
         ] {
             if !category.styles().contains(&style) {
-                return Err(format!("{style:?} is not offered for {category:?}"));
+                return Err(t!(
+                    "error.settings.styleNotOffered",
+                    style = format!("{style:?}"),
+                    category = format!("{category:?}")
+                ));
             }
         }
         let models = [
@@ -403,13 +408,16 @@ impl Settings {
             .iter()
             .any(|model| model.trim().is_empty() || model.len() > MAX_MODEL_LENGTH)
         {
-            return Err("Model names must be 1 to 120 characters.".into());
+            return Err(t!("error.settings.modelName", max = MAX_MODEL_LENGTH));
         }
         if self.ai.ollama_model.len() > MAX_MODEL_LENGTH {
-            return Err("Model names must be 1 to 120 characters.".into());
+            return Err(t!("error.settings.modelName", max = MAX_MODEL_LENGTH));
         }
         if find_whisper_model(&self.stt.local_model).is_none() {
-            return Err(format!("{} is not a Whisper model.", self.stt.local_model));
+            return Err(t!(
+                "error.settings.unknownWhisperModel",
+                model = self.stt.local_model
+            ));
         }
         self.shortcuts.validate(&self.transforms)?;
         self.microphone.validate()?;
@@ -417,12 +425,15 @@ impl Settings {
         self.languages.validate()?;
         self.flow_bar.validate()?;
         if !APP_LANGUAGES.contains(&self.app.language.as_str()) {
-            return Err(format!("{} is not an app language.", self.app.language));
+            return Err(t!(
+                "error.settings.unknownAppLanguage",
+                language = self.app.language
+            ));
         }
         self.transforms.validate()?;
         let url = self.ai.ollama_url.trim();
         if !(url.starts_with("http://") || url.starts_with("https://")) || url.len() > 200 {
-            return Err("The Ollama address must start with http:// or https://.".into());
+            return Err(t!("error.settings.ollamaUrl"));
         }
         Ok(())
     }

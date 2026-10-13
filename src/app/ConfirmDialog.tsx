@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { errorMessage } from "../lib/ipc";
 import { Dialog } from "./Dialog";
 
@@ -17,6 +18,7 @@ export function ConfirmDialog({
   onConfirm,
   onCancel,
 }: ConfirmDialogProps) {
+  const { t } = useTranslation();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -39,7 +41,7 @@ export function ConfirmDialog({
       )}
       <div className="dialog-actions">
         <button type="button" onClick={onCancel} autoFocus>
-          Cancel
+          {t("common.cancel")}
         </button>
         <button type="button" className="danger" onClick={confirm} disabled={busy}>
           {confirmLabel}

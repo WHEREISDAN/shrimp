@@ -19,6 +19,7 @@ use crate::platform::{LoginItem, Permission, PermissionStatus, Permissions};
 use crate::secrets::{KeyAccount, Secrets};
 use crate::settings::SettingsStore;
 use crate::storage::Database;
+use crate::t;
 
 /// How often the free disk space is checked.
 const STORAGE_CHECK: Duration = Duration::from_secs(10 * 60);
@@ -115,9 +116,8 @@ pub fn follow_system_settings(
             && let Err(error) = login_item.set_enabled(next.launch_at_login)
         {
             log::warn!("could not change the login item: {error}");
-            ui(Notice::error(format!(
-                "Couldn't change Launch at login: {error}"
-            )));
+            let message = t!("notice.launchAtLoginFailed", error = error);
+            ui(Notice::error(message));
             // Put the switch back once this change has finished.
             let store = Arc::clone(&store);
             let actual = login_item.enabled();
@@ -182,15 +182,10 @@ pub fn recheck_permissions(
 
 fn lost_permission_notice(permission: Permission) -> Notice {
     match permission {
-        Permission::Accessibility => Notice::error(
-            "Shrimp lost Accessibility access after the update. Grant it again to keep using \
-             your shortcuts and pasting.",
-        )
-        .with_action(NoticeAction::OpenAccessibilitySettings),
-        Permission::Microphone => Notice::error(
-            "Shrimp lost Microphone access after the update. Grant it again to keep dictating.",
-        )
-        .with_action(NoticeAction::OpenMicrophoneSettings),
+        Permission::Accessibility => Notice::error(t!("notice.setup.lostAccessibility"))
+            .with_action(NoticeAction::OpenAccessibilitySettings),
+        Permission::Microphone => Notice::error(t!("notice.setup.lostMicrophone"))
+            .with_action(NoticeAction::OpenMicrophoneSettings),
     }
 }
 

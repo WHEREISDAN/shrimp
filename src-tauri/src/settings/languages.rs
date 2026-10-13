@@ -3,8 +3,7 @@
 use serde::{Deserialize, Serialize};
 
 use crate::lang::catalog;
-
-pub const NONE_SELECTED: &str = "Please select at least one language or turn on auto-detect";
+use crate::t;
 
 #[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", default)]
@@ -21,7 +20,7 @@ pub struct LanguageSettings {
 impl LanguageSettings {
     pub fn validate(&self) -> Result<(), String> {
         if let Some(unknown) = self.selected.iter().find(|id| !catalog::is_known(id)) {
-            return Err(format!("{unknown} is not a language Shrimp knows."));
+            return Err(t!("error.languages.unknown", language = unknown));
         }
         for (index, id) in self.selected.iter().enumerate() {
             let clash = self.selected[..index].iter().any(|other| {
@@ -29,13 +28,13 @@ impl LanguageSettings {
                     || catalog::group(other).is_some_and(|group| Some(group) == catalog::group(id))
             });
             if clash {
-                return Err(format!("Choose one variant of {id}."));
+                return Err(t!("error.languages.oneVariant", language = id));
             }
         }
         if let Some(active) = &self.active
             && !self.selected.contains(active)
         {
-            return Err("The language in use must be one of yours.".into());
+            return Err(t!("error.languages.activeNotSelected"));
         }
         Ok(())
     }
@@ -43,7 +42,7 @@ impl LanguageSettings {
     /// Checks a choice from the Languages dialog.
     pub fn validate_choice(&self) -> Result<(), String> {
         if !self.auto_detect && self.selected.is_empty() {
-            return Err(NONE_SELECTED.into());
+            return Err(t!("error.languages.noneSelected"));
         }
         self.validate()
     }
@@ -65,7 +64,7 @@ mod tests {
     fn a_choice_needs_a_language_or_auto_detect() {
         assert_eq!(
             languages(false, &[]).validate_choice().unwrap_err(),
-            NONE_SELECTED
+            "Please select at least one language or turn on auto-detect"
         );
         languages(true, &[]).validate_choice().unwrap();
         languages(false, &["en-GB", "fr"])

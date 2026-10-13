@@ -10,6 +10,7 @@ use super::window;
 use crate::dictation::{ControllerHandle, ControllerInput};
 use crate::hotkeys::Action;
 use crate::settings::{Settings, SettingsStore};
+use crate::t;
 
 const TRAY_ID: &str = "main";
 const TRAY_ICON: Image<'_> = include_image!("icons/tray.png");
@@ -62,19 +63,19 @@ pub fn refresh<R: Runtime>(app: &AppHandle<R>, settings: &Settings) {
 fn menu<R: Runtime>(app: &AppHandle<R>, settings: &Settings) -> tauri::Result<Menu<R>> {
     let item =
         |id, text, accelerator: Option<&str>| MenuItem::with_id(app, id, text, true, accelerator);
-    let open = item(OPEN_ID, "Open Shrimp", None)?;
-    let shortcuts = item(SHORTCUTS_ID, "Shortcuts…", None)?;
-    let paste_last = item(PASTE_LAST_ID, "Paste last transcript", Some("Ctrl+Cmd+V"))?;
-    let copy_last = item(COPY_LAST_ID, "Copy last transcript", Some("Ctrl+Cmd+C"))?;
+    let open = item(OPEN_ID, t!("tray.open"), None)?;
+    let shortcuts = item(SHORTCUTS_ID, t!("tray.shortcuts"), None)?;
+    let paste_last = item(PASTE_LAST_ID, t!("tray.pasteLast"), Some("Ctrl+Cmd+V"))?;
+    let copy_last = item(COPY_LAST_ID, t!("tray.copyLast"), Some("Ctrl+Cmd+C"))?;
     let privacy = CheckMenuItem::with_id(
         app,
         PRIVACY_ID,
-        "Privacy mode",
+        t!("tray.privacyMode"),
         true,
         settings.privacy.privacy_mode,
         None::<&str>,
     )?;
-    let quit = item(QUIT_ID, "Quit Shrimp", Some("CmdOrCtrl+Q"))?;
+    let quit = item(QUIT_ID, t!("tray.quit"), Some("CmdOrCtrl+Q"))?;
     Menu::with_items(
         app,
         &[
@@ -91,11 +92,11 @@ fn menu<R: Runtime>(app: &AppHandle<R>, settings: &Settings) -> tauri::Result<Me
     )
 }
 
-fn tooltip(privacy: bool) -> &'static str {
+fn tooltip(privacy: bool) -> String {
     if privacy {
-        "Shrimp (Privacy mode)"
+        t!("tray.privacyTooltip")
     } else {
-        "Shrimp"
+        "Shrimp".into()
     }
 }
 

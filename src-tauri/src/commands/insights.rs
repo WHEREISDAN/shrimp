@@ -15,6 +15,7 @@ use crate::insights::{self, Insights};
 use crate::llm::LlmSource;
 use crate::settings::SettingsStore;
 use crate::storage::{Database, StorageError};
+use crate::t;
 
 /// The LLM the settings choose, for the voice profile.
 pub struct AppLlm(pub Arc<dyn LlmSource>);
@@ -112,7 +113,7 @@ fn png_body(request: &tauri::ipc::Request<'_>) -> Result<Vec<u8>, CommandError> 
         {
             Ok(bytes.clone())
         }
-        _ => Err(CommandError::new("invalid", "Expected a PNG image.")),
+        _ => Err(CommandError::new("invalid", t!("error.insights.notPng"))),
     }
 }
 

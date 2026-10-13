@@ -1,10 +1,9 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { errorMessage, setLanguages, type LanguageChoice, type LanguageOption } from "../lib/ipc";
 import { Dialog } from "./Dialog";
-import { toggleLanguage } from "./languageChoice";
+import { languageName, toggleLanguage } from "./languageChoice";
 import { ToggleRow } from "./ToggleRow";
-
-const NONE_SELECTED = "Please select at least one language or turn on auto-detect";
 
 interface LanguagesDialogProps {
   options: LanguageOption[];
@@ -15,19 +14,28 @@ interface LanguagesDialogProps {
 
 /** Settings › Languages (LANG-01, LANG-03): auto-detect or a searchable multi-select. */
 export function LanguagesDialog({ options, chosen, onSaved, onClose }: LanguagesDialogProps) {
+  const { t, i18n } = useTranslation();
   const [autoDetect, setAutoDetect] = useState(chosen.autoDetect);
   const [selected, setSelected] = useState(chosen.selected);
   const [query, setQuery] = useState("");
   const [error, setError] = useState<string | null>(null);
 
-  const needle = query.trim().toLowerCase();
+  const named = options.map((option) => ({
+    ...option,
+    shownName: languageName(option.id, options, i18n.language),
+  }));
+  const needle = query.trim().toLocaleLowerCase(i18n.language);
   const shown = needle
-    ? options.filter((option) => option.name.toLowerCase().includes(needle))
-    : options;
+    ? named.filter((option) =>
+        [option.shownName, option.name].some((name) =>
+          name.toLocaleLowerCase(i18n.language).includes(needle),
+        ),
+      )
+    : named;
 
   const save = () => {
     if (!autoDetect && selected.length === 0) {
-      setError(NONE_SELECTED);
+      setError(t("languages.noneSelected"));
       return;
     }
     setLanguages(autoDetect, selected)
@@ -39,21 +47,21 @@ export function LanguagesDialog({ options, chosen, onSaved, onClose }: Languages
   };
 
   return (
-    <Dialog title="Languages" onClose={onClose} wide>
+    <Dialog title={t("languages.title")} onClose={onClose} wide>
       <ToggleRow
-        label="Auto-detect"
-        description="Transcribe any language you speak."
+        label={t("languages.autoDetect")}
+        description={t("languages.autoDetectBody")}
         checked={autoDetect}
         onChange={setAutoDetect}
       />
       <input
         type="search"
-        aria-label="Search languages"
-        placeholder="Search languages"
+        aria-label={t("languages.search")}
+        placeholder={t("languages.search")}
         value={query}
         onChange={(event) => setQuery(event.target.value)}
       />
-      <ul className="language-list" aria-label="Languages">
+      <ul className="language-list" aria-label={t("languages.title")}>
         {shown.map((option) => (
           <li key={option.id}>
             <label className="check">
@@ -65,7 +73,7 @@ export function LanguagesDialog({ options, chosen, onSaved, onClose }: Languages
                   setSelected(toggleLanguage(selected, option.id, options));
                 }}
               />
-              <span>{option.name}</span>
+              <span>{option.shownName}</span>
             </label>
           </li>
         ))}
@@ -77,10 +85,10 @@ export function LanguagesDialog({ options, chosen, onSaved, onClose }: Languages
       )}
       <div className="dialog-actions">
         <button type="button" onClick={onClose}>
-          Cancel
+          {t("common.cancel")}
         </button>
         <button type="button" className="primary" onClick={save}>
-          Save
+          {t("dialog.save")}
         </button>
       </div>
     </Dialog>

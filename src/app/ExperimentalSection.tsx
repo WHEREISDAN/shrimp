@@ -1,4 +1,5 @@
 import { useEffect, useRef } from "react";
+import { useTranslation } from "react-i18next";
 import type { Settings, SettingsPatch } from "../lib/ipc";
 import { ToggleRow } from "./ToggleRow";
 
@@ -19,6 +20,7 @@ export function ExperimentalSection({
   update,
   onCommandModeOn,
 }: ExperimentalSectionProps) {
+  const { t } = useTranslation();
   const headingRef = useRef<HTMLHeadingElement>(null);
   useEffect(() => {
     if (reveal === 0) {
@@ -34,11 +36,11 @@ export function ExperimentalSection({
   return (
     <section className="card stack" id="experimental" aria-labelledby="experimental-heading">
       <h2 id="experimental-heading" ref={headingRef} tabIndex={-1}>
-        Experimental
+        {t("experimental.title")}
       </h2>
       <ToggleRow
-        label="Command Mode"
-        description={`Select text, hold ${commandShortcut} and say what to change, like “make this more formal” or “translate to Spanish”. With nothing selected, ask a question.`}
+        label={t("experimental.commandMode")}
+        description={t("experimental.commandModeBody", { shortcut: commandShortcut })}
         checked={settings.experimental.commandMode}
         onChange={(commandMode) => {
           void update({ experimental: { commandMode } });
@@ -48,8 +50,8 @@ export function ExperimentalSection({
         }}
       />
       <ToggleRow
-        label="“Press enter” voice command"
-        description="End a dictation with “press enter” to send it: Shrimp leaves the words out and presses Enter after pasting."
+        label={t("experimental.pressEnter")}
+        description={t("experimental.pressEnterBody")}
         checked={settings.experimental.pressEnterCommand}
         onChange={(pressEnterCommand) => void update({ experimental: { pressEnterCommand } })}
       />

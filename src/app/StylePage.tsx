@@ -1,13 +1,15 @@
+import { useTranslation } from "react-i18next";
 import { CleanupSection } from "./CleanupSection";
 import { Page } from "./Page";
 import { StylesSection } from "./StylesSection";
 import { useSettings } from "./useSettings";
 
 export function StylePage() {
+  const { t } = useTranslation();
   const { settings, error, update } = useSettings();
 
   return (
-    <Page title="Style">
+    <Page title={t("style.title")}>
       {error && (
         <p className="error" role="alert">
           {error}
@@ -25,7 +27,7 @@ export function StylePage() {
           />
         </>
       ) : (
-        !error && <p className="muted">Loading…</p>
+        !error && <p className="muted">{t("common.loading")}</p>
       )}
     </Page>
   );

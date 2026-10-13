@@ -9,6 +9,7 @@ pub mod edit;
 pub mod health;
 pub mod history;
 pub mod hotkeys;
+pub mod i18n;
 pub mod insights;
 pub mod lang;
 pub mod llm;

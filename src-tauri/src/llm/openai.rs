@@ -5,6 +5,7 @@ use serde_json::{Value, json};
 
 use super::http::send_json;
 use super::{LlmError, LlmProvider, LlmProviderId, LlmRequest, LlmResponse};
+use crate::t;
 
 pub const BASE_URL: &str = "https://api.openai.com";
 
@@ -64,13 +65,13 @@ pub fn body(model: &str, request: &LlmRequest) -> Value {
 pub fn parse(response: &Value) -> Result<LlmResponse, LlmError> {
     let output = response["output"]
         .as_array()
-        .ok_or_else(|| LlmError::Failed("no output in the response".into()))?;
+        .ok_or_else(|| LlmError::Failed(t!("error.llm.noOutput")))?;
     let mut text = String::new();
     for item in output.iter().filter(|item| item["type"] == "message") {
         for part in item["content"].as_array().into_iter().flatten() {
             match part["type"].as_str() {
                 Some("output_text") => text.push_str(part["text"].as_str().unwrap_or_default()),
-                Some("refusal") => return Err(LlmError::Failed("the model declined".into())),
+                Some("refusal") => return Err(LlmError::Failed(t!("error.llm.declined"))),
                 _ => {}
             }
         }

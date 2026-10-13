@@ -5,6 +5,7 @@ use serde_json::{Value, json};
 
 use super::http::send_json;
 use super::{LlmError, LlmProvider, LlmProviderId, LlmRequest, LlmResponse};
+use crate::t;
 
 /// Keeps the model in memory between dictations.
 const KEEP_ALIVE: &str = "30m";
@@ -47,7 +48,7 @@ pub fn parse_tags(response: &Value) -> Vec<String> {
 /// A refused connection means Ollama isn't running.
 fn not_running(error: LlmError) -> LlmError {
     match error {
-        LlmError::Offline(_) => LlmError::Unavailable("Ollama isn't running".into()),
+        LlmError::Offline(_) => LlmError::Unavailable(t!("error.llm.ollamaNotRunning")),
         error => error,
     }
 }
@@ -77,7 +78,7 @@ pub fn body(model: &str, request: &LlmRequest) -> Value {
 pub fn parse(response: &Value) -> Result<LlmResponse, LlmError> {
     let text = response["message"]["content"]
         .as_str()
-        .ok_or_else(|| LlmError::Failed("no message in the response".into()))?;
+        .ok_or_else(|| LlmError::Failed(t!("error.llm.noMessage")))?;
     Ok(LlmResponse { text: text.into() })
 }
 

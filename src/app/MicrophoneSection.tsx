@@ -1,4 +1,6 @@
+import type { TFunction } from "i18next";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
   errorMessage,
   EVENTS,
@@ -19,8 +21,8 @@ interface MicrophoneSectionProps {
   reveal?: number;
 }
 
-function deviceLabel(device: MicrophoneEntry): string {
-  return device.kind === "builtIn" ? `${device.name} (built-in, recommended)` : device.name;
+function deviceLabel(device: MicrophoneEntry, t: TFunction): string {
+  return device.kind === "builtIn" ? t("microphone.builtIn", { name: device.name }) : device.name;
 }
 
 /**
@@ -28,6 +30,7 @@ function deviceLabel(device: MicrophoneEntry): string {
  * ranking Auto-detect follows, and a live level meter for the microphone in use.
  */
 export function MicrophoneSection({ reveal = 0 }: MicrophoneSectionProps) {
+  const { t } = useTranslation();
   const [list, setList] = useState<MicrophoneList | null>(null);
   const [showOthers, setShowOthers] = useState(false);
   const [level, setLevel] = useState(0);
@@ -81,11 +84,11 @@ export function MicrophoneSection({ reveal = 0 }: MicrophoneSectionProps) {
   return (
     <section className="card stack" aria-labelledby="microphone-heading" id="microphone">
       <h2 id="microphone-heading" ref={headingRef} tabIndex={-1}>
-        Microphone
+        {t("microphone.title")}
       </h2>
       {list && (
         <fieldset className="plain-fieldset stack">
-          <legend className="sr-only">Microphone</legend>
+          <legend className="sr-only">{t("microphone.title")}</legend>
           <label className="check">
             <input
               type="radio"
@@ -94,11 +97,11 @@ export function MicrophoneSection({ reveal = 0 }: MicrophoneSectionProps) {
               onChange={() => run(selectMicrophone(null))}
             />
             <span>
-              Auto-detect
-              <span className="muted"> · uses the highest-ranked microphone connected</span>
+              {t("microphone.autoDetect")}
+              <span className="muted"> · {t("microphone.autoDetectHint")}</span>
             </span>
           </label>
-          <ul className="list" aria-label="Microphones">
+          <ul className="list" aria-label={t("microphone.list")}>
             {shown.map((device) => {
               const usable = device.connected && device.unavailable === null;
               const position = ranked.indexOf(device);
@@ -113,12 +116,14 @@ export function MicrophoneSection({ reveal = 0 }: MicrophoneSectionProps) {
                       onChange={() => run(selectMicrophone(device.id))}
                     />
                     <span>
-                      <span className="list-title">{deviceLabel(device)}</span>
+                      <span className="list-title">{deviceLabel(device, t)}</span>
                       <span className="list-meta">
                         {!device.connected
-                          ? "Not connected"
+                          ? t("microphone.notConnected")
                           : (device.unavailable ??
-                            (device.id === list.active ? "In use" : "Connected"))}
+                            (device.id === list.active
+                              ? t("microphone.inUse")
+                              : t("microphone.connected")))}
                         {device.kind === "bluetooth" ? " · Bluetooth" : ""}
                       </span>
                     </span>
@@ -127,7 +132,7 @@ export function MicrophoneSection({ reveal = 0 }: MicrophoneSectionProps) {
                     <div className="row-actions">
                       <button
                         type="button"
-                        aria-label={`Move ${device.name} up`}
+                        aria-label={t("microphone.moveUp", { name: device.name })}
                         disabled={position <= 0}
                         onClick={() => run(rankMicrophone(device.id, true))}
                       >
@@ -135,7 +140,7 @@ export function MicrophoneSection({ reveal = 0 }: MicrophoneSectionProps) {
                       </button>
                       <button
                         type="button"
-                        aria-label={`Move ${device.name} down`}
+                        aria-label={t("microphone.moveDown", { name: device.name })}
                         disabled={position === ranked.length - 1}
                         onClick={() => run(rankMicrophone(device.id, false))}
                       >
@@ -144,10 +149,10 @@ export function MicrophoneSection({ reveal = 0 }: MicrophoneSectionProps) {
                       {!device.connected && (
                         <button
                           type="button"
-                          aria-label={`Forget ${device.name}`}
+                          aria-label={t("microphone.forgetDevice", { name: device.name })}
                           onClick={() => run(forgetMicrophone(device.id))}
                         >
-                          Forget
+                          {t("microphone.forget")}
                         </button>
                       )}
                     </div>
@@ -156,7 +161,7 @@ export function MicrophoneSection({ reveal = 0 }: MicrophoneSectionProps) {
               );
             })}
           </ul>
-          {shown.length === 0 && <p className="muted">No microphone detected.</p>}
+          {shown.length === 0 && <p className="muted">{t("microphone.none")}</p>}
           <label className="check">
             <input
               type="checkbox"
@@ -171,19 +176,17 @@ export function MicrophoneSection({ reveal = 0 }: MicrophoneSectionProps) {
               }}
             />
             <span>
-              Show other devices{" "}
-              <span className="muted">
-                (virtual and loopback inputs, never chosen automatically)
-              </span>
+              {t("microphone.showOthers")}{" "}
+              <span className="muted">{t("microphone.showOthersHint")}</span>
             </span>
           </label>
         </fieldset>
       )}
       <div className="progress-row">
-        <span className="muted">Input level</span>
+        <span className="muted">{t("microphone.inputLevel")}</span>
         <meter
           className="level-meter"
-          aria-label="Microphone level"
+          aria-label={t("microphone.level")}
           min={0}
           max={1}
           value={active ? level : 0}
@@ -195,9 +198,9 @@ export function MicrophoneSection({ reveal = 0 }: MicrophoneSectionProps) {
         </p>
       )}
       <div className="row">
-        <p className="muted">Not sure which microphone to use?</p>
+        <p className="muted">{t("microphone.notSure")}</p>
         <button type="button" onClick={() => setAdvice(true)}>
-          Find the right mic for you
+          {t("micAdvice.title")}
         </button>
       </div>
       {advice && <MicAdviceDialog onClose={() => setAdvice(false)} />}

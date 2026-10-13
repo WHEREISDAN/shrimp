@@ -9,7 +9,7 @@ use tauri::State;
 
 use super::CommandError;
 use crate::context::DictationContext;
-use crate::edit::{Editor, RAW_INSERTED};
+use crate::edit::{Editor, raw_inserted};
 use crate::llm::catalog::{self, AiOptions};
 use crate::llm::{LlmError, ollama};
 use crate::platform::AppIdentity;
@@ -136,7 +136,7 @@ pub async fn test_ai_provider(
         // Nothing was inserted, so the notice's last sentence doesn't apply.
         message: edited
             .notice
-            .map(|notice| notice.message.replace(&format!(" {RAW_INSERTED}"), "")),
+            .map(|notice| notice.message.replace(&format!(" {}", raw_inserted()), "")),
     })
 }
 

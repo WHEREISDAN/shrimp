@@ -1,4 +1,5 @@
 /** The "Find the right mic for you" walkthrough (MIC-10): three questions, one recommendation. */
+import type { controls } from "../i18n/locales/en/controls";
 
 export type Place = "quiet" | "shared" | "moving";
 export type Computer = "laptop" | "desktop";
@@ -10,77 +11,80 @@ export interface MicAnswers {
   headphones: Headphones;
 }
 
+type Text = typeof controls.micAdvice;
+
+/** A recommendation as interface text keys, translated where it is shown. */
 export interface MicAdvice {
-  title: string;
-  why: string;
-  tips: string[];
+  title: `micAdvice.titles.${keyof Text["titles"]}`;
+  why: `micAdvice.why.${keyof Text["why"]}`;
+  tips: `micAdvice.tips.${keyof Text["tips"]}`[];
 }
 
+/** The questions and their answers, with the keys of their text. */
 export const QUESTIONS = {
   place: {
-    label: "Where do you dictate most?",
+    label: "micAdvice.questions.place.label",
     options: [
-      { value: "quiet", label: "A quiet room" },
-      { value: "shared", label: "A shared office or café" },
-      { value: "moving", label: "On the move" },
+      { value: "quiet", label: "micAdvice.questions.place.quiet" },
+      { value: "shared", label: "micAdvice.questions.place.shared" },
+      { value: "moving", label: "micAdvice.questions.place.moving" },
     ],
   },
   computer: {
-    label: "What do you dictate on?",
+    label: "micAdvice.questions.computer.label",
     options: [
-      { value: "laptop", label: "A MacBook" },
-      { value: "desktop", label: "A desktop Mac (mini, iMac, Studio)" },
+      { value: "laptop", label: "micAdvice.questions.computer.laptop" },
+      { value: "desktop", label: "micAdvice.questions.computer.desktop" },
     ],
   },
   headphones: {
-    label: "Do you wear headphones while you dictate?",
+    label: "micAdvice.questions.headphones.label",
     options: [
-      { value: "none", label: "No" },
-      { value: "wired", label: "Wired headphones or a headset" },
-      { value: "bluetooth", label: "AirPods or other Bluetooth headphones" },
+      { value: "none", label: "micAdvice.questions.headphones.none" },
+      { value: "wired", label: "micAdvice.questions.headphones.wired" },
+      { value: "bluetooth", label: "micAdvice.questions.headphones.bluetooth" },
     ],
   },
 } as const;
 
-const BLUETOOTH_TIP =
-  "Keep Bluetooth headphones for listening: their microphones sound muffled, take time to start and switch your audio to a low-quality mode.";
-const WHISPER_TIP = "Speaking quietly is fine: Shrimp raises soft and whispered speech.";
-
 export function recommend({ place, computer, headphones }: MicAnswers): MicAdvice {
-  const tips: string[] = [];
+  const tips: MicAdvice["tips"] = [];
   if (headphones === "bluetooth") {
-    tips.push(BLUETOOTH_TIP);
+    tips.push("micAdvice.tips.bluetooth");
   }
   if (place !== "quiet") {
-    tips.push(WHISPER_TIP);
+    tips.push("micAdvice.tips.whisper");
   }
   if (place === "moving") {
     return {
-      title: computer === "laptop" ? "A wired headset" : "A wired headset or earbuds with a mic",
-      why: "A microphone that moves with you stays close to your mouth wherever you are, so background noise stays low.",
-      tips: [...tips, "Choose it in the picker, or rank it first so Auto-detect uses it."],
+      title:
+        computer === "laptop"
+          ? "micAdvice.titles.wiredHeadset"
+          : "micAdvice.titles.wiredHeadsetOrEarbuds",
+      why: "micAdvice.why.moving",
+      tips: [...tips, "micAdvice.tips.moving"],
     };
   }
   if (place === "shared") {
     return {
       title:
         headphones === "wired"
-          ? "Your wired headset"
-          : "A headset or a USB microphone close to you",
-      why: "In a noisy room, a microphone near your mouth hears you instead of the room.",
-      tips: [...tips, "Rank it first so Auto-detect picks it whenever it is plugged in."],
+          ? "micAdvice.titles.yourWiredHeadset"
+          : "micAdvice.titles.headsetOrUsb",
+      why: "micAdvice.why.shared",
+      tips: [...tips, "micAdvice.tips.shared"],
     };
   }
   if (computer === "desktop") {
     return {
-      title: "A USB microphone on your desk",
-      why: "Desktop Macs other than the iMac have no microphone of their own, and a USB microphone gives clear, low-noise audio.",
-      tips: [...tips, "Place it 15–30 cm from your mouth, a little to the side."],
+      title: "micAdvice.titles.usbMicrophone",
+      why: "micAdvice.why.desktop",
+      tips: [...tips, "micAdvice.tips.desktop"],
     };
   }
   return {
-    title: "Your MacBook's built-in microphone",
-    why: "In a quiet room it is clear, always there and starts instantly.",
-    tips: [...tips, "With the lid closed it can't hear you, so connect another microphone then."],
+    title: "micAdvice.titles.builtIn",
+    why: "micAdvice.why.quiet",
+    tips: [...tips, "micAdvice.tips.quiet"],
   };
 }

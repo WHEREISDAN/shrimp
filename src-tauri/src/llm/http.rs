@@ -6,6 +6,7 @@ use std::time::Duration;
 use serde_json::Value;
 
 use super::LlmError;
+use crate::t;
 
 const MAX_MESSAGE_CHARS: usize = 200;
 
@@ -42,7 +43,7 @@ pub async fn send_json(request: reqwest::RequestBuilder) -> Result<Value, LlmErr
         return Err(status_error(status, &body));
     }
     serde_json::from_str(&body)
-        .map_err(|err| LlmError::Failed(format!("unexpected response: {err}")))
+        .map_err(|err| LlmError::Failed(t!("error.llm.unexpectedResponse", details = err)))
 }
 
 /// Maps an error response. Anthropic, OpenAI and Groq send

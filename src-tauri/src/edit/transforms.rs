@@ -11,6 +11,7 @@ use crate::notify::Notice;
 use crate::settings::transforms::{
     CustomTransform, POLISH, PROMPT_ENGINEER, PolishSettings, TransformSettings, sample_fits,
 };
+use crate::t;
 
 /// Texts a transform accepts, in words (TRF-06).
 pub const MAX_TRANSFORM_WORDS: usize = 1_000;
@@ -42,11 +43,11 @@ pub enum Transform {
 }
 
 impl Transform {
-    pub fn name(&self) -> &str {
+    pub fn name(&self) -> String {
         match self {
-            Self::Polish(_) => "Polish",
-            Self::PromptEngineer(_) => "Prompt Engineer",
-            Self::Custom(transform) => &transform.name,
+            Self::Polish(_) => t!("notice.transform.polish"),
+            Self::PromptEngineer(_) => t!("notice.transform.promptEngineer"),
+            Self::Custom(transform) => transform.name.clone(),
         }
     }
 
@@ -150,9 +151,9 @@ fn custom_prompt(transform: &CustomTransform) -> String {
 
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
 pub enum TransformError {
-    #[error("Transform timed out")]
+    #[error("{}", t!("notice.transform.timedOut"))]
     Timeout,
-    #[error("Transform returned no text")]
+    #[error("{}", t!("notice.transform.empty"))]
     Empty,
     #[error("{}", .1.describe(*.0))]
     Llm(LlmProviderId, LlmError),
@@ -224,10 +225,11 @@ impl Editor {
         }
         match self.transform(&transform, text, None).await {
             Ok((result, _)) => AutoApply::Applied(result),
-            Err(error) => AutoApply::Failed(Notice::warning(format!(
-                "{} didn't run ({error}), so your dictation was pasted as it was.",
-                transform.name()
-            ))),
+            Err(error) => {
+                let name = transform.name();
+                let message = t!("notice.transform.autoFailed", name = name, error = error);
+                AutoApply::Failed(Notice::warning(message))
+            }
         }
     }
 

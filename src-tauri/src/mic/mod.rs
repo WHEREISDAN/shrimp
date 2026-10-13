@@ -23,6 +23,7 @@ use crate::audio::{AudioError, AudioSource, DeviceKind, DeviceProvider, InputDev
 use crate::dictation::DictationUi;
 use crate::notify::{Notice, NoticeAction, NoticeCategory};
 use crate::settings::{MicrophoneSettings, SettingsStore};
+use crate::t;
 
 /// How often connected devices are checked (hot-plug).
 pub const POLL_INTERVAL: Duration = Duration::from_secs(2);
@@ -111,9 +112,9 @@ impl Microphones {
             .filter(|id| order.first().is_none_or(|first| first.id != *id));
         let Some(first) = order.first().cloned() else {
             self.ui.notice(match unavailable {
-                Some(_) => Notice::error("Selected microphone is unavailable")
+                Some(_) => Notice::error(t!("notice.mic.selectedUnavailable"))
                     .with_action(NoticeAction::ChooseMicrophone),
-                None => Notice::error("No microphone detected")
+                None => Notice::error(t!("notice.mic.none"))
                     .with_action(NoticeAction::OpenSoundSettings),
             });
             return Err(AudioError::NoInputDevice);
@@ -124,26 +125,24 @@ impl Microphones {
                 .input_devices()
                 .iter()
                 .find(|device| device.id == id)
-                .and_then(|device| choice::unavailable(device, self.provider.lid_closed()))
-                .map(|reason| format!(" ({reason})"))
-                .unwrap_or_default();
-            self.ui.notice(
-                Notice::warning(format!(
-                    "Selected microphone is unavailable{reason}. Using {}.",
-                    first.name
-                ))
-                .with_action(NoticeAction::ChooseMicrophone),
-            );
+                .and_then(|device| choice::unavailable(device, self.provider.lid_closed()));
+            let name = &first.name;
+            let message = match reason {
+                Some(reason) => t!("notice.mic.usingBecause", reason = reason, name = name),
+                None => t!("notice.mic.using", name = name),
+            };
+            self.ui
+                .notice(Notice::warning(message).with_action(NoticeAction::ChooseMicrophone));
         }
         let ui = Arc::clone(&self.ui);
         let source = FallbackSource::new(
             Arc::clone(&self.provider),
             order,
             Arc::new(move |switch| match switch {
-                Switch::Fallback { from, to } => ui.notice(Notice::warning(format!(
-                    "{} disconnected. Switched to {}.",
-                    from.name, to.name
-                ))),
+                Switch::Fallback { from, to } => {
+                    let message = t!("notice.mic.switched", from = from.name, to = to.name);
+                    ui.notice(Notice::warning(message));
+                }
             }),
         );
         log::info!("recording from {} ({:?})", first.name, first.kind);
@@ -195,14 +194,10 @@ impl Microphones {
             log::warn!("could not count the advice: {error}");
         }
         self.ui.notice(
-            Notice::warning(format!(
-                "Bluetooth microphones like {} sound muffled and can be slow to start. A \
-                 built-in or wired microphone works better.",
-                device.name
-            ))
-            .with_action(NoticeAction::SwitchMicrophone)
-            .with_action(NoticeAction::DismissBluetoothAdvice)
-            .in_category(NoticeCategory::Suggestion),
+            Notice::warning(t!("notice.mic.bluetooth", name = device.name))
+                .with_action(NoticeAction::SwitchMicrophone)
+                .with_action(NoticeAction::DismissBluetoothAdvice)
+                .in_category(NoticeCategory::Suggestion),
         );
     }
 
@@ -281,7 +276,7 @@ impl Microphones {
 
     fn prompt(&self, device: &InputDevice) {
         self.ui.notice(
-            Notice::info(format!("{} is connected. Switch to it?", device.name))
+            Notice::info(t!("notice.mic.connected", name = device.name))
                 .with_action(NoticeAction::SwitchToNewMicrophone)
                 .with_action(NoticeAction::KeepMicrophone),
         );

@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
   flowBarAction,
   getMicrophones,
@@ -13,6 +14,7 @@ interface FlowBarMenuProps {
 
 /** The Flow Bar's right-click menu (BAR-06). */
 export function FlowBarMenu({ onClose }: FlowBarMenuProps) {
+  const { t } = useTranslation();
   const [microphones, setMicrophones] = useState<MicrophoneList | null>(null);
   const [showMicrophones, setShowMicrophones] = useState(false);
 
@@ -37,24 +39,24 @@ export function FlowBarMenu({ onClose }: FlowBarMenuProps) {
   const connected = microphones?.devices.filter((device) => device.connected) ?? [];
 
   return (
-    <div className="bar-menu" role="menu" aria-label="Flow Bar menu">
+    <div className="bar-menu" role="menu" aria-label={t("flowBarMenu.label")}>
       <button
         type="button"
         role="menuitem"
         aria-expanded={showMicrophones}
         onClick={() => setShowMicrophones(!showMicrophones)}
       >
-        Microphone ›
+        {t("flowBarMenu.microphone")}
       </button>
       {showMicrophones && (
-        <div className="bar-submenu" role="group" aria-label="Microphones">
+        <div className="bar-submenu" role="group" aria-label={t("microphone.list")}>
           <button
             type="button"
             role="menuitemradio"
             aria-checked={microphones?.selected === null}
             onClick={() => choose(null)}
           >
-            Auto-detect
+            {t("microphone.autoDetect")}
           </button>
           {connected.map((device) => (
             <button
@@ -71,16 +73,16 @@ export function FlowBarMenu({ onClose }: FlowBarMenuProps) {
         </div>
       )}
       <button type="button" role="menuitem" onClick={() => run("pasteLast")}>
-        Paste last transcript
+        {t("flowBarMenu.pasteLast")}
       </button>
       <button type="button" role="menuitem" onClick={() => run("history")}>
-        Transcript history
+        {t("flowBarMenu.history")}
       </button>
       <button type="button" role="menuitem" onClick={() => run("settings")}>
-        Settings
+        {t("flowBarMenu.settings")}
       </button>
       <button type="button" role="menuitem" onClick={() => run("hide")}>
-        Hide for 1 hour
+        {t("flowBarMenu.hide")}
       </button>
     </div>
   );

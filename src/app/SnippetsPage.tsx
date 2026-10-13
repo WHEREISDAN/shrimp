@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
   deleteSnippets,
   errorMessage,
@@ -20,6 +21,7 @@ type Dialog = { kind: "edit"; snippet: Snippet | null } | { kind: "delete"; snip
 const WARNING_MS = 10_000;
 
 export function SnippetsPage() {
+  const { t } = useTranslation();
   const [snippets, setSnippets] = useState<Snippet[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [warning, setWarning] = useState<string | null>(null);
@@ -75,9 +77,9 @@ export function SnippetsPage() {
     const { snippet } = dialog;
     modal = (
       <ConfirmDialog
-        title="Delete this snippet?"
-        message="It will stop expanding when you say it."
-        confirmLabel="Yes, delete it"
+        title={t("snippets.deleteTitle")}
+        message={t("snippets.deleteBody")}
+        confirmLabel={t("snippets.confirmDelete")}
         onConfirm={() => remove(snippet)}
         onCancel={() => setDialog(null)}
       />
@@ -86,12 +88,10 @@ export function SnippetsPage() {
     modal = (
       <ImportDialog
         flow={importer}
-        title="Import snippets"
-        hint={'A JSON array of {"name", "text"} objects.'}
-        importLabel={(count) => `Import ${count} ${count === 1 ? "snippet" : "snippets"}`}
-        allExistText={(count) =>
-          count === 1 ? "This snippet already exists" : `All ${count} snippets already exist`
-        }
+        title={t("snippets.importTitle")}
+        hint={t("snippets.importHint")}
+        importLabel={(count) => t("snippets.importItems", { count })}
+        allExistText={(count) => t("snippets.importAllExist", { count })}
       />
     );
   }
@@ -103,10 +103,10 @@ export function SnippetsPage() {
         className="primary"
         onClick={() => setDialog({ kind: "edit", snippet: null })}
       >
-        Add snippet
+        {t("snippets.add")}
       </button>
       <button type="button" onClick={importer.pick}>
-        Import JSON
+        {t("snippets.importJson")}
       </button>
       <ImportFileInput flow={importer} accept=".json,application/json" />
     </>
@@ -114,7 +114,7 @@ export function SnippetsPage() {
   const pageError = importer.error ?? error;
 
   return (
-    <Page title="Snippets" actions={actions} modal={modal}>
+    <Page title={t("snippets.title")} actions={actions} modal={modal}>
       {warning && (
         <p className="notice" role="status">
           {warning}
@@ -126,9 +126,9 @@ export function SnippetsPage() {
         </p>
       )}
       {snippets === null ? (
-        <p className="muted">Loading…</p>
+        <p className="muted">{t("common.loading")}</p>
       ) : snippets.length === 0 ? (
-        <p className="empty">No snippets yet. Say a short trigger, get your saved text.</p>
+        <p className="empty">{t("snippets.empty")}</p>
       ) : (
         <ul className="list">
           {snippets.map((snippet) => (
@@ -139,10 +139,10 @@ export function SnippetsPage() {
               </div>
               <div className="row-actions">
                 <button type="button" onClick={() => setDialog({ kind: "edit", snippet })}>
-                  Edit
+                  {t("snippets.edit")}
                 </button>
                 <button type="button" onClick={() => setDialog({ kind: "delete", snippet })}>
-                  Delete
+                  {t("common.delete")}
                 </button>
               </div>
             </li>

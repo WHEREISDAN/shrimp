@@ -6,7 +6,8 @@ use rusqlite::{Connection, OptionalExtension, Row, params};
 use serde::{Deserialize, Serialize};
 
 use super::db::{StorageError, now_ms};
-use super::import::{MAX_IMPORT_ENTRIES, SkippedRow, TOO_MANY, check_size, parse_snippet_json};
+use super::import::{MAX_IMPORT_ENTRIES, SkippedRow, check_size, parse_snippet_json, too_many};
+use crate::t;
 
 pub const MAX_TRIGGER_CHARS: usize = 60;
 pub const MAX_EXPANSION_CHARS: usize = 4000;
@@ -36,18 +37,16 @@ impl SnippetInput {
         let trigger = self.trigger.trim();
         let expansion = self.expansion.trim_end();
         if trigger.is_empty() || expansion.trim().is_empty() {
-            return Err("Please enter a snippet and its expansion".into());
+            return Err(t!("error.snippets.empty"));
         }
         if trigger.chars().count() > MAX_TRIGGER_CHARS {
-            return Err(format!(
-                "Use at most {MAX_TRIGGER_CHARS} characters for the snippet."
-            ));
+            return Err(t!("error.snippets.tooLong", max = MAX_TRIGGER_CHARS));
         }
         if !trigger.chars().any(char::is_alphanumeric) {
-            return Err("Use at least one letter or number in the snippet.".into());
+            return Err(t!("error.snippets.noLetters"));
         }
         if expansion.chars().count() > MAX_EXPANSION_CHARS {
-            return Err("This expansion is too long. Please shorten it and try again.".into());
+            return Err(t!("error.snippets.expansionTooLong"));
         }
         Ok(Self {
             trigger: trigger.to_owned(),
@@ -108,8 +107,9 @@ fn check_unique(db: &Connection, trigger: &str, id: Option<i64>) -> Result<(), S
         )
         .optional()?;
     if snippet.is_some_and(|other| Some(other) != id) {
-        return Err(StorageError::Invalid(format!(
-            "\"{trigger}\" already exists in your snippets"
+        return Err(StorageError::Invalid(t!(
+            "error.snippets.duplicate",
+            trigger = trigger
         )));
     }
     let word: Option<i64> = db
@@ -120,8 +120,9 @@ fn check_unique(db: &Connection, trigger: &str, id: Option<i64>) -> Result<(), S
         )
         .optional()?;
     if word.is_some() {
-        return Err(StorageError::Invalid(format!(
-            "\"{trigger}\" already exists in your personal dictionary"
+        return Err(StorageError::Invalid(t!(
+            "error.dictionary.duplicate",
+            word = trigger
         )));
     }
     Ok(())
@@ -146,7 +147,7 @@ pub fn update(
     let current = get(db, id)?;
     let input = input.normalized().map_err(StorageError::Invalid)?;
     if input.trigger == current.trigger && input.expansion == current.expansion {
-        return Err(StorageError::Invalid("No changes made".into()));
+        return Err(StorageError::Invalid(t!("error.snippets.unchanged")));
     }
     check_unique(db, &input.trigger, Some(id))?;
     db.execute(
@@ -163,12 +164,7 @@ fn saved(db: &Connection, id: i64) -> Result<SnippetSaved, StorageError> {
         .iter()
         .filter(|other| other.id != id)
         .find(|other| similar(&snippet.trigger, &other.trigger))
-        .map(|other| {
-            format!(
-                "Saved. It's similar to \"{}\", so Shrimp may expand the other one.",
-                other.trigger
-            )
-        });
+        .map(|other| t!("error.snippets.similar", trigger = other.trigger));
     Ok(SnippetSaved { snippet, warning })
 }
 
@@ -252,7 +248,7 @@ pub fn preview_import(db: &Connection, json: &str) -> Result<ImportPreview, Stor
     check_size(json).map_err(StorageError::Invalid)?;
     let (rows, mut skipped) = parse_snippet_json(json).map_err(StorageError::Invalid)?;
     if rows.is_empty() && skipped.is_empty() {
-        return Err(StorageError::Invalid("No snippets found in file".into()));
+        return Err(StorageError::Invalid(t!("error.snippets.emptyImport")));
     }
     let mut seen = HashSet::new();
     let mut added = Vec::new();
@@ -278,7 +274,7 @@ pub fn preview_import(db: &Connection, json: &str) -> Result<ImportPreview, Stor
         }
     }
     if added.len() > MAX_IMPORT_ENTRIES {
-        return Err(StorageError::Invalid(TOO_MANY.into()));
+        return Err(StorageError::Invalid(too_many()));
     }
     Ok(ImportPreview {
         added,

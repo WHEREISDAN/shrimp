@@ -6,6 +6,8 @@ use std::sync::Mutex;
 
 use serde::{Deserialize, Serialize};
 
+use crate::t;
+
 const MAX_KEY_LENGTH: usize = 512;
 
 /// The keychain account a key is stored under. One key serves both a
@@ -42,7 +44,7 @@ impl KeyAccount {
 #[derive(Debug, thiserror::Error)]
 pub enum SecretError {
     #[error("{0}")]
-    Invalid(&'static str),
+    Invalid(String),
     #[error("keychain error: {0}")]
     Keychain(String),
 }
@@ -92,10 +94,10 @@ impl Secrets {
     pub fn set(&self, account: KeyAccount, key: &str) -> Result<(), SecretError> {
         let key = key.trim();
         if key.is_empty() {
-            return Err(SecretError::Invalid("Enter an API key."));
+            return Err(SecretError::Invalid(t!("error.secrets.empty")));
         }
         if key.len() > MAX_KEY_LENGTH || key.chars().any(char::is_whitespace) {
-            return Err(SecretError::Invalid("That doesn't look like an API key."));
+            return Err(SecretError::Invalid(t!("error.secrets.malformed")));
         }
         self.backend.write(account, key)?;
         self.cache

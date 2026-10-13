@@ -12,6 +12,7 @@ use crate::edit::transforms::Transform;
 use crate::hotkeys::Action;
 use crate::notify::{Notice, NoticeAction};
 use crate::platform::InsertText;
+use crate::t;
 
 impl Controller {
     fn transform_runner(&self) -> TransformRunner {
@@ -27,8 +28,7 @@ impl Controller {
             return false;
         }
         if self.gestures.is_busy() {
-            self.ui
-                .notice(Notice::warning("Transcript currently processing"));
+            self.ui.notice(Notice::warning(t!("notice.dictation.busy")));
             return false;
         }
         self.gestures.begin_busy();
@@ -80,7 +80,8 @@ impl Controller {
     pub(super) fn transform_action(&mut self, action: TransformAction) {
         let Some(run) = self.last_transform.clone() else {
             if action == TransformAction::View {
-                self.ui.notice(Notice::info("No transform to show yet."));
+                self.ui
+                    .notice(Notice::info(t!("notice.transform.nothingToShow")));
             }
             return;
         };
@@ -91,8 +92,8 @@ impl Controller {
                 let ui = Arc::clone(&self.ui);
                 let text = InsertText::plain(run.result);
                 tauri::async_runtime::spawn_blocking(move || match inserter.copy(&text) {
-                    Ok(()) => ui.notice(Notice::info("Copied")),
-                    Err(error) => ui.notice(Notice::error(format!("Couldn't copy: {error}"))),
+                    Ok(()) => ui.notice(Notice::info(t!("notice.copied"))),
+                    Err(error) => ui.notice(Notice::error(t!("notice.copyFailed", error = error))),
                 });
             }
             TransformAction::Retry | TransformAction::Undo => {
@@ -119,10 +120,13 @@ impl Controller {
         if std::mem::take(&mut self.retrying) {
             self.ui.changes(run.view());
         } else if run.result.trim() == run.original.trim() {
-            self.ui.notice(Notice::info("No changes needed"));
-        } else {
             self.ui
-                .notice(Notice::info("Done.").with_action(NoticeAction::ViewTransformChanges));
+                .notice(Notice::info(t!("notice.transform.noChanges")));
+        } else {
+            self.ui.notice(
+                Notice::info(t!("notice.transform.done"))
+                    .with_action(NoticeAction::ViewTransformChanges),
+            );
         }
         self.last_transform = Some(run.clone());
     }

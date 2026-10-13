@@ -4,6 +4,7 @@
 
 use crate::notify::{Notice, NoticeCategory};
 use crate::settings::FormattingTips;
+use crate::t;
 
 const REMINDERS: u32 = 3;
 /// Self-corrections whose cue the edit removed.
@@ -77,21 +78,12 @@ pub fn next(
 
 pub fn notice(tip: Tip, explanation: bool) -> Notice {
     let message = match (tip, explanation) {
-        (Tip::List, true) => {
-            "Shrimp made that a list. Say “one… two… three…” or “first… second…” and it \
-             formats the items for you."
-        }
-        (Tip::List, false) => "Tip: say “one… two…” to make a list.",
-        (Tip::Email, true) => {
-            "Shrimp laid that out as an email: the greeting, the body and the sign-off each \
-             on their own lines."
-        }
-        (Tip::Email, false) => "Tip: in email apps, Shrimp lays out greetings and sign-offs.",
-        (Tip::Backtrack, true) => {
-            "Shrimp kept only your correction. Say “actually”, “no wait” or “scratch that” to \
-             change what you just said."
-        }
-        (Tip::Backtrack, false) => "Tip: say “actually…” to correct yourself as you speak.",
+        (Tip::List, true) => t!("notice.tip.listExplained"),
+        (Tip::List, false) => t!("notice.tip.list"),
+        (Tip::Email, true) => t!("notice.tip.emailExplained"),
+        (Tip::Email, false) => t!("notice.tip.email"),
+        (Tip::Backtrack, true) => t!("notice.tip.backtrackExplained"),
+        (Tip::Backtrack, false) => t!("notice.tip.backtrack"),
     };
     Notice::info(message).in_category(NoticeCategory::Announcement)
 }

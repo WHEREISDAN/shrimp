@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
   errorMessage,
   EVENTS,
@@ -18,6 +19,7 @@ interface ShortcutRecorderProps {
 
 /** An action's first shortcut: click, then press the keys or a mouse button. More are in the Shortcuts dialog. */
 export function ShortcutRecorder({ action, label }: ShortcutRecorderProps) {
+  const { t } = useTranslation();
   const [row, setRow] = useState<ShortcutRow | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -33,9 +35,9 @@ export function ShortcutRecorder({ action, label }: ShortcutRecorderProps) {
   const recording = useShortcutRecording((other) => sameAction(other, action), load);
 
   const value = row?.shortcuts[0] ?? null;
-  const shown = recording.active
-    ? (recording.active.preview ?? "Press key or mouse button")
-    : (value ?? "Not set");
+  const shown: string = recording.active
+    ? (recording.active.preview ?? t("shortcuts.pressKey"))
+    : (value ?? t("shortcuts.notSet"));
   const problem = error ?? (recording.result?.kind === "failed" ? recording.result.text : null);
 
   return (
@@ -46,7 +48,7 @@ export function ShortcutRecorder({ action, label }: ShortcutRecorderProps) {
           <button
             type="button"
             className={recording.active ? "recorder recording" : "recorder"}
-            aria-label={`${label} shortcut: ${shown}`}
+            aria-label={t("shortcuts.recorder", { label, shortcut: shown })}
             aria-pressed={recording.active !== null}
             onClick={() => {
               setError(null);
@@ -62,14 +64,14 @@ export function ShortcutRecorder({ action, label }: ShortcutRecorderProps) {
           {value && !recording.active && (
             <button
               type="button"
-              aria-label={`Remove ${label} shortcut`}
+              aria-label={t("shortcuts.removeOneLabel", { label })}
               onClick={() =>
                 void removeShortcut(action, 0)
                   .then(load)
                   .catch((err: unknown) => setError(errorMessage(err)))
               }
             >
-              Remove
+              {t("shortcuts.removeOne")}
             </button>
           )}
         </div>

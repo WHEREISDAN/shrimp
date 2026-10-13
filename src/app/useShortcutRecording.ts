@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
   cancelShortcutRecording,
   errorMessage,
@@ -40,6 +41,7 @@ export function useShortcutRecording(
   owns: (action: ShortcutAction) => boolean,
   onChanged: () => void,
 ): ShortcutRecording {
+  const { t } = useTranslation();
   const [active, setActive] = useState<ActiveRecording | null>(null);
   const [result, setResult] = useState<RecordingResult | null>(null);
   const recordingRef = useRef(false);
@@ -65,7 +67,7 @@ export function useShortcutRecording(
         return;
       case "saved":
         setActive(null);
-        setResult({ kind: "saved", text: "Shortcut saved", warning: status.warning });
+        setResult({ kind: "saved", text: t("shortcuts.saved"), warning: status.warning });
         onChanged();
         return;
       case "failed":

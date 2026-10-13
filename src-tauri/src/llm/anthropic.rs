@@ -6,6 +6,7 @@ use serde_json::{Value, json};
 
 use super::http::send_json;
 use super::{LlmError, LlmProvider, LlmProviderId, LlmRequest, LlmResponse};
+use crate::t;
 
 pub const BASE_URL: &str = "https://api.anthropic.com";
 const VERSION: &str = "2023-06-01";
@@ -61,11 +62,11 @@ pub fn body(model: &str, request: &LlmRequest) -> Value {
 /// Joins the `text` blocks; thinking blocks may come first.
 pub fn parse(response: &Value) -> Result<LlmResponse, LlmError> {
     if response["stop_reason"] == "refusal" {
-        return Err(LlmError::Failed("the model declined".into()));
+        return Err(LlmError::Failed(t!("error.llm.declined")));
     }
     let blocks = response["content"]
         .as_array()
-        .ok_or_else(|| LlmError::Failed("no content in the response".into()))?;
+        .ok_or_else(|| LlmError::Failed(t!("error.llm.noContent")))?;
     let text: String = blocks
         .iter()
         .filter(|block| block["type"] == "text")

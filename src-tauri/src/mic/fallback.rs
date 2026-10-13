@@ -11,6 +11,7 @@ use std::time::Duration;
 use crate::audio::{
     AudioError, AudioEvent, AudioFormat, AudioSink, AudioSource, DeviceProvider, InputDevice,
 };
+use crate::t;
 
 /// Reported as the source moves between devices.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -68,7 +69,7 @@ impl AudioSource for FallbackSource {
         let handle = std::thread::Builder::new()
             .name("shrimp-microphones".into())
             .spawn(move || run.run())
-            .map_err(|err| AudioError::Device(format!("could not start the microphone: {err}")))?;
+            .map_err(|err| AudioError::Device(t!("notice.audio.startFailed", error = err)))?;
         self.worker = Some((stop, handle));
         Ok(None)
     }

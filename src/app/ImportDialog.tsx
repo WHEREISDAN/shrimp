@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import type { SkippedRow } from "../lib/ipc";
 import { Dialog } from "./Dialog";
 import type { FileImport } from "./useFileImport";
@@ -29,6 +30,7 @@ export function ImportFileInput({ flow, accept }: { flow: FileImport; accept: st
 }
 
 export function ImportDialog({ flow, title, hint, importLabel, allExistText }: ImportDialogProps) {
+  const { t } = useTranslation();
   if (!flow.session) {
     return null;
   }
@@ -42,21 +44,17 @@ export function ImportDialog({ flow, title, hint, importLabel, allExistText }: I
           <p>{allExistText(duplicates)}</p>
         ) : (
           <>
-            {added.length === 0 && <p className="muted">Nothing new to import.</p>}
+            {added.length === 0 && <p className="muted">{t("importFile.nothingNew")}</p>}
             <ul className="import-list">
               {added.slice(0, MAX_LISTED).map((item) => (
                 <li key={item}>{item}</li>
               ))}
             </ul>
             {added.length > MAX_LISTED && (
-              <p className="muted">{`and ${added.length - MAX_LISTED} more`}</p>
+              <p className="muted">{t("importFile.more", { count: added.length - MAX_LISTED })}</p>
             )}
             {duplicates > 0 && (
-              <p className="muted">
-                {duplicates === 1
-                  ? "1 duplicate will be skipped"
-                  : `${duplicates} duplicates will be skipped`}
-              </p>
+              <p className="muted">{t("importFile.duplicates", { count: duplicates })}</p>
             )}
           </>
         )}
@@ -71,7 +69,7 @@ export function ImportDialog({ flow, title, hint, importLabel, allExistText }: I
         {added.length > 0 ? (
           <>
             <button type="button" onClick={flow.close}>
-              Cancel
+              {t("common.cancel")}
             </button>
             <button type="button" className="primary" onClick={flow.confirm} disabled={flow.busy}>
               {importLabel(added.length)}
@@ -79,7 +77,7 @@ export function ImportDialog({ flow, title, hint, importLabel, allExistText }: I
           </>
         ) : (
           <button type="button" className="primary" onClick={flow.close}>
-            {allExist ? "Done!" : "Close"}
+            {allExist ? t("importFile.done") : t("common.close")}
           </button>
         )}
       </div>
@@ -89,6 +87,7 @@ export function ImportDialog({ flow, title, hint, importLabel, allExistText }: I
 }
 
 function SkippedList({ rows }: { rows: SkippedRow[] }) {
+  const { t } = useTranslation();
   if (rows.length === 0) {
     return null;
   }
@@ -96,7 +95,7 @@ function SkippedList({ rows }: { rows: SkippedRow[] }) {
     <ul className="import-list skipped">
       {rows.map((row) => (
         <li key={`${row.line}-${row.reason}`} className="error">
-          {`Line ${row.line}: ${row.reason}`}
+          {t("importFile.skippedLine", { line: row.line, reason: row.reason })}
         </li>
       ))}
     </ul>

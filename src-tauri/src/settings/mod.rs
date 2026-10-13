@@ -14,6 +14,8 @@ use std::sync::RwLock;
 
 use serde_json::Value;
 
+use crate::t;
+
 pub use audio::{KnownMicrophone, MediaSettings, MicrophoneSettings, SoundSettings};
 pub use flow_bar::FlowBarSettings;
 pub use languages::LanguageSettings;
@@ -32,7 +34,7 @@ type OnChange = Box<dyn Fn(&Settings) + Send + Sync>;
 pub enum SettingsError {
     #[error("{0}")]
     Invalid(String),
-    #[error("could not save the settings: {0}")]
+    #[error("{}", t!("error.settings.saveFailed", details = .0))]
     Io(#[from] std::io::Error),
 }
 

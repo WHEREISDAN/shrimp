@@ -12,6 +12,7 @@ use super::models::{
     DEFAULT_WHISPER_MODEL, ModelFile, ModelStore, VAD_MODEL, WHISPER_MODELS, find_whisper_model,
 };
 use super::{EngineSlot, LocalWhisper};
+use crate::t;
 
 /// Mirrors `ModelState` in src/lib/ipc.ts.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
@@ -116,9 +117,8 @@ impl ModelManager {
             Ok(()) => self.load(model).await,
             Err(message) => {
                 if lock(&self.loaded).is_none() {
-                    self.slot.set_status(format!(
-                        "The speech model could not be downloaded: {message}"
-                    ));
+                    self.slot
+                        .set_status(t!("error.models.downloadFailed", details = message));
                 }
                 self.set_state(model.id, ModelState::Failed { message });
             }
@@ -127,7 +127,7 @@ impl ModelManager {
 
     /// Downloads `id` without loading it.
     pub async fn download(self: Arc<Self>, id: String) -> Result<(), String> {
-        let model = find_whisper_model(&id).ok_or("That model is not in the catalog.")?;
+        let model = find_whisper_model(&id).ok_or_else(|| t!("error.models.unknown"))?;
         let _busy = self.busy.lock().await;
         self.ensure_files(model).await.inspect_err(|message| {
             self.set_state(
@@ -141,13 +141,13 @@ impl ModelManager {
 
     /// Deletes a downloaded model that is neither in use nor chosen.
     pub fn delete(&self, id: &str, chosen: &str) -> Result<(), String> {
-        let model = find_whisper_model(id).ok_or("That model is not in the catalog.")?;
+        let model = find_whisper_model(id).ok_or_else(|| t!("error.models.unknown"))?;
         if *lock(&self.loaded) == Some(model.id) || model.id == chosen {
-            return Err("Switch to another model before deleting this one.".into());
+            return Err(t!("error.models.inUse"));
         }
         self.store
             .delete(model)
-            .map_err(|error| format!("Couldn't delete the model: {error}"))?;
+            .map_err(|error| t!("error.models.deleteFailed", details = error))?;
         log::info!("deleted {}", model.file_name);
         self.set_state(model.id, ModelState::Missing);
         Ok(())
@@ -156,7 +156,7 @@ impl ModelManager {
     async fn ensure_files(&self, model: &'static ModelFile) -> Result<(), String> {
         let first = lock(&self.loaded).is_none();
         if !self.store.is_downloaded(&VAD_MODEL) {
-            self.slot.set_status("Downloading speech detection…");
+            self.slot.set_status(t!("error.models.downloadingVad"));
             self.store
                 .download(&self.client, &VAD_MODEL, |_, _| {})
                 .await
@@ -173,9 +173,8 @@ impl ModelManager {
                 if last_percent != Some(percent) {
                     last_percent = Some(percent);
                     if first {
-                        self.slot.set_status(format!(
-                            "The speech model is downloading ({percent}%). Try again when it's ready."
-                        ));
+                        self.slot
+                            .set_status(t!("error.models.downloading", percent = percent));
                     }
                     self.set_state(model.id, ModelState::Downloading { received, total });
                 }
@@ -188,8 +187,7 @@ impl ModelManager {
 
     async fn load(&self, model: &'static ModelFile) {
         if lock(&self.loaded).is_none() {
-            self.slot
-                .set_status("The speech model is loading. Try again in a moment.");
+            self.slot.set_status(t!("error.models.loading"));
         }
         let path = self.store.path(model);
         let vad = self.store.path(&VAD_MODEL);
@@ -214,7 +212,7 @@ impl ModelManager {
         log::error!("could not load {}: {message}", model.file_name);
         if lock(&self.loaded).is_none() {
             self.slot
-                .set_status(format!("The speech model could not be loaded: {message}"));
+                .set_status(t!("error.models.loadFailed", details = message));
         }
         self.set_state(model.id, ModelState::Failed { message });
     }

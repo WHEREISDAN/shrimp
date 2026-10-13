@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { runNoticeAction, type Answer } from "../lib/ipc";
 
 interface AnswerCardProps {
@@ -8,12 +9,18 @@ interface AnswerCardProps {
 
 /** A Command Mode answer, shown instead of pasted (CMD-03). */
 export function AnswerCard({ answer, onDismiss }: AnswerCardProps) {
+  const { t } = useTranslation();
   const [copied, setCopied] = useState(false);
   return (
-    <section className="answer" aria-label="Command Mode answer">
+    <section className="answer" aria-label={t("answer.region")}>
       <header className="answer-head">
         <p className="answer-question">{answer.question}</p>
-        <button type="button" className="notice-close" aria-label="Dismiss" onClick={onDismiss}>
+        <button
+          type="button"
+          className="notice-close"
+          aria-label={t("answer.dismiss")}
+          onClick={onDismiss}
+        >
           ×
         </button>
       </header>
@@ -28,7 +35,7 @@ export function AnswerCard({ answer, onDismiss }: AnswerCardProps) {
             setCopied(true);
           }}
         >
-          {copied ? "Copied ✓" : "Copy"}
+          {copied ? t("answer.copied") : t("common.copy")}
         </button>
       </div>
     </section>

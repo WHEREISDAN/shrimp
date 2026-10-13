@@ -9,6 +9,7 @@ use crate::dictation::{ControllerHandle, ControllerInput};
 use crate::history::{History, HistoryError, HistoryItem, HistoryList};
 use crate::platform::{InsertText, TextInserter};
 use crate::settings::{HistoryStorage, Settings, SettingsStore};
+use crate::t;
 
 /// The clipboard, for copying transcripts.
 pub struct Clipboard(pub Arc<dyn TextInserter>);
@@ -131,7 +132,7 @@ pub fn set_history_storage(
     if storage == HistoryStorage::Never && !confirmed {
         return Err(CommandError::new(
             "invalid",
-            format!("Type \"{DELETE_ALL}\" to confirm."),
+            t!("error.history.typeToConfirm", phrase = DELETE_ALL),
         ));
     }
     settings

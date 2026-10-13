@@ -11,6 +11,7 @@ use crate::audio::AudioClip;
 use crate::llm::catalog;
 use crate::secrets::Secrets;
 use crate::settings::SettingsStore;
+use crate::t;
 
 #[derive(Clone)]
 pub struct SttRouter {
@@ -45,10 +46,10 @@ impl SttRouter {
         };
         let account = catalog::stt_key_account(stt.engine).ok_or(SttError::Cancelled)?;
         let key = self.secrets.get(account).ok_or_else(|| {
-            SttError::Unavailable(format!(
-                "Add your {} API key in Settings to transcribe with {}.",
-                account.label(),
-                stt.engine.label()
+            SttError::Unavailable(t!(
+                "error.stt.missingKey",
+                provider = account.label(),
+                engine = stt.engine.label()
             ))
         })?;
         Ok(Arc::new(CloudStt::new(

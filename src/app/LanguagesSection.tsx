@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { errorMessage, EVENTS, getLanguages, type Languages } from "../lib/ipc";
 import { useTauriEvent } from "../lib/useTauriEvent";
 import { languageNames } from "./languageChoice";
@@ -11,6 +12,7 @@ interface LanguagesSectionProps {
 
 /** Settings › Languages (LANG-01..05). */
 export function LanguagesSection({ reveal = 0 }: LanguagesSectionProps) {
+  const { t, i18n } = useTranslation();
   const [languages, setLanguages] = useState<Languages | null>(null);
   const [editing, setEditing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -36,27 +38,24 @@ export function LanguagesSection({ reveal = 0 }: LanguagesSectionProps) {
   }, [reveal]);
 
   const chosen = languages?.chosen;
-  const summary = chosen
+  const summary: string = chosen
     ? chosen.autoDetect
-      ? "Auto-detect"
-      : languageNames(chosen.selected, languages.options).join(", ")
-    : "Loading…";
+      ? t("languages.autoDetect")
+      : languageNames(chosen.selected, languages.options, i18n.language).join(", ")
+    : t("common.loading");
 
   return (
     <section className="card stack" aria-labelledby="languages-heading" id="languages">
       <h2 id="languages-heading" ref={headingRef} tabIndex={-1}>
-        Languages
+        {t("languages.title")}
       </h2>
       <div className="row">
         <span>{summary}</span>
         <button type="button" disabled={!languages} onClick={() => setEditing(true)}>
-          Change
+          {t("languages.change")}
         </button>
       </div>
-      <p className="muted">
-        With several languages, each dictation is transcribed in the one you speak. English, Chinese
-        and German variants set the spelling and characters. Hover the Flow Bar to switch languages.
-      </p>
+      <p className="muted">{t("languages.body")}</p>
       {error && (
         <p className="error" role="alert">
           {error}

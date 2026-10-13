@@ -3,6 +3,7 @@
 use serde::{Deserialize, Serialize};
 
 use crate::audio::DeviceKind;
+use crate::t;
 
 /// Settings › Microphone.
 #[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
@@ -56,7 +57,7 @@ pub struct MediaSettings {
 impl MediaSettings {
     pub fn validate(&self) -> Result<(), String> {
         if self.mute && self.pause {
-            return Err("Choose either muting or pausing while dictating.".into());
+            return Err(t!("error.settings.muteOrPause"));
         }
         Ok(())
     }
@@ -68,10 +69,10 @@ impl MicrophoneSettings {
         ids.sort_unstable();
         ids.dedup();
         if ids.len() != self.ranking.len() {
-            return Err("A microphone is ranked twice.".into());
+            return Err(t!("error.settings.microphoneRankedTwice"));
         }
         if self.selected.as_deref().is_some_and(str::is_empty) {
-            return Err("Choose a microphone or Auto-detect.".into());
+            return Err(t!("error.settings.chooseMicrophone"));
         }
         Ok(())
     }

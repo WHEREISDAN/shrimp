@@ -1,11 +1,11 @@
+import type { TFunction } from "i18next";
 import type { AppCategory, Style } from "../lib/ipc";
 
-export const STYLE_TEXT: Record<Style, { title: string; description: string }> = {
-  formal: { title: "Formal.", description: "Caps + punctuation." },
-  casual: { title: "Casual", description: "Caps + less punctuation." },
-  veryCasual: { title: "very casual", description: "No caps + less punctuation." },
-  excited: { title: "Excited!", description: "More exclamations." },
-};
+/** A style card's title and description, in the interface language. */
+export const styleText = (t: TFunction, style: Style) => ({
+  title: t(`style.options.${style}.title`),
+  description: t(`style.options.${style}.description`),
+});
 
 interface CategoryInfo {
   id: AppCategory;
@@ -17,52 +17,52 @@ interface CategoryInfo {
   examples: Partial<Record<Style, string>>;
 }
 
-export const CATEGORIES: CategoryInfo[] = [
-  {
-    id: "personal",
-    label: "Personal messages",
-    appList: true,
-    apps: "Messages, WhatsApp, Discord, Signal, Telegram, Instagram",
-    examples: {
-      formal: "Hey, are you free for lunch tomorrow? Let's do 12 if that works.",
-      casual: "Hey are you free for lunch tomorrow? Let's do 12 if that works",
-      veryCasual: "hey are you free for lunch tomorrow? let's do 12 if that works",
+/** The app categories in tab order, with their text in the interface language. */
+export function styleCategories(t: TFunction): CategoryInfo[] {
+  return [
+    {
+      id: "personal",
+      label: t("style.categories.personal.label"),
+      appList: true,
+      apps: t("style.categories.personal.apps"),
+      examples: {
+        formal: t("style.categories.personal.formal"),
+        casual: t("style.categories.personal.casual"),
+        veryCasual: t("style.categories.personal.veryCasual"),
+      },
     },
-  },
-  {
-    id: "work",
-    label: "Work messages",
-    appList: true,
-    apps: "Slack, Microsoft Teams, LinkedIn",
-    examples: {
-      formal: "Thanks for the update. The numbers look good. Let's go with the first option.",
-      casual: "Thanks for the update, the numbers look good. Let's go with the first option",
-      excited: "Thanks for the update! The numbers look good! Let's go with the first option!",
+    {
+      id: "work",
+      label: t("style.categories.work.label"),
+      appList: true,
+      apps: t("style.categories.work.apps"),
+      examples: {
+        formal: t("style.categories.work.formal"),
+        casual: t("style.categories.work.casual"),
+        excited: t("style.categories.work.excited"),
+      },
     },
-  },
-  {
-    id: "email",
-    label: "Email",
-    appList: true,
-    apps: "Mail, Outlook, Missive, Superhuman, Spark, Thunderbird, Mimestream",
-    examples: {
-      formal:
-        "Hi Dana, thanks for sending the contract over. I'll review it today and get back to you by Friday.",
-      casual:
-        "Hi Dana thanks for sending the contract over, I'll review it today and get back to you by Friday",
-      excited:
-        "Hi Dana! Thanks for sending the contract over! I'll review it today and get back to you by Friday!",
+    {
+      id: "email",
+      label: t("style.categories.email.label"),
+      appList: true,
+      apps: t("style.categories.email.apps"),
+      examples: {
+        formal: t("style.categories.email.formal"),
+        casual: t("style.categories.email.casual"),
+        excited: t("style.categories.email.excited"),
+      },
     },
-  },
-  {
-    id: "other",
-    label: "Other",
-    appList: false,
-    apps: "Everything else, including AI assistants and terminals.",
-    examples: {
-      formal: "The build finished and the tests all passed, so I'm merging it now.",
-      casual: "The build finished and the tests all passed so I'm merging it now",
-      excited: "The build finished and the tests all passed so I'm merging it now!",
+    {
+      id: "other",
+      label: t("style.categories.other.label"),
+      appList: false,
+      apps: t("style.categories.other.apps"),
+      examples: {
+        formal: t("style.categories.other.formal"),
+        casual: t("style.categories.other.casual"),
+        excited: t("style.categories.other.excited"),
+      },
     },
-  },
-];
+  ];
+}

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { errorMessage, testAiProvider, type AiTestResult } from "../lib/ipc";
 
 type TestState =
@@ -8,6 +9,7 @@ type TestState =
   | { status: "error"; message: string };
 
 export function AiTestRow() {
+  const { t } = useTranslation();
   const [state, setState] = useState<TestState>({ status: "idle" });
 
   const run = () => {
@@ -20,7 +22,7 @@ export function AiTestRow() {
   return (
     <div className="inline-row">
       <button type="button" onClick={run} disabled={state.status === "running"}>
-        Test
+        {t("aiProvider.test")}
       </button>
       <TestOutcome state={state} />
     </div>
@@ -28,11 +30,12 @@ export function AiTestRow() {
 }
 
 function TestOutcome({ state }: { state: TestState }) {
+  const { t } = useTranslation();
   switch (state.status) {
     case "idle":
       return null;
     case "running":
-      return <span className="muted">Testing…</span>;
+      return <span className="muted">{t("aiProvider.testing")}</span>;
     case "error":
       return (
         <span className="error" role="alert">
@@ -42,11 +45,14 @@ function TestOutcome({ state }: { state: TestState }) {
     case "done":
       return state.result.ok ? (
         <span className="ok" role="status">
-          {`Cleaned up in ${state.result.latencyMs} ms: “${state.result.output}”`}
+          {t("aiProvider.testOk", {
+            latency: state.result.latencyMs,
+            output: state.result.output,
+          })}
         </span>
       ) : (
         <span className="error" role="alert">
-          {state.result.message ?? "Didn't work."}
+          {state.result.message ?? t("aiProvider.testFailed")}
         </span>
       );
   }

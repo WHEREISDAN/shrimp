@@ -16,6 +16,7 @@ use crate::edit::transforms::{MAX_TRANSFORM_WORDS, Transform};
 use crate::platform::{
     AppIdentity, ContextRequest, Editable, FocusInspector, InsertText, SyntheticKey, TextRange,
 };
+use crate::t;
 
 const CONTEXT_WAIT: Duration = Duration::from_secs(1);
 /// The last dictation can be transformed this long after it was pasted.
@@ -57,7 +58,7 @@ impl TransformRun {
     pub fn view(&self) -> TransformView {
         TransformView {
             id: self.id,
-            name: self.transform.name().to_owned(),
+            name: self.transform.name(),
             original: self.original.clone(),
             result: self.result.clone(),
         }
@@ -123,16 +124,14 @@ impl TransformRunner {
         };
         let words = source.text().split_whitespace().count();
         if words == 0 {
-            return failed("Select text to apply a transform");
+            return failed(t!("notice.transform.selectText"));
         }
         if words > MAX_TRANSFORM_WORDS {
-            let what = match transform {
-                Transform::Polish(_) => "polish",
-                _ => "transform",
-            };
-            return failed(format!(
-                "Oops, too long to {what}. Try again with under {MAX_TRANSFORM_WORDS} words."
-            ));
+            let max = MAX_TRANSFORM_WORDS;
+            return failed(match transform {
+                Transform::Polish(_) => t!("notice.transform.polishTooLong", max = max),
+                _ => t!("notice.transform.tooLong", max = max),
+            });
         }
         let result = match self
             .pipeline
@@ -182,7 +181,7 @@ impl TransformRunner {
                         });
                     }
                     if field.length > 0 {
-                        return Err(failed("Oops, too long to transform. Select less text."));
+                        return Err(failed(t!("notice.transform.selectLess")));
                     }
                     return match last.filter(|(_, at)| at.elapsed() <= LAST_DICTATION_WINDOW) {
                         Some((text, _)) => Ok(Source::LastDictation {
@@ -190,7 +189,7 @@ impl TransformRunner {
                             cursor: range.start,
                             text,
                         }),
-                        None => Err(failed("Select text to apply a transform")),
+                        None => Err(failed(t!("notice.transform.selectText"))),
                     };
                 }
                 None => {}
@@ -207,8 +206,8 @@ impl TransformRunner {
             .is_some_and(|field| field.editable != Editable::No);
         match copied {
             Some(text) if editable && !text.trim().is_empty() => Ok(Source::Copied(text)),
-            _ if context.field.is_none() => Err(failed("Couldn't detect text in your text box")),
-            _ => Err(failed("Select text to apply a transform")),
+            _ if context.field.is_none() => Err(failed(t!("notice.transform.noTextBox"))),
+            _ => Err(failed(t!("notice.transform.selectText"))),
         }
     }
 

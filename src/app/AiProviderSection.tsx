@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import type { AiOptions, ApiKeys, LlmProviderId, Settings, SettingsPatch } from "../lib/ipc";
 import { AiTestRow } from "./AiTestRow";
 import { KeyRow } from "./KeyRow";
@@ -35,6 +36,7 @@ export function AiProviderSection({
   onKeys,
   update,
 }: AiProviderSectionProps) {
+  const { t } = useTranslation();
   const provider =
     options.providers.find((candidate) => candidate.id === settings.ai.provider) ??
     options.providers[0];
@@ -45,12 +47,12 @@ export function AiProviderSection({
 
   return (
     <section className="card stack" aria-labelledby="ai-heading">
-      <h2 id="ai-heading">AI provider</h2>
+      <h2 id="ai-heading">{t("aiProvider.title")}</h2>
       <PrivacyModeNote settings={settings} />
       <label className="select-field field">
-        <span>Provider</span>
+        <span>{t("aiProvider.provider")}</span>
         <select
-          aria-label="Provider"
+          aria-label={t("aiProvider.provider")}
           value={provider.id}
           onChange={(event) => {
             const next = options.providers.find((candidate) => candidate.id === event.target.value);
@@ -68,7 +70,7 @@ export function AiProviderSection({
       </label>
       {field && (
         <ModelSelect
-          label="Model"
+          label={t("aiProvider.model")}
           models={provider.models}
           value={settings.ai[field]}
           onChange={(model) => void update({ ai: { [field]: model } })}
@@ -86,8 +88,8 @@ export function AiProviderSection({
       <AiTestRow key={provider.id} />
       <p className="muted">
         {provider.id === "ollama"
-          ? "Ollama runs on this Mac; nothing leaves it."
-          : `Your dictation text is sent to ${provider.label} for cleanup, with your own key.`}
+          ? t("aiProvider.ollamaNote")
+          : t("aiProvider.cloudNote", { provider: provider.label })}
       </p>
     </section>
   );

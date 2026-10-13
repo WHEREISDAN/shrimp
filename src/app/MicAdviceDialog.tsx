@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Dialog } from "./Dialog";
 import { QUESTIONS, recommend, type MicAnswers } from "./micAdvice";
 
@@ -11,18 +12,19 @@ interface MicAdviceDialogProps {
 
 /** "Find the right mic for you" (MIC-10): three questions, then a recommendation. */
 export function MicAdviceDialog({ onClose }: MicAdviceDialogProps) {
+  const { t } = useTranslation();
   const [answers, setAnswers] = useState<Partial<MicAnswers>>({});
   const step = STEPS.find((key) => answers[key] === undefined);
 
   if (step) {
     const question = QUESTIONS[step];
     return (
-      <Dialog title="Find the right mic for you" onClose={onClose}>
+      <Dialog title={t("micAdvice.title")} onClose={onClose}>
         <p className="muted">
-          Question {STEPS.indexOf(step) + 1} of {STEPS.length}
+          {t("micAdvice.progress", { current: STEPS.indexOf(step) + 1, total: STEPS.length })}
         </p>
         <fieldset className="plain-fieldset stack">
-          <legend className="card-title">{question.label}</legend>
+          <legend className="card-title">{t(question.label)}</legend>
           {question.options.map((option) => (
             <button
               key={option.value}
@@ -30,13 +32,13 @@ export function MicAdviceDialog({ onClose }: MicAdviceDialogProps) {
               className="radio-card"
               onClick={() => setAnswers({ ...answers, [step]: option.value })}
             >
-              {option.label}
+              {t(option.label)}
             </button>
           ))}
         </fieldset>
         <div className="dialog-actions">
           <button type="button" onClick={onClose}>
-            Cancel
+            {t("common.cancel")}
           </button>
         </div>
       </Dialog>
@@ -45,20 +47,20 @@ export function MicAdviceDialog({ onClose }: MicAdviceDialogProps) {
 
   const advice = recommend(answers as MicAnswers);
   return (
-    <Dialog title="Find the right mic for you" onClose={onClose}>
-      <p className="card-title">{advice.title}</p>
-      <p>{advice.why}</p>
+    <Dialog title={t("micAdvice.title")} onClose={onClose}>
+      <p className="card-title">{t(advice.title)}</p>
+      <p>{t(advice.why)}</p>
       <ul className="intro-steps">
         {advice.tips.map((tip) => (
-          <li key={tip}>{tip}</li>
+          <li key={tip}>{t(tip)}</li>
         ))}
       </ul>
       <div className="dialog-actions">
         <button type="button" onClick={() => setAnswers({})}>
-          Start over
+          {t("micAdvice.startOver")}
         </button>
         <button type="button" className="primary" onClick={onClose}>
-          Done
+          {t("dialog.done")}
         </button>
       </div>
     </Dialog>

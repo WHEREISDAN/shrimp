@@ -40,6 +40,7 @@ use crate::platform::{
 use crate::settings::SettingsStore;
 use crate::sounds::Cue;
 use crate::stt::SttEngine;
+use crate::{t, tn};
 
 /// Everything the controller needs, injected so tests can use fakes.
 pub struct Services {
@@ -320,10 +321,8 @@ impl Controller {
             ControllerInput::SessionWarning(session) if self.is_current(session) => {
                 self.sounds.play(Cue::Warning);
                 let left = self.timing.session_limit - self.timing.session_warning;
-                self.ui.notice(
-                    Notice::warning(format!("Dictation stops in {}.", minutes(left)))
-                        .without_sound(),
-                );
+                self.ui
+                    .notice(Notice::warning(stops_in(left)).without_sound());
             }
             ControllerInput::SessionLimit(session) if self.is_current(session) => {
                 if self.gestures.force_finish() {
@@ -367,9 +366,7 @@ impl Controller {
             Command::ArmTapTimeout { token, after } => {
                 self.send_after(after, ControllerInput::TapTimeout(token));
             }
-            Command::RejectBusy => self
-                .ui
-                .notice(Notice::warning("Transcript currently processing")),
+            Command::RejectBusy => self.ui.notice(Notice::warning(t!("notice.dictation.busy"))),
             Command::PasteLast => self.paste_last(),
             Command::CopyLast => self.copy_last(),
         }
@@ -453,9 +450,9 @@ impl Controller {
         self.gestures.reset();
         self.ui.notice(match error {
             AudioError::NoInputDevice => {
-                Notice::error("No microphone detected").with_action(NoticeAction::OpenSoundSettings)
+                Notice::error(t!("notice.mic.none")).with_action(NoticeAction::OpenSoundSettings)
             }
-            error => Notice::error(format!("Couldn't start recording: {error}")),
+            error => Notice::error(t!("notice.dictation.startFailed", error = error)),
         });
     }
 
@@ -466,14 +463,12 @@ impl Controller {
                 if let Err(error) = self.permissions.request(Permission::Microphone) {
                     log::warn!("microphone request failed: {error}");
                 }
-                self.ui.notice(Notice::info(
-                    "Allow Shrimp to use the microphone, then dictate again.",
-                ));
+                self.ui.notice(Notice::info(t!("notice.mic.allow")));
                 false
             }
             PermissionStatus::Denied => {
                 self.ui.notice(
-                    Notice::error("Shrimp can't use the microphone.")
+                    Notice::error(t!("notice.mic.denied"))
                         .with_action(NoticeAction::OpenMicrophoneSettings),
                 );
                 false
@@ -546,9 +541,10 @@ impl Controller {
             CancelReason::User => {
                 self.sounds.play(Cue::Cancel);
                 self.ui.notice(if command {
-                    Notice::info("Command cancelled")
+                    Notice::info(t!("notice.command.cancelled"))
                 } else {
-                    Notice::info("Dictation cancelled").with_action(NoticeAction::UndoCancel)
+                    Notice::info(t!("notice.dictation.cancelled"))
+                        .with_action(NoticeAction::UndoCancel)
                 });
                 let tx = self.tx.clone();
                 let Recording {
@@ -566,28 +562,23 @@ impl Controller {
             CancelReason::Interrupted => {
                 recording.discard();
                 self.sounds.play(Cue::Cancel);
-                self.ui.notice(Notice::info(
-                    "Dictation cancelled because another shortcut was pressed.",
-                ));
+                self.ui
+                    .notice(Notice::info(t!("notice.dictation.interrupted")));
             }
             CancelReason::ShortTap if command => {
                 recording.discard();
+                let shortcut = self.label_of(Action::CommandMode);
                 self.ui.notice(
-                    Notice::info(format!(
-                        "Hold {} while you speak a command, or double-press it for hands-free.",
-                        self.label_of(Action::CommandMode)
-                    ))
-                    .in_category(NoticeCategory::Suggestion),
+                    Notice::info(t!("notice.tip.holdForCommand", shortcut = shortcut))
+                        .in_category(NoticeCategory::Suggestion),
                 );
             }
             CancelReason::ShortTap => {
                 recording.discard();
+                let shortcut = self.label_of(Action::PushToTalk);
                 self.ui.notice(
-                    Notice::info(format!(
-                        "Hold {} to dictate, or double-tap it for hands-free.",
-                        self.label_of(Action::PushToTalk)
-                    ))
-                    .in_category(NoticeCategory::Suggestion),
+                    Notice::info(t!("notice.tip.holdToDictate", shortcut = shortcut))
+                        .in_category(NoticeCategory::Suggestion),
                 );
             }
         }
@@ -637,8 +628,8 @@ impl Controller {
         let inserter = Arc::clone(&self.inserter);
         let ui = Arc::clone(&self.ui);
         tauri::async_runtime::spawn_blocking(move || match inserter.copy(&text) {
-            Ok(()) => ui.notice(Notice::info("Last transcript copied")),
-            Err(error) => ui.notice(Notice::error(format!("Couldn't copy: {error}"))),
+            Ok(()) => ui.notice(Notice::info(t!("notice.dictation.lastCopied"))),
+            Err(error) => ui.notice(Notice::error(t!("notice.copyFailed", error = error))),
         });
     }
 
@@ -681,12 +672,11 @@ impl Controller {
     fn retry_history(&mut self, id: i64) {
         if self.gestures.is_recording() {
             self.ui
-                .notice(Notice::warning("Cannot retry while dictating."));
+                .notice(Notice::warning(t!("notice.dictation.cannotRetry")));
             return;
         }
         if self.gestures.is_busy() {
-            self.ui
-                .notice(Notice::warning("Transcript currently processing"));
+            self.ui.notice(Notice::warning(t!("notice.dictation.busy")));
             return;
         }
         self.gestures.begin_busy();
@@ -718,7 +708,7 @@ impl Controller {
             }
             Err(AudioError::Disconnected) if recording.microphone.is_some() => {
                 // Every microphone is gone: keep what was said (MIC-07).
-                self.ui.notice(Notice::error("Microphone disconnected"));
+                self.ui.notice(Notice::error(t!("notice.mic.disconnected")));
                 if self.gestures.force_finish() {
                     self.finish();
                 }
@@ -734,8 +724,8 @@ impl Controller {
                 self.refresh_bindings();
                 self.sounds.play(Cue::Cancel);
                 self.set_state(DictationState::Idle);
-                self.ui
-                    .notice(Notice::error(format!("Recording stopped: {error}")));
+                let message = t!("notice.dictation.recordingStopped", error = error);
+                self.ui.notice(Notice::error(message));
                 return;
             }
         }
@@ -765,14 +755,14 @@ impl Controller {
                 self.hotkeys_started = true;
                 log::info!("dictation shortcuts are active");
                 if self.accessibility_notice_shown {
-                    self.ui.notice(Notice::info("Shortcuts are ready"));
+                    self.ui.notice(Notice::info(t!("notice.shortcuts.ready")));
                 }
             }
             Err(PlatformError::AccessibilityMissing) => {
                 if !self.accessibility_notice_shown {
                     self.accessibility_notice_shown = true;
                     self.ui.notice(
-                        Notice::error("Shrimp needs Accessibility permission for its shortcuts.")
+                        Notice::error(t!("notice.shortcuts.needAccessibility"))
                             .with_action(NoticeAction::OpenAccessibilitySettings),
                     );
                 }
@@ -780,8 +770,8 @@ impl Controller {
             }
             Err(error) => {
                 log::error!("shortcuts unavailable: {error}");
-                self.ui
-                    .notice(Notice::error(format!("Shortcuts unavailable: {error}")));
+                let message = t!("notice.shortcuts.unavailable", error = error);
+                self.ui.notice(Notice::error(message));
             }
         }
     }
@@ -819,14 +809,28 @@ fn is_gesture(action: Action) -> bool {
     )
 }
 
-fn minutes(duration: Duration) -> String {
-    match duration.as_secs() {
-        60 => "1 minute".into(),
-        seconds if seconds >= 60 && seconds % 60 == 0 => format!("{} minutes", seconds / 60),
-        seconds => format!("{seconds} seconds"),
+fn stops_in(left: Duration) -> String {
+    match left.as_secs() {
+        seconds if seconds >= 60 && seconds % 60 == 0 => {
+            tn!("notice.dictation.stopsInMinutes", seconds / 60)
+        }
+        seconds => tn!("notice.dictation.stopsInSeconds", seconds),
     }
 }
 
 fn lock<T>(mutex: &Mutex<T>) -> std::sync::MutexGuard<'_, T> {
     mutex.lock().unwrap_or_else(|err| err.into_inner())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn says_when_dictation_stops() {
+        let stops = |seconds| stops_in(Duration::from_secs(seconds));
+        assert_eq!(stops(60), "Dictation stops in 1 minute.");
+        assert_eq!(stops(120), "Dictation stops in 2 minutes.");
+        assert_eq!(stops(90), "Dictation stops in 90 seconds.");
+    }
 }

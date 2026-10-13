@@ -1,9 +1,8 @@
 import { useId, useState, type KeyboardEvent } from "react";
+import { Trans, useTranslation } from "react-i18next";
 import type { AppCategory, Style } from "../lib/ipc";
 import { RadioCards, type RadioCardOption } from "./RadioCards";
-import { CATEGORIES, STYLE_TEXT } from "./styleCatalog";
-
-const LAST_TAB = CATEGORIES.length - 1;
+import { styleCategories, styleText } from "./styleCatalog";
 
 interface StylesSectionProps {
   styles: Record<AppCategory, Style>;
@@ -11,15 +10,18 @@ interface StylesSectionProps {
 }
 
 export function StylesSection({ styles, onChange }: StylesSectionProps) {
+  const { t } = useTranslation();
   const [index, setIndex] = useState(0);
   const baseId = useId();
-  const category = CATEGORIES[index] ?? CATEGORIES[0];
+  const categories = styleCategories(t);
+  const lastTab = categories.length - 1;
+  const category = categories[index] ?? categories[0];
   if (!category) {
     return null;
   }
 
   const options: RadioCardOption<Style>[] = Object.entries(category.examples).map(
-    ([style, example]) => ({ value: style as Style, ...STYLE_TEXT[style as Style], example }),
+    ([style, example]) => ({ value: style as Style, ...styleText(t, style as Style), example }),
   );
 
   const select = (next: number, focus: boolean) => {
@@ -30,10 +32,10 @@ export function StylesSection({ styles, onChange }: StylesSectionProps) {
   };
   const onKeyDown = (event: KeyboardEvent) => {
     const targets: Record<string, number> = {
-      ArrowRight: index === LAST_TAB ? 0 : index + 1,
-      ArrowLeft: index === 0 ? LAST_TAB : index - 1,
+      ArrowRight: index === lastTab ? 0 : index + 1,
+      ArrowLeft: index === 0 ? lastTab : index - 1,
       Home: 0,
-      End: LAST_TAB,
+      End: lastTab,
     };
     const target = targets[event.key];
     if (target !== undefined) {
@@ -44,9 +46,9 @@ export function StylesSection({ styles, onChange }: StylesSectionProps) {
 
   return (
     <section className="card stack" aria-labelledby="styles-heading">
-      <h2 id="styles-heading">Styles</h2>
-      <div className="tabs" role="tablist" aria-label="Styles">
-        {CATEGORIES.map((item, position) => (
+      <h2 id="styles-heading">{t("style.styles.title")}</h2>
+      <div className="tabs" role="tablist" aria-label={t("style.styles.tabs")}>
+        {categories.map((item, position) => (
           <button
             key={item.id}
             id={`${baseId}-tab-${position}`}
@@ -70,11 +72,18 @@ export function StylesSection({ styles, onChange }: StylesSectionProps) {
         className="tab-panel"
       >
         <p className="muted style-apps">
-          {category.appList && <span className="style-apps-label">Applies to </span>}
-          {category.apps}
+          {category.appList ? (
+            <Trans
+              i18nKey="style.styles.appliesTo"
+              values={{ apps: category.apps }}
+              components={{ label: <span className="style-apps-label" /> }}
+            />
+          ) : (
+            category.apps
+          )}
         </p>
         <RadioCards
-          label={`${category.label} style`}
+          label={t("style.styles.group", { category: category.label })}
           value={styles[category.id]}
           options={options}
           layout="grid"
@@ -82,14 +91,11 @@ export function StylesSection({ styles, onChange }: StylesSectionProps) {
         />
         {category.id !== "other" && (
           <button type="button" className="next" onClick={() => select(index + 1, false)}>
-            Next
+            {t("style.styles.next")}
           </button>
         )}
       </div>
-      <p className="muted footnote">
-        Styles apply to new dictations. AI assistants such as ChatGPT and Claude get no style
-        formatting.
-      </p>
+      <p className="muted footnote">{t("style.styles.footnote")}</p>
     </section>
   );
 }

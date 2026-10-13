@@ -6,6 +6,7 @@ import {
   type FormEvent,
   type KeyboardEvent,
 } from "react";
+import { useTranslation } from "react-i18next";
 import {
   addSnippet,
   errorMessage,
@@ -18,8 +19,6 @@ import { insertLink, wrapSelection, type TextEdit } from "./markdownEdit";
 
 const MAX_TRIGGER = 60;
 const MAX_EXPANSION = 4000;
-const EXPANSION_HINT =
-  "What Shrimp types. **Bold**, *italic*, lists and [links](https://…) keep their formatting where the app accepts it.";
 
 interface SnippetDialogProps {
   /** The snippet being edited; null adds a new one. */
@@ -29,6 +28,7 @@ interface SnippetDialogProps {
 }
 
 export function SnippetDialog({ snippet, onSaved, onClose }: SnippetDialogProps) {
+  const { t } = useTranslation();
   const [trigger, setTrigger] = useState(snippet?.trigger ?? "");
   const [expansion, setExpansion] = useState(snippet?.expansion ?? "");
   const [error, setError] = useState<string | null>(null);
@@ -95,10 +95,10 @@ export function SnippetDialog({ snippet, onSaved, onClose }: SnippetDialogProps)
   };
 
   return (
-    <Dialog title={snippet ? "Edit snippet" : "Add snippet"} onClose={onClose}>
+    <Dialog title={snippet ? t("snippets.editSnippet") : t("snippets.add")} onClose={onClose}>
       <form className="form" onSubmit={onSubmit} onKeyDown={onFormKeyDown}>
         <div className="field">
-          <label htmlFor={`${ids}-trigger`}>Snippet</label>
+          <label htmlFor={`${ids}-trigger`}>{t("snippets.trigger")}</label>
           <input
             id={`${ids}-trigger`}
             type="text"
@@ -110,21 +110,21 @@ export function SnippetDialog({ snippet, onSaved, onClose }: SnippetDialogProps)
             onChange={(event) => setTrigger(event.target.value)}
           />
           <p id={`${ids}-trigger-hint`} className="muted hint">
-            What you say
+            {t("snippets.triggerHint")}
           </p>
         </div>
         <div className="field">
           <div className="field-head">
-            <label htmlFor={`${ids}-expansion`}>Expansion</label>
+            <label htmlFor={`${ids}-expansion`}>{t("snippets.expansion")}</label>
             <div className="format-bar">
               <button type="button" onClick={bold}>
-                Bold
+                {t("snippets.bold")}
               </button>
               <button type="button" onClick={italic}>
-                Italic
+                {t("snippets.italic")}
               </button>
               <button type="button" onClick={link}>
-                Link
+                {t("snippets.link")}
               </button>
             </div>
           </div>
@@ -140,7 +140,7 @@ export function SnippetDialog({ snippet, onSaved, onClose }: SnippetDialogProps)
           />
           <div className="field-foot">
             <p id={`${ids}-expansion-hint`} className="muted hint">
-              {EXPANSION_HINT}
+              {t("snippets.expansionHint")}
             </p>
             <span className="muted counter">{`${expansion.length}/${MAX_EXPANSION}`}</span>
           </div>
@@ -152,10 +152,10 @@ export function SnippetDialog({ snippet, onSaved, onClose }: SnippetDialogProps)
         )}
         <div className="dialog-actions">
           <button type="button" onClick={onClose}>
-            Cancel
+            {t("common.cancel")}
           </button>
           <button type="submit" className="primary" disabled={busy}>
-            {snippet ? "Save changes" : "Save"}
+            {snippet ? t("snippets.saveChanges") : t("snippets.save")}
           </button>
         </div>
       </form>

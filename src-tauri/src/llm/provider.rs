@@ -1,6 +1,8 @@
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 
+use crate::t;
+
 /// Mirrors `LlmProviderId` in src/lib/ipc.ts.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
@@ -78,28 +80,28 @@ pub struct LlmResponse {
 
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
 pub enum LlmError {
-    #[error("no API key")]
+    #[error("{}", t!("error.llm.missingKey"))]
     MissingKey,
     /// The provider rejected the key (401/403).
-    #[error("the API key was rejected: {0}")]
+    #[error("{}", t!("error.llm.unauthorized", details = .0))]
     Unauthorized(String),
-    #[error("rate limited: {0}")]
+    #[error("{}", t!("error.llm.rateLimited", details = .0))]
     RateLimited(String),
     /// The account is out of credits or over its spend limit.
-    #[error("out of credits: {0}")]
+    #[error("{}", t!("error.llm.quota", details = .0))]
     Quota(String),
     /// No connection to the provider (offline, DNS, refused).
-    #[error("can't reach the provider: {0}")]
+    #[error("{}", t!("error.llm.offline", details = .0))]
     Offline(String),
-    #[error("timed out")]
+    #[error("{}", t!("error.llm.timeout"))]
     Timeout,
     /// The provider cannot serve the request now: overloaded, Ollama not
     /// running, model missing.
-    #[error("unavailable: {0}")]
+    #[error("{}", t!("error.llm.unavailable", details = .0))]
     Unavailable(String),
-    #[error("failed: {0}")]
+    #[error("{}", t!("error.llm.failed", details = .0))]
     Failed(String),
-    #[error("cancelled")]
+    #[error("{}", t!("error.llm.cancelled"))]
     Cancelled,
 }
 
@@ -108,16 +110,16 @@ impl LlmError {
     pub fn describe(&self, provider: LlmProviderId) -> String {
         let name = provider.label();
         match self {
-            Self::MissingKey => format!("no {name} API key"),
-            Self::Unauthorized(_) => format!("{name} rejected your API key"),
-            Self::RateLimited(_) => format!("{name} rate limit reached"),
-            Self::Quota(_) => format!("your {name} account is out of credits"),
-            Self::Offline(_) => format!("can't reach {name}"),
-            Self::Timeout => format!("{name} took too long"),
+            Self::MissingKey => t!("error.llm.reason.missingKey", provider = name),
+            Self::Unauthorized(_) => t!("error.llm.reason.unauthorized", provider = name),
+            Self::RateLimited(_) => t!("error.llm.reason.rateLimited", provider = name),
+            Self::Quota(_) => t!("error.llm.reason.quota", provider = name),
+            Self::Offline(_) => t!("error.llm.reason.offline", provider = name),
+            Self::Timeout => t!("error.llm.reason.timeout", provider = name),
             Self::Unavailable(message) if message.contains(name) => message.clone(),
-            Self::Unavailable(_) => format!("{name} is unavailable"),
+            Self::Unavailable(_) => t!("error.llm.reason.unavailable", provider = name),
             Self::Failed(message) => message.clone(),
-            Self::Cancelled => "cancelled".into(),
+            Self::Cancelled => t!("error.llm.cancelled"),
         }
     }
 }

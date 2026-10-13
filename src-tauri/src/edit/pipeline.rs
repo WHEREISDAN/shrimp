@@ -22,9 +22,12 @@ use crate::llm::{LlmError, LlmProviderId, LlmRequest, LlmSource, http};
 use crate::notify::Notice;
 use crate::platform::FieldKind;
 use crate::settings::{Settings, SettingsStore};
+use crate::t;
 
 /// Ends every notice about a failed AI edit.
-pub const RAW_INSERTED: &str = "Inserted the transcript without AI edits.";
+pub fn raw_inserted() -> String {
+    t!("notice.ai.rawInserted")
+}
 
 /// Names and identifiers from the screen that may reach the speech engine
 /// and the AI edit, when context awareness is on (CTX-02, CTX-04).

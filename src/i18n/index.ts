@@ -1,11 +1,17 @@
 import { createInstance } from "i18next";
 import { useEffect } from "react";
 import { initReactI18next } from "react-i18next";
-import { en } from "./locales/en";
+import { de } from "./locales/de";
+import { en, type Catalog } from "./locales/en";
+import { es } from "./locales/es";
+import { it } from "./locales/it";
+import { pt } from "./locales/pt";
 
 /** The languages the interface is translated into (LANG-06). */
 export const UI_LANGUAGES = ["en", "de", "es", "it", "pt"] as const;
 export type UiLanguage = (typeof UI_LANGUAGES)[number];
+
+export const CATALOGS: Record<UiLanguage, Catalog> = { en, de, es, it, pt };
 
 /** The first of `preferred` (BCP 47 tags) Shrimp is translated into, else English. */
 export function resolveLanguage(preferred: readonly string[]): UiLanguage {
@@ -41,7 +47,9 @@ export const i18n = createInstance();
 /** Starts i18next in `language`; English fills any gap. */
 export function setupI18n(language: UiLanguage = resolveLanguage(navigator.languages)) {
   void i18n.use(initReactI18next).init({
-    resources: { en: { translation: en } },
+    resources: Object.fromEntries(
+      Object.entries(CATALOGS).map(([code, translation]) => [code, { translation }]),
+    ),
     lng: language,
     fallbackLng: "en",
     interpolation: { escapeValue: false },

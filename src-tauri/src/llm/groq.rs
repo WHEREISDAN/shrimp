@@ -5,6 +5,7 @@ use serde_json::{Value, json};
 
 use super::http::send_json;
 use super::{LlmError, LlmProvider, LlmProviderId, LlmRequest, LlmResponse};
+use crate::t;
 
 pub const BASE_URL: &str = "https://api.groq.com/openai/v1";
 
@@ -54,7 +55,7 @@ pub fn body(model: &str, request: &LlmRequest) -> Value {
 pub fn parse(response: &Value) -> Result<LlmResponse, LlmError> {
     let text = response["choices"][0]["message"]["content"]
         .as_str()
-        .ok_or_else(|| LlmError::Failed("no message in the response".into()))?;
+        .ok_or_else(|| LlmError::Failed(t!("error.llm.noMessage")))?;
     Ok(LlmResponse { text: text.into() })
 }
 

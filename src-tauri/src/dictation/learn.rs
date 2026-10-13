@@ -14,6 +14,7 @@ use crate::context::words;
 use crate::edit::Editor;
 use crate::notify::{Notice, NoticeAction};
 use crate::platform::{ContextRequest, FocusInspector};
+use crate::{t, tn};
 
 const TEXT_LIMIT: usize = 40_000;
 const MAX_WORD_CHARS: usize = 40;
@@ -184,13 +185,16 @@ async fn read(focus: &Arc<dyn FocusInspector>, field_id: u64) -> Option<String> 
 }
 
 fn added(words: &[String]) -> Notice {
-    let quoted: Vec<String> = words.iter().map(|word| format!("“{word}”")).collect();
+    let quoted: Vec<String> = words
+        .iter()
+        .map(|word| t!("notice.quoted", text = word))
+        .collect();
     let list = match quoted.as_slice() {
         [one] => one.clone(),
-        [rest @ .., last] => format!("{} and {last}", rest.join(", ")),
+        [rest @ .., last] => t!("notice.listAnd", rest = rest.join(", "), last = last),
         [] => String::new(),
     };
-    Notice::info(format!("Added {list} to your dictionary"))
+    Notice::info(tn!("notice.dictionary.added", words.len(), list = list))
 }
 
 #[cfg(test)]

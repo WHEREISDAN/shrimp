@@ -7,6 +7,8 @@ use std::path::{Path, PathBuf};
 
 use sha2::{Digest, Sha256};
 
+use crate::t;
+
 /// A model file with its pinned size and SHA-256 (from the Hugging Face API).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct ModelFile {
@@ -91,11 +93,11 @@ pub fn find_whisper_model(id: &str) -> Option<&'static ModelFile> {
 
 #[derive(Debug, thiserror::Error)]
 pub enum ModelError {
-    #[error("download failed: {0}")]
+    #[error("{}", t!("name.modelError.network", error = .0))]
     Network(#[from] reqwest::Error),
-    #[error("could not save the model: {0}")]
+    #[error("{}", t!("name.modelError.io", error = .0))]
     Io(#[from] std::io::Error),
-    #[error("the downloaded file is corrupt (checksum mismatch)")]
+    #[error("{}", t!("name.modelError.checksum"))]
     Checksum,
 }
 

@@ -23,7 +23,7 @@ mod sound;
 
 use std::sync::Arc;
 
-use objc2_foundation::NSLocale;
+use objc2_foundation::{NSLocale, NSString};
 
 use super::{MainThread, Platform};
 use crate::hotkeys::{macos_defaults, macos_label};
@@ -81,6 +81,18 @@ fn has_fn_key() -> bool {
     };
     log::info!("Apple Fn key: {has}");
     has
+}
+
+/// The name of language `code` in `language`, e.g. "Französisch" for "fr"
+/// in "de", as `Intl.DisplayNames` names it in the interface.
+pub fn language_name(code: &str, language: &str) -> Option<String> {
+    let locale = NSLocale::localeWithLocaleIdentifier(&NSString::from_str(language));
+    let name = locale
+        .localizedStringForLanguageCode(&NSString::from_str(code))?
+        .to_string();
+    let mut chars = name.chars();
+    let first = chars.next()?;
+    Some(first.to_uppercase().chain(chars).collect())
 }
 
 /// The user's first preferred language as a BCP 47 tag, e.g. "en-GB".

@@ -10,6 +10,7 @@ use crate::audio::{AudioError, AudioSource, AudioSourceSpec, InputDevice};
 use crate::dictation::state::DictationUi;
 use crate::mic::{MicChange, MicMonitor, MicWarning};
 use crate::notify::{Notice, NoticeAction};
+use crate::t;
 
 /// The microphone a recording uses, its monitor and the notices it shows.
 pub(super) struct MicSession {
@@ -47,20 +48,16 @@ impl MicSession {
 
 fn warning_notice(warning: MicWarning, name: &str) -> Notice {
     match warning {
-        MicWarning::SlowToOpen => Notice::warning(format!("{name} is taking a long time to open."))
+        MicWarning::SlowToOpen => Notice::warning(t!("notice.mic.slowToOpen", name = name))
             .with_action(NoticeAction::ChooseMicrophone),
-        MicWarning::Muted => Notice::warning(format!(
-            "Is your microphone muted? Shrimp can't hear anything from {name}."
-        ))
-        .with_action(NoticeAction::ChooseMicrophone)
-        .with_action(NoticeAction::TroubleshootMicrophone),
-        MicWarning::NoAudio => Notice::warning(format!("No audio from {name} for 5 seconds."))
+        MicWarning::Muted => Notice::warning(t!("notice.mic.muted", name = name))
+            .with_action(NoticeAction::ChooseMicrophone)
+            .with_action(NoticeAction::TroubleshootMicrophone),
+        MicWarning::NoAudio => Notice::warning(t!("notice.mic.noAudio", name = name))
             .with_action(NoticeAction::ChooseMicrophone),
-        MicWarning::StillNoAudio => Notice::error(format!(
-            "Still no audio from {name}. Is it muted or out of range?"
-        ))
-        .with_action(NoticeAction::ChooseMicrophone)
-        .with_action(NoticeAction::TroubleshootMicrophone),
+        MicWarning::StillNoAudio => Notice::error(t!("notice.mic.stillNoAudio", name = name))
+            .with_action(NoticeAction::ChooseMicrophone)
+            .with_action(NoticeAction::TroubleshootMicrophone),
     }
 }
 

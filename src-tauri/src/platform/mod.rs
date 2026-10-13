@@ -16,10 +16,11 @@ use handy_keys::Modifiers;
 
 use crate::hotkeys::{Action, Binding, HotkeyEvent, Recording};
 use crate::sounds::Cue;
+use crate::t;
 
 #[derive(Debug, thiserror::Error)]
 pub enum PlatformError {
-    #[error("Shrimp needs Accessibility permission")]
+    #[error("{}", t!("notice.accessibilityMissing"))]
     AccessibilityMissing,
     #[error("{0}")]
     Failed(String),
@@ -381,12 +382,12 @@ impl GlobeKeyAction {
     }
 
     /// Why holding Fn to dictate would also trigger a system action (CORE-02).
-    pub fn conflict(self) -> Option<&'static str> {
+    pub fn conflict(self) -> Option<String> {
         match self {
             Self::DoNothing => None,
-            Self::ChangeInputSource => Some("switches the input source"),
-            Self::ShowEmoji => Some("opens the emoji picker"),
-            Self::StartDictation => Some("starts macOS dictation"),
+            Self::ChangeInputSource => Some(t!("notice.globeKey.inputSource")),
+            Self::ShowEmoji => Some(t!("notice.globeKey.emoji")),
+            Self::StartDictation => Some(t!("notice.globeKey.dictation")),
         }
     }
 }
@@ -398,7 +399,7 @@ pub fn native(main_thread: MainThread) -> Platform {
 
 #[cfg(target_os = "macos")]
 pub use macos::{
-    free_bytes, open_keyboard_settings, open_sound_settings, open_storage_settings,
+    free_bytes, language_name, open_keyboard_settings, open_sound_settings, open_storage_settings,
     relaunch_after_exit, set_own_field_focused,
 };
 
@@ -464,7 +465,7 @@ mod tests {
     fn only_do_nothing_is_free_of_conflict() {
         assert_eq!(GlobeKeyAction::DoNothing.conflict(), None);
         assert_eq!(
-            GlobeKeyAction::ShowEmoji.conflict(),
+            GlobeKeyAction::ShowEmoji.conflict().as_deref(),
             Some("opens the emoji picker")
         );
     }

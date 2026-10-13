@@ -11,6 +11,7 @@ use crate::dictation::bindings::{self, Moment};
 use crate::hotkeys::Action;
 use crate::notify::{Notice, NoticeAction};
 use crate::platform::SyntheticKey;
+use crate::t;
 
 /// "Command mode is toggled off" shows at most this often (CMD-06).
 const COMMAND_OFF_NOTICES: u32 = 3;
@@ -23,7 +24,7 @@ impl Controller {
         let ui = Arc::clone(&self.ui);
         tauri::async_runtime::spawn_blocking(move || {
             if let Err(error) = inserter.press(SyntheticKey::Enter, extra) {
-                ui.notice(Notice::error(format!("Couldn't press Enter: {error}")));
+                ui.notice(Notice::error(t!("notice.pressEnterFailed", error = error)));
             }
         });
     }
@@ -54,7 +55,7 @@ impl Controller {
             log::warn!("could not count the notice: {error}");
         }
         self.ui.notice(
-            Notice::info("Command mode is toggled off")
+            Notice::info(t!("notice.command.off"))
                 .with_action(NoticeAction::OpenExperimentalSettings),
         );
     }

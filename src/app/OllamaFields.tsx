@@ -1,4 +1,5 @@
 import { useEffect, useState, type KeyboardEvent } from "react";
+import { useTranslation } from "react-i18next";
 import { listOllamaModels, type Settings, type SettingsPatch } from "../lib/ipc";
 
 interface OllamaFieldsProps {
@@ -7,6 +8,7 @@ interface OllamaFieldsProps {
 }
 
 export function OllamaFields({ ai, update }: OllamaFieldsProps) {
+  const { t } = useTranslation();
   const [listing, setListing] = useState<{ key: string; models: string[] | null } | null>(null);
   const [attempt, setAttempt] = useState(0);
   const key = `${ai.ollamaUrl}#${attempt}`;
@@ -39,7 +41,7 @@ export function OllamaFields({ ai, update }: OllamaFieldsProps) {
   return (
     <>
       <label className="select-field field">
-        <span>Address</span>
+        <span>{t("ollama.address")}</span>
         <input
           key={ai.ollamaUrl}
           type="text"
@@ -51,13 +53,13 @@ export function OllamaFields({ ai, update }: OllamaFieldsProps) {
         />
       </label>
       <label className="select-field field">
-        <span>Ollama model</span>
+        <span>{t("ollama.model")}</span>
         <select
-          aria-label="Ollama model"
+          aria-label={t("ollama.model")}
           value={ai.ollamaModel}
           onChange={(event) => void update({ ai: { ollamaModel: event.target.value } })}
         >
-          <option value="">Automatic (recommended)</option>
+          <option value="">{t("ollama.automatic")}</option>
           {ai.ollamaModel !== "" && !models.includes(ai.ollamaModel) && (
             <option value={ai.ollamaModel}>{ai.ollamaModel}</option>
           )}
@@ -70,9 +72,9 @@ export function OllamaFields({ ai, update }: OllamaFieldsProps) {
       </label>
       {failed && (
         <div className="inline-row">
-          <p className="error">{`Ollama isn't running at ${ai.ollamaUrl}.`}</p>
+          <p className="error">{t("ollama.notRunning", { url: ai.ollamaUrl })}</p>
           <button type="button" onClick={() => setAttempt((count) => count + 1)}>
-            Retry
+            {t("ollama.retry")}
           </button>
         </div>
       )}

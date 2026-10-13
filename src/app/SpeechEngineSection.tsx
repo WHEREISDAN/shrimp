@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import type { AiOptions, ApiKeys, Settings, SettingsPatch, SttEngineId } from "../lib/ipc";
 import { KeyRow } from "./KeyRow";
 import { ModelSelect } from "./ModelSelect";
@@ -31,6 +32,7 @@ export function SpeechEngineSection({
   onKeys,
   update,
 }: SpeechEngineSectionProps) {
+  const { t } = useTranslation();
   const engine = options.sttEngines.find((candidate) => candidate.id === settings.stt.engine);
   const field = engine ? modelField(engine.id) : null;
   const choices: RadioCardOption<SttEngineId>[] = options.sttEngines.map((candidate) => ({
@@ -43,10 +45,10 @@ export function SpeechEngineSection({
 
   return (
     <section className="card stack" aria-labelledby="speech-heading">
-      <h2 id="speech-heading">Speech engine</h2>
+      <h2 id="speech-heading">{t("speechEngine.title")}</h2>
       <PrivacyModeNote settings={settings} />
       <RadioCards
-        label="Speech engine"
+        label={t("speechEngine.title")}
         value={settings.stt.engine}
         options={choices}
         onChange={(id) => void update({ stt: { engine: id } })}
@@ -59,7 +61,7 @@ export function SpeechEngineSection({
       )}
       {engine && field && (
         <ModelSelect
-          label="Speech model"
+          label={t("speechEngine.model")}
           models={engine.models}
           value={settings.stt[field]}
           onChange={(model) => void update({ stt: { [field]: model } })}
@@ -68,10 +70,7 @@ export function SpeechEngineSection({
       {engine?.key != null && company && (
         <KeyRow account={engine.key} label={company} saved={keys[engine.key]} onChange={onKeys} />
       )}
-      <p className="muted">
-        Whisper on this Mac is private and works offline. Cloud engines send your audio to OpenAI or
-        Groq; if one fails, Shrimp falls back to Whisper on this Mac.
-      </p>
+      <p className="muted">{t("speechEngine.note")}</p>
     </section>
   );
 }

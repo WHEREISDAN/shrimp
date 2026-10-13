@@ -3,6 +3,8 @@
 
 use serde::{Deserialize, Serialize};
 
+use crate::t;
+
 pub const MAX_CUSTOM_TRANSFORMS: usize = 8;
 pub const MAX_CUSTOM_INSTRUCTIONS: usize = 5;
 pub const MAX_INSTRUCTION_WORDS: usize = 50;
@@ -133,19 +135,21 @@ impl TransformSettings {
     pub fn validate(&self) -> Result<(), String> {
         let instructions = &self.polish.instructions;
         if instructions.len() > MAX_CUSTOM_INSTRUCTIONS {
-            return Err(format!(
-                "Use at most {MAX_CUSTOM_INSTRUCTIONS} custom instructions."
+            return Err(t!(
+                "error.transforms.tooManyInstructions",
+                max = MAX_CUSTOM_INSTRUCTIONS
             ));
         }
         if instructions.iter().any(|text| text.trim().is_empty()) {
-            return Err("An instruction cannot be empty.".into());
+            return Err(t!("error.transforms.emptyInstruction"));
         }
         if instructions
             .iter()
             .any(|text| words(text) > MAX_INSTRUCTION_WORDS)
         {
-            return Err(format!(
-                "Keep each instruction under {MAX_INSTRUCTION_WORDS} words."
+            return Err(t!(
+                "error.transforms.instructionTooLong",
+                max = MAX_INSTRUCTION_WORDS
             ));
         }
         for (index, text) in instructions.iter().enumerate() {
@@ -153,33 +157,27 @@ impl TransformSettings {
                 .iter()
                 .any(|other| other.trim().eq_ignore_ascii_case(text.trim()));
             if duplicate {
-                return Err("That instruction is already in the list.".into());
+                return Err(t!("error.transforms.duplicateInstruction"));
             }
         }
         if self.prompt_engineer.prompt.len() > MAX_PROMPT_CHARS {
-            return Err(format!(
-                "Keep the prompt under {MAX_PROMPT_CHARS} characters."
-            ));
+            return Err(t!("error.transforms.promptTooLong", max = MAX_PROMPT_CHARS));
         }
         if self.custom.len() > MAX_CUSTOM_TRANSFORMS {
-            return Err(format!(
-                "Use at most {MAX_CUSTOM_TRANSFORMS} custom transforms."
-            ));
+            return Err(t!("error.transforms.tooMany", max = MAX_CUSTOM_TRANSFORMS));
         }
         for transform in &self.custom {
             if transform.id.trim().is_empty() {
-                return Err("A transform needs an id.".into());
+                return Err(t!("error.transforms.missingId"));
             }
             if transform.name.chars().count() > MAX_NAME_CHARS {
-                return Err(format!("Keep the name under {MAX_NAME_CHARS} characters."));
+                return Err(t!("error.transforms.nameTooLong", max = MAX_NAME_CHARS));
             }
             if transform.prompt.len() > MAX_PROMPT_CHARS {
-                return Err(format!(
-                    "Keep the prompt under {MAX_PROMPT_CHARS} characters."
-                ));
+                return Err(t!("error.transforms.promptTooLong", max = MAX_PROMPT_CHARS));
             }
             if transform.samples.len() > MAX_SAMPLES {
-                return Err(format!("Use at most {MAX_SAMPLES} writing samples."));
+                return Err(t!("error.transforms.tooManySamples", max = MAX_SAMPLES));
             }
         }
         if let Some(choice) = &self.auto_apply {
@@ -187,7 +185,7 @@ impl TransformSettings {
                 || choice == PROMPT_ENGINEER
                 || self.custom.iter().any(|transform| &transform.id == choice);
             if !known {
-                return Err("Choose a transform to apply after dictation.".into());
+                return Err(t!("error.transforms.unknownAutoApply"));
             }
         }
         Ok(())

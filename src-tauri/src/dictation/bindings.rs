@@ -8,6 +8,7 @@ use serde_json::{Value, json};
 use crate::hotkeys::{Action, Binding, Trigger, backspace_cancel, validation};
 use crate::settings::Settings;
 use crate::settings::shortcuts::key_for_action;
+use crate::{t, tn};
 
 /// What the controller is doing, as far as bindings go.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
@@ -122,7 +123,7 @@ pub fn with_trigger(
     index: Option<usize>,
     trigger: Trigger,
     label: fn(&Trigger) -> String,
-) -> Result<(Value, Option<&'static str>), String> {
+) -> Result<(Value, Option<String>), String> {
     let mut list = triggers(action, defaults, settings);
     let others: Vec<Binding> = configured(defaults, settings)
         .into_iter()
@@ -138,11 +139,8 @@ pub fn with_trigger(
     match index.filter(|index| *index < list.len()) {
         Some(index) => list[index] = trigger,
         None if list.len() >= action.max_bindings() => {
-            return Err(format!(
-                "{} takes at most {} shortcuts.",
-                action.label(),
-                action.max_bindings()
-            ));
+            let max = action.max_bindings();
+            return Err(tn!("notice.shortcuts.atMost", max, action = action.label()));
         }
         None => list.push(trigger),
     }
@@ -166,10 +164,10 @@ pub fn without_trigger(
 ) -> Result<Value, String> {
     let mut list = triggers(action, defaults, settings);
     if index >= list.len() {
-        return Err("That shortcut is already gone.".into());
+        return Err(t!("notice.shortcuts.alreadyGone"));
     }
     if action.required() && list.len() == 1 {
-        return Err(format!("{} needs at least one shortcut.", action.label()));
+        return Err(t!("notice.shortcuts.atLeastOne", action = action.label()));
     }
     list.remove(index);
     patch(settings, action, &list)
@@ -182,7 +180,7 @@ pub fn reset() -> Value {
 
 fn patch(settings: &Settings, action: Action, list: &[Trigger]) -> Result<Value, String> {
     let key = key_for_action(action, &settings.transforms)
-        .ok_or_else(|| "That transform no longer exists.".to_owned())?;
+        .ok_or_else(|| t!("notice.shortcuts.transformGone"))?;
     let texts: Vec<String> = list.iter().map(Trigger::to_string).collect();
     Ok(json!({"shortcuts": {"bindings": {key: texts}}}))
 }
@@ -344,7 +342,7 @@ mod tests {
             trigger("Mouse4"),
             macos_label,
         );
-        assert_eq!(duplicate.unwrap_err(), validation::IN_USE);
+        assert_eq!(duplicate.unwrap_err(), "This shortcut is already in use");
 
         for _ in 0..3 {
             let patch = without_trigger(&defaults, &store.get(), Action::PushToTalk, 0).unwrap();
@@ -390,7 +388,7 @@ mod tests {
             macos_label,
         )
         .unwrap();
-        assert_eq!(warning, Some(validation::OVERLAP_WARNING));
+        assert!(warning.is_some_and(|warning| warning.starts_with("Warning: Your Hands-free")));
     }
 
     #[test]

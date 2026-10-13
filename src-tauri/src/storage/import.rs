@@ -3,11 +3,10 @@
 
 use serde::Serialize;
 
+use crate::t;
+
 pub const MAX_IMPORT_BYTES: usize = 3 * 1024 * 1024;
 pub const MAX_IMPORT_ENTRIES: usize = 1000;
-
-pub const TOO_LARGE: &str = "File is too large (max 3MB)";
-pub const TOO_MANY: &str = "Cannot import more than 1,000 entries. Please try again.";
 
 /// A row that was skipped, with its 1-based line (CSV) or position (JSON).
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
@@ -26,9 +25,17 @@ pub enum CsvRow {
 
 pub fn check_size(text: &str) -> Result<(), String> {
     if text.len() > MAX_IMPORT_BYTES {
-        return Err(TOO_LARGE.into());
+        return Err(t!("error.import.tooLarge"));
     }
     Ok(())
+}
+
+/// The message for an import of more than [`MAX_IMPORT_ENTRIES`] new rows.
+pub fn too_many() -> String {
+    t!(
+        "error.import.tooMany",
+        max = crate::i18n::number(MAX_IMPORT_ENTRIES as i64)
+    )
 }
 
 /// Splits CSV into rows: no header, one or two non-empty columns, quoted
@@ -42,7 +49,7 @@ pub fn parse_dictionary_csv(text: &str) -> Parsed<CsvRow> {
         let Some(fields) = record.fields else {
             skipped.push(SkippedRow {
                 line,
-                reason: "Unterminated quote".into(),
+                reason: t!("error.import.unterminatedQuote"),
             });
             continue;
         };
@@ -63,7 +70,7 @@ pub fn parse_dictionary_csv(text: &str) -> Parsed<CsvRow> {
             )),
             _ => skipped.push(SkippedRow {
                 line,
-                reason: "More than two columns".into(),
+                reason: t!("error.import.tooManyColumns"),
             }),
         }
     }
@@ -138,9 +145,9 @@ pub type Parsed<T> = (Vec<(usize, T)>, Vec<SkippedRow>);
 /// other fields are ignored.
 pub fn parse_snippet_json(text: &str) -> Result<Parsed<JsonSnippet>, String> {
     let value: serde_json::Value =
-        serde_json::from_str(text).map_err(|_| "Incorrect file format".to_owned())?;
+        serde_json::from_str(text).map_err(|_| t!("error.import.badFormat"))?;
     let serde_json::Value::Array(items) = value else {
-        return Err("Incorrect file format".into());
+        return Err(t!("error.import.badFormat"));
     };
     let mut rows = Vec::new();
     let mut skipped = Vec::new();
@@ -162,7 +169,7 @@ pub fn parse_snippet_json(text: &str) -> Result<Parsed<JsonSnippet>, String> {
             )),
             _ => skipped.push(SkippedRow {
                 line: position,
-                reason: "Needs a text \"name\" and \"text\"".into(),
+                reason: t!("error.import.needsNameAndText"),
             }),
         }
     }

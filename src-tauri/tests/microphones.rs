@@ -165,7 +165,7 @@ fn with_the_lid_closed_the_built_in_microphone_is_unavailable() {
         .iter()
         .find(|entry| entry.id == "builtin")
         .unwrap();
-    assert_eq!(builtin.unavailable, Some("Laptop lid is closed"));
+    assert_eq!(builtin.unavailable.as_deref(), Some("Laptop lid is closed"));
     assert_eq!(list.active.as_deref(), Some("usb"));
     dictate(&h);
     wait_until("inserted", || !h.fakes.inserted().is_empty());

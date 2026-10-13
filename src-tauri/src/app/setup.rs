@@ -21,6 +21,7 @@ use crate::dictation::{self, ControllerInput, DictationUi, MutedNotices, Service
 use crate::edit::{EditTimeout, Editor, Library};
 use crate::health::Pending;
 use crate::history::History;
+use crate::i18n;
 use crate::lang;
 use crate::llm::{LlmSource, Providers, http};
 use crate::mic::Microphones;
@@ -29,10 +30,11 @@ use crate::notify::{Notice, NoticeAction};
 use crate::platform::SwitchablePermissions;
 use crate::platform::{self, CuePlayer, MainThread, Permissions};
 use crate::secrets::{Keychain, Secrets};
-use crate::settings::SettingsStore;
+use crate::settings::{Settings, SettingsStore};
 use crate::sounds::{SettingsCues, SoundingNotices};
 use crate::storage::Database;
 use crate::stt::{EngineSlot, ModelManager, SttEngine, SttRouter};
+use crate::t;
 
 pub fn setup(app: &mut App) -> Result<(), Box<dyn std::error::Error>> {
     let handle = app.handle().clone();
@@ -41,14 +43,12 @@ pub fn setup(app: &mut App) -> Result<(), Box<dyn std::error::Error>> {
     let data_dir = app.path().app_data_dir()?;
     let (health, pending) = system::prepare(&data_dir);
     let settings = Arc::new(SettingsStore::load(data_dir.join("settings.json")));
+    follow_interface_language(&settings, platform.language.clone());
     let ui = Arc::new(TauriUi::new(handle.clone()));
     if let Some(conflict) = platform.globe_key.conflict() {
         ui.notice(
-            Notice::warning(format!(
-                "Pressing fn also {conflict}. In System Settings › Keyboard, set \
-                 “Press 🌐 key to” to Do Nothing."
-            ))
-            .with_action(NoticeAction::OpenKeyboardSettings),
+            Notice::warning(t!("notice.setup.globeKey", conflict = conflict))
+                .with_action(NoticeAction::OpenKeyboardSettings),
         );
     }
     let emitter = handle.clone();
@@ -74,9 +74,7 @@ pub fn setup(app: &mut App) -> Result<(), Box<dyn std::error::Error>> {
         EditTimeout::default(),
     ));
 
-    let slot = Arc::new(EngineSlot::new(
-        "The speech model is getting ready. Try again in a moment.",
-    ));
+    let slot = Arc::new(EngineSlot::new(t!("notice.setup.modelGettingReady")));
     let router = SttRouter::new(
         Arc::clone(&slot),
         Arc::clone(&settings),
@@ -188,17 +186,25 @@ pub fn setup(app: &mut App) -> Result<(), Box<dyn std::error::Error>> {
 
     tray::create(&handle, &settings.get())?;
     let tray_handle = handle.clone();
-    let privacy = Mutex::new(settings.get().privacy.privacy_mode);
+    let shown =
+        |settings: &Settings| (settings.privacy.privacy_mode, settings.app.language.clone());
+    let previous = Mutex::new(shown(&settings.get()));
     settings.on_change(Box::new(move |settings| {
-        let mut previous = privacy.lock().unwrap_or_else(|err| err.into_inner());
-        if *previous != settings.privacy.privacy_mode {
-            *previous = settings.privacy.privacy_mode;
-            let tray_handle = tray_handle.clone();
-            let settings = settings.clone();
-            let _ = tray_handle
-                .clone()
-                .run_on_main_thread(move || tray::refresh(&tray_handle, &settings));
+        let mut previous = previous.lock().unwrap_or_else(|err| err.into_inner());
+        let next = shown(settings);
+        if *previous == next {
+            return;
         }
+        let language_changed = previous.1 != next.1;
+        *previous = next;
+        let tray_handle = tray_handle.clone();
+        let settings = settings.clone();
+        let _ = tray_handle.clone().run_on_main_thread(move || {
+            tray::refresh(&tray_handle, &settings);
+            if language_changed {
+                flow_bar::retitle(&tray_handle);
+            }
+        });
     }));
     flow_bar::create(&handle, Arc::clone(&settings))?;
     let placement = handle.clone();
@@ -224,6 +230,15 @@ pub fn setup(app: &mut App) -> Result<(), Box<dyn std::error::Error>> {
         window::show_main(&handle);
     }
     Ok(())
+}
+
+/// Text from Rust follows Settings › General › App language (LANG-06). This
+/// runs first on every change, so the reactions to a change use the new language.
+fn follow_interface_language(settings: &SettingsStore, preferred: Option<String>) {
+    let apply =
+        move |setting: &str| i18n::set_language(i18n::resolve(setting, preferred.as_deref()));
+    apply(&settings.get().app.language);
+    settings.on_change(Box::new(move |settings| apply(&settings.app.language)));
 }
 
 /// On first launch the Mac's language becomes the language to dictate in.
@@ -264,8 +279,7 @@ fn start_history(
     );
     if history.recover_interrupted() > 0 {
         ui.notice(
-            Notice::info("Shrimp saved a dictation that was interrupted. Recover it in History.")
-                .with_action(NoticeAction::OpenHistory),
+            Notice::info(t!("notice.setup.recovered")).with_action(NoticeAction::OpenHistory),
         );
     }
     let sweeper = Arc::clone(&history);

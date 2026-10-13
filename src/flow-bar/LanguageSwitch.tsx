@@ -1,9 +1,12 @@
 import { useCallback, useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
+import { languageName } from "../app/languageChoice";
 import { EVENTS, getLanguages, setActiveLanguage, type Languages } from "../lib/ipc";
 import { useTauriEvent } from "../lib/useTauriEvent";
 
 /** With several languages, one click picks the language to dictate in, or Auto (LANG-05). */
 export function LanguageSwitch() {
+  const { t, i18n } = useTranslation();
   const [languages, setLanguages] = useState<Languages | null>(null);
   const load = useCallback(() => {
     getLanguages()
@@ -17,22 +20,22 @@ export function LanguageSwitch() {
   if (!languages || !chosen || chosen.autoDetect || chosen.selected.length < 2) {
     return null;
   }
-  const name = (id: string) => languages.options.find((option) => option.id === id)?.name ?? id;
+  const name = (id: string) => languageName(id, languages.options, i18n.language);
   const choose = (id: string | null) =>
     void setActiveLanguage(id)
       .then((saved) => setLanguages({ ...languages, chosen: saved }))
       .catch(() => undefined);
 
   return (
-    <div className="language-switch" role="group" aria-label="Dictation language">
+    <div className="language-switch" role="group" aria-label={t("languageSwitch.label")}>
       <button
         type="button"
         className="language-chip"
         aria-pressed={chosen.active === null}
-        title={`Detect among ${chosen.selected.map(name).join(", ")}`}
+        title={t("languageSwitch.detectAmong", { languages: chosen.selected.map(name).join(", ") })}
         onClick={() => choose(null)}
       >
-        Auto
+        {t("languageSwitch.auto")}
       </button>
       {chosen.selected.map((id) => (
         <button

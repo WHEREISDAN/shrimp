@@ -17,6 +17,7 @@ use crate::platform::{
     ContextRequest, CopyReason, Editable, FieldContext, FieldKind, FocusInspector, InsertOptions,
     InsertText, Launcher, SyntheticKey, TextInserter, TextRange,
 };
+use crate::t;
 
 /// How long Command Mode waits for the selection to be read.
 const CONTEXT_WAIT: Duration = Duration::from_secs(1);
@@ -87,17 +88,12 @@ impl CommandRunner {
         if let CommandInput::Selection(text) | CommandInput::Document(text) = target.input()
             && text.split_whitespace().count() > MAX_COMMAND_WORDS
         {
-            return Outcome::CommandFailed(format!(
-                "That text is too long for Command Mode (over {MAX_COMMAND_WORDS} words). Select less text."
-            ))
-            .into();
+            let message = t!("notice.command.tooLong", max = MAX_COMMAND_WORDS);
+            return Outcome::CommandFailed(message).into();
         }
         if target == Target::NoField && context.field.is_some() && context_field_too_long(&context)
         {
-            return Outcome::CommandFailed(
-                "That field is too long for Command Mode. Select the text to change.".into(),
-            )
-            .into();
+            return Outcome::CommandFailed(t!("notice.command.fieldTooLong")).into();
         }
 
         let reply = match self
@@ -109,10 +105,7 @@ impl CommandRunner {
             Ok((reply, _)) => reply,
             Err(error) => {
                 log::info!("command failed: {error}");
-                return Outcome::CommandFailed(format!(
-                    "Command Mode didn't get a result ({error}). Nothing was changed."
-                ))
-                .into();
+                return Outcome::CommandFailed(t!("notice.command.failed", error = error)).into();
             }
         };
         let reply = match (reply, target.input()) {
@@ -121,9 +114,7 @@ impl CommandRunner {
                 CommandInput::Selection(original) | CommandInput::Document(original),
             ) if drops_text(&instruction, original, &text) => {
                 log::info!("command result left out most of the text; shown instead");
-                notices.push(Notice::warning(
-                    "The result left out most of your text, so it wasn't pasted.",
-                ));
+                notices.push(Notice::warning(t!("notice.command.droppedText")));
                 CommandReply::Answer(text)
             }
             (reply, _) => reply,
@@ -166,9 +157,7 @@ impl CommandRunner {
             }
         };
         if matches!(outcome, Outcome::Copied(_, CopyReason::TargetChanged)) {
-            notices.push(Notice::warning(
-                "The selection changed, so the result is on the clipboard.",
-            ));
+            notices.push(Notice::warning(t!("notice.command.selectionChanged")));
         }
         Processed {
             notices,
@@ -230,7 +219,7 @@ impl CommandRunner {
         let url = format!("{SEARCH_URL}{}", encode_query(&query));
         match self.launcher.open_url(&url) {
             Ok(()) => Outcome::Searched,
-            Err(error) => Outcome::CommandFailed(format!("Couldn't open the search: {error}")),
+            Err(error) => Outcome::CommandFailed(t!("notice.command.searchFailed", error = error)),
         }
     }
 

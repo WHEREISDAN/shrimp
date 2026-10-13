@@ -9,6 +9,7 @@ use super::whisper_local::vocabulary_prompt;
 use super::{SttEngine, SttEngineId, SttError, SttOptions, Transcript};
 use crate::audio::{AudioClip, wav_encode};
 use crate::llm::{LlmError, http};
+use crate::t;
 
 pub const OPENAI_URL: &str = "https://api.openai.com/v1/audio/transcriptions";
 pub const GROQ_URL: &str = "https://api.groq.com/openai/v1/audio/transcriptions";
@@ -81,7 +82,7 @@ pub fn fields(model: &str, options: &SttOptions) -> Vec<(String, String)> {
 pub fn parse(response: &Value) -> Result<Transcript, SttError> {
     let text = response["text"]
         .as_str()
-        .ok_or_else(|| SttError::Failed("no text in the response".into()))?
+        .ok_or_else(|| SttError::Failed(t!("error.stt.noText")))?
         .split_whitespace()
         .collect::<Vec<_>>()
         .join(" ");
@@ -98,14 +99,14 @@ pub fn parse(response: &Value) -> Result<Transcript, SttError> {
 fn stt_error(name: &str, error: LlmError) -> SttError {
     match error {
         LlmError::MissingKey | LlmError::Unauthorized(_) => {
-            SttError::Unavailable(format!("{name} rejected your API key."))
+            SttError::Unavailable(t!("error.stt.keyRejected", provider = name))
         }
-        LlmError::Quota(_) => {
-            SttError::Unavailable(format!("Your {name} account is out of credits."))
+        LlmError::Quota(_) => SttError::Unavailable(t!("error.stt.outOfCredits", provider = name)),
+        LlmError::RateLimited(_) => {
+            SttError::Unavailable(t!("error.stt.rateLimited", provider = name))
         }
-        LlmError::RateLimited(_) => SttError::Unavailable(format!("{name} rate limit reached.")),
-        LlmError::Offline(_) => SttError::Unavailable(format!("Can't reach {name}.")),
-        LlmError::Timeout => SttError::Unavailable(format!("{name} took too long.")),
+        LlmError::Offline(_) => SttError::Unavailable(t!("error.stt.offline", provider = name)),
+        LlmError::Timeout => SttError::Unavailable(t!("error.stt.timeout", provider = name)),
         other => SttError::Failed(format!("{name}: {other}")),
     }
 }
@@ -124,9 +125,7 @@ impl SttEngine for CloudStt {
         let name = self.id.label();
         let wav = wav_encode::wav_bytes(clip).map_err(|err| SttError::Failed(err.to_string()))?;
         if wav.len() > MAX_UPLOAD_BYTES {
-            return Err(SttError::Failed(format!(
-                "{name} accepts up to 25 MB of audio; this dictation is longer."
-            )));
+            return Err(SttError::Failed(t!("error.stt.tooLong", provider = name)));
         }
         let part = Part::bytes(wav)
             .file_name("dictation.wav")

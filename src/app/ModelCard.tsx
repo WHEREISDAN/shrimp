@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { EVENTS, getModels, retryModel, type ModelStatus } from "../lib/ipc";
 import { useTauriEvent } from "../lib/useTauriEvent";
 
@@ -10,6 +11,7 @@ interface ModelCardProps {
 }
 
 export function ModelCard({ hideWhenReady = false }: ModelCardProps) {
+  const { t } = useTranslation();
   const [models, setModels] = useState<ModelStatus[]>([]);
 
   useEffect(() => {
@@ -33,47 +35,54 @@ export function ModelCard({ hideWhenReady = false }: ModelCardProps) {
   }
   return (
     <section className="card" aria-labelledby="model-heading">
-      <h2 id="model-heading">Speech model</h2>
+      <h2 id="model-heading">{t("modelCard.title")}</h2>
       {model ? (
         <>
           <p className="card-title">
             {model.label}{" "}
-            <span className="muted">· {megabytes(model.sizeBytes)} MB · on device</span>
+            <span className="muted">
+              · {t("modelCard.onDevice", { size: megabytes(model.sizeBytes) })}
+            </span>
           </p>
           <ModelProgress model={model} />
         </>
       ) : (
-        <p className="muted">Loading…</p>
+        <p className="muted">{t("common.loading")}</p>
       )}
     </section>
   );
 }
 
 function ModelProgress({ model }: { model: ModelStatus }) {
+  const { t } = useTranslation();
   switch (model.state) {
     case "missing":
-      return <p className="muted">Waiting to download…</p>;
+      return <p className="muted">{t("modelCard.waiting")}</p>;
     case "downloading": {
       const percent = Math.floor((model.received / Math.max(model.total, 1)) * 100);
       return (
         <div className="progress-row">
-          <progress max={100} value={percent} aria-label="Model download progress" />
+          <progress max={100} value={percent} aria-label={t("modelCard.progress")} />
           <span data-testid="model-progress">
-            Downloading {percent}% ({megabytes(model.received)} of {megabytes(model.total)} MB)
+            {t("modelCard.downloading", {
+              percent,
+              received: megabytes(model.received),
+              total: megabytes(model.total),
+            })}
           </span>
         </div>
       );
     }
     case "downloaded":
-      return <p className="muted">Downloaded. Loading…</p>;
+      return <p className="muted">{t("modelCard.loading")}</p>;
     case "active":
-      return <p className="ok">Ready. Dictation runs entirely on this Mac.</p>;
+      return <p className="ok">{t("modelCard.ready")}</p>;
     case "failed":
       return (
         <div className="progress-row">
           <span className="error">{model.message}</span>
           <button type="button" onClick={() => void retryModel().catch(() => undefined)}>
-            Retry
+            {t("modelCard.retry")}
           </button>
         </div>
       );

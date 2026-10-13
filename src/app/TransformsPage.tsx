@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import type { CustomTransform, Settings } from "../lib/ipc";
 import { CustomTransformCard } from "./CustomTransformCard";
 import { Page } from "./Page";
@@ -24,6 +25,7 @@ function newTransform(existing: CustomTransform[], settings: Settings): CustomTr
 }
 
 export function TransformsPage() {
+  const { t } = useTranslation();
   const { settings, error, update } = useSettings();
   // Custom transforms being edited, until the saved list catches up (TRF-03).
   const [edits, setEdits] = useState<CustomTransform[] | null>(null);
@@ -40,25 +42,25 @@ export function TransformsPage() {
   const drafts = edits ?? settings?.transforms.custom;
   if (!settings || !drafts) {
     return (
-      <Page title="Transforms">
-        {error ? <p className="error">{error}</p> : <p className="muted">Loading…</p>}
+      <Page title={t("transforms.title")}>
+        {error ? <p className="error">{error}</p> : <p className="muted">{t("common.loading")}</p>}
       </Page>
     );
   }
   const transforms = settings.transforms;
 
   return (
-    <Page title="Transforms">
+    <Page title={t("transforms.title")}>
       {error && (
         <p className="error" role="alert">
           {error}
         </p>
       )}
       <section className="card stack" aria-labelledby="transforms-heading">
-        <h2 id="transforms-heading">Rewrite any text with AI</h2>
+        <h2 id="transforms-heading">{t("transforms.heading")}</h2>
         <ToggleRow
-          label="Transforms"
-          description="Select text anywhere and press a transform's shortcut: the result replaces it, and “See changes” shows what changed. Your text is sent to your AI provider."
+          label={t("transforms.toggle")}
+          description={t("transforms.toggleBody")}
           checked={transforms.enabled}
           onChange={(enabled) => void update({ transforms: { enabled } })}
         />
@@ -71,9 +73,11 @@ export function TransformsPage() {
             key={transform.id}
             index={index}
             transform={transform}
-            onChange={(next) => setEdits(drafts.map((t) => (t.id === next.id ? next : t)))}
+            onChange={(next) =>
+              setEdits(drafts.map((other) => (other.id === next.id ? next : other)))
+            }
             onDelete={() => {
-              const next = drafts.filter((t) => t.id !== transform.id);
+              const next = drafts.filter((other) => other.id !== transform.id);
               setEdits(null);
               void update({
                 transforms: {
@@ -90,22 +94,22 @@ export function TransformsPage() {
             className="add-transform"
             onClick={() => setEdits([...drafts, newTransform(drafts, settings)])}
           >
-            New transform
+            {t("transforms.newTransform")}
           </button>
         )}
         <section className="card stack" aria-labelledby="auto-apply-heading">
-          <h2 id="auto-apply-heading">After dictation</h2>
+          <h2 id="auto-apply-heading">{t("transforms.afterDictation")}</h2>
           <label className="select-field field">
-            <span>Apply a transform after every dictation</span>
+            <span>{t("transforms.autoApply")}</span>
             <select
               value={transforms.autoApply ?? ""}
               onChange={(event) =>
                 void update({ transforms: { autoApply: event.target.value || null } })
               }
             >
-              <option value="">Off</option>
-              <option value="polish">Polish</option>
-              <option value="promptEngineer">Prompt Engineer</option>
+              <option value="">{t("transforms.off")}</option>
+              <option value="polish">{t("transforms.polish.title")}</option>
+              <option value="promptEngineer">{t("transforms.promptEngineer.title")}</option>
               {transforms.custom
                 .filter((transform) => transform.name.trim() && transform.prompt.trim())
                 .map((transform) => (
@@ -115,8 +119,8 @@ export function TransformsPage() {
                 ))}
             </select>
           </label>
-          <p className="muted">If the transform fails, your dictation is pasted as it was.</p>
-          <ShortcutRecorder action="viewChanges" label="See changes" />
+          <p className="muted">{t("transforms.autoApplyBody")}</p>
+          <ShortcutRecorder action="viewChanges" label={t("transforms.seeChanges")} />
         </section>
       </fieldset>
     </Page>

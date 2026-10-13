@@ -40,7 +40,14 @@
     ],
     "macOS": {
       "minimumSystemVersion": "14.2",
-      "entitlements": "entitlements.plist"
+      "entitlements": "entitlements.plist",
+      "files": {
+        "Resources/en.lproj/InfoPlist.strings": "locales/macos/en.lproj/InfoPlist.strings",
+        "Resources/de.lproj/InfoPlist.strings": "locales/macos/de.lproj/InfoPlist.strings",
+        "Resources/es.lproj/InfoPlist.strings": "locales/macos/es.lproj/InfoPlist.strings",
+        "Resources/it.lproj/InfoPlist.strings": "locales/macos/it.lproj/InfoPlist.strings",
+        "Resources/pt.lproj/InfoPlist.strings": "locales/macos/pt.lproj/InfoPlist.strings"
+      }
     }
   }
 }

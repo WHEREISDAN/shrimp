@@ -1,4 +1,5 @@
 import { useState, type ChangeEvent } from "react";
+import { useTranslation } from "react-i18next";
 import { errorMessage, type SkippedRow } from "../lib/ipc";
 
 const MAX_BYTES = 3 * 1024 * 1024;
@@ -41,6 +42,7 @@ export function useFileImport({
   commit,
   onImported,
 }: FileImportOptions): FileImport {
+  const { t } = useTranslation();
   const [input, setInput] = useState<HTMLInputElement | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [session, setSession] = useState<{ text: string; preview: ImportPreview } | null>(null);
@@ -64,9 +66,9 @@ export function useFileImport({
     }
     setError(null);
     if (!file.name.toLowerCase().endsWith(extension)) {
-      setError(`Incorrect file type. Please upload a ${extension} file`);
+      setError(t("importFile.wrongType", { extension }));
     } else if (file.size > MAX_BYTES) {
-      setError("File is too large (max 3MB)");
+      setError(t("importFile.tooLarge"));
     } else {
       void load(file);
     }

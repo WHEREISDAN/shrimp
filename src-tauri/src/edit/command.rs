@@ -8,6 +8,7 @@ use std::time::{Duration, Instant};
 use super::pipeline::Editor;
 use super::prompts::defuse;
 use crate::llm::{LlmError, LlmProviderId, LlmRequest, http};
+use crate::t;
 
 /// Longest text Command Mode works on.
 pub const MAX_COMMAND_WORDS: usize = 3_000;
@@ -90,7 +91,7 @@ pub enum CommandReply {
 pub enum CommandError {
     #[error("{}", .1.describe(*.0))]
     Llm(LlmProviderId, LlmError),
-    #[error("the model returned no text")]
+    #[error("{}", t!("notice.command.empty"))]
     Empty,
 }
 

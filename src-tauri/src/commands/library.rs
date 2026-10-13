@@ -10,6 +10,7 @@ use crate::storage::{
     Database, DictionaryEntry, DictionaryInput, EntrySource, Snippet, SnippetInput, SnippetSaved,
     StorageError, dictionary, snippets,
 };
+use crate::t;
 
 async fn run<T: Send + 'static>(
     database: &Arc<Database>,
@@ -21,7 +22,7 @@ async fn run<T: Send + 'static>(
         .map_err(|err| CommandError::new("storage", err))?
         .map_err(|error| match error {
             StorageError::Invalid(message) => CommandError::new("invalid", message),
-            StorageError::NotFound => CommandError::new("notFound", "That entry no longer exists."),
+            StorageError::NotFound => CommandError::new("notFound", t!("error.library.notFound")),
             error => CommandError::new("storage", error),
         })
 }

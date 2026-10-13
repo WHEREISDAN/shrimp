@@ -7,8 +7,7 @@ use serde::Serialize;
 
 use crate::audio::{DeviceKind, InputDevice};
 use crate::settings::{KnownMicrophone, MicrophoneSettings};
-
-pub const LID_CLOSED: &str = "Laptop lid is closed";
+use crate::t;
 
 /// One microphone as the picker shows it. Mirrors `MicrophoneEntry` in src/lib/ipc.ts.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
@@ -19,7 +18,7 @@ pub struct MicrophoneEntry {
     pub kind: DeviceKind,
     pub connected: bool,
     /// Why it can't be used now.
-    pub unavailable: Option<&'static str>,
+    pub unavailable: Option<String>,
     /// Its place in the ranking, for physical microphones.
     pub rank: Option<usize>,
 }
@@ -38,8 +37,8 @@ pub struct MicrophoneList {
 }
 
 /// Why `device` can't be used now, if it can't.
-pub fn unavailable(device: &InputDevice, lid_closed: bool) -> Option<&'static str> {
-    (device.kind == DeviceKind::BuiltIn && lid_closed).then_some(LID_CLOSED)
+pub fn unavailable(device: &InputDevice, lid_closed: bool) -> Option<String> {
+    (device.kind == DeviceKind::BuiltIn && lid_closed).then(|| t!("notice.mic.lidClosed"))
 }
 
 fn physical(device: &InputDevice) -> bool {
@@ -266,7 +265,10 @@ mod tests {
         };
         assert_eq!(ids(&order(&connected, &settings, true, None)), ["usb"]);
         let list = list(&connected, &settings, true, None);
-        assert_eq!(list.devices[0].unavailable, Some(LID_CLOSED));
+        assert_eq!(
+            list.devices[0].unavailable.as_deref(),
+            Some("Laptop lid is closed")
+        );
         assert_eq!(list.active.as_deref(), Some("usb"));
     }
 

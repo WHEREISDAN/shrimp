@@ -8,8 +8,9 @@ use serde::{Deserialize, Serialize};
 
 use super::db::{StorageError, now_ms};
 use super::import::{
-    CsvRow, MAX_IMPORT_ENTRIES, SkippedRow, TOO_MANY, check_size, parse_dictionary_csv,
+    CsvRow, MAX_IMPORT_ENTRIES, SkippedRow, check_size, parse_dictionary_csv, too_many,
 };
+use crate::t;
 
 pub const MAX_TERM_CHARS: usize = 60;
 
@@ -69,7 +70,7 @@ impl DictionaryInput {
         let term = check_word(&self.term)?;
         let misspelling = self.misspelling.as_deref().map(check_word).transpose()?;
         if misspelling.as_deref() == Some(term.as_str()) {
-            return Err("The correction is the same as the misspelling.".into());
+            return Err(t!("error.dictionary.sameAsMisspelling"));
         }
         Ok(Self { term, misspelling })
     }
@@ -90,22 +91,19 @@ impl DictionaryInput {
 fn check_word(text: &str) -> Result<String, String> {
     let word = text.trim();
     if word.is_empty() {
-        return Err("Word cannot be empty".into());
+        return Err(t!("error.dictionary.emptyWord"));
     }
     if word.chars().count() > MAX_TERM_CHARS {
-        return Err(format!("Use at most {MAX_TERM_CHARS} characters."));
+        return Err(t!("error.dictionary.tooLong", max = MAX_TERM_CHARS));
     }
     if !word.chars().any(char::is_alphanumeric) {
-        return Err("Use at least one letter or number.".into());
+        return Err(t!("error.dictionary.noLetters"));
     }
     Ok(word.to_owned())
 }
 
 fn duplicate(input: &DictionaryInput) -> StorageError {
-    StorageError::Invalid(format!(
-        "\"{}\" already exists in your personal dictionary",
-        input.display()
-    ))
+    StorageError::Invalid(t!("error.dictionary.duplicate", word = input.display()))
 }
 
 const COLUMNS: &str = "id, term, misspelling, source, pinned, uses, created_at";
@@ -286,9 +284,7 @@ pub fn preview_import(db: &Connection, csv: &str) -> Result<ImportPreview, Stora
     check_size(csv).map_err(StorageError::Invalid)?;
     let (rows, mut skipped) = parse_dictionary_csv(csv);
     if rows.is_empty() && skipped.is_empty() {
-        return Err(StorageError::Invalid(
-            "No dictionary items found in file".into(),
-        ));
+        return Err(StorageError::Invalid(t!("error.dictionary.emptyImport")));
     }
     let mut seen = HashSet::new();
     let mut added = Vec::new();
@@ -318,7 +314,7 @@ pub fn preview_import(db: &Connection, csv: &str) -> Result<ImportPreview, Stora
         }
     }
     if added.len() > MAX_IMPORT_ENTRIES {
-        return Err(StorageError::Invalid(TOO_MANY.into()));
+        return Err(StorageError::Invalid(too_many()));
     }
     skipped.sort_by_key(|row| row.line);
     Ok(ImportPreview {

@@ -10,6 +10,7 @@ use super::CommandError;
 use crate::dictation::{ControllerHandle, ControllerInput, bindings};
 use crate::hotkeys::{Action, Binding, Trigger, validation};
 use crate::settings::{Settings, SettingsStore};
+use crate::t;
 
 /// The platform's default bindings and how shortcuts are written.
 pub struct DefaultBindings {
@@ -36,7 +37,7 @@ pub struct ShortcutRow {
 pub struct ShortcutList {
     pub rows: Vec<ShortcutRow>,
     /// Hands-free sits inside push to talk (KEYS-07).
-    pub warning: Option<&'static str>,
+    pub warning: Option<String>,
     /// The app whose Secure Keyboard Entry blocks keyed shortcuts (KEYS-09).
     pub secure_input: Option<String>,
 }
@@ -49,8 +50,8 @@ fn name(action: Action, settings: &Settings) -> String {
             .get(usize::from(index))
             .map(|transform| transform.name.trim().to_owned())
             .filter(|name| !name.is_empty())
-            .unwrap_or_else(|| "Untitled transform".into()),
-        action => action.label().to_owned(),
+            .unwrap_or_else(|| t!("error.shortcuts.untitledTransform")),
+        action => action.label(),
     }
 }
 

@@ -1,0 +1,135 @@
+import type { ControlsCatalog } from "../en";
+
+/** Brazilian Portuguese: microphone, languages, shortcuts, shared dialog buttons and the Flow Bar's cards and menu. */
+export const controls: ControlsCatalog = {
+  microphone: {
+    title: "Microfone",
+    autoDetect: "Detectar automaticamente",
+    autoDetectHint: "usa o microfone conectado com maior prioridade",
+    list: "Microfones",
+    builtIn: "{{name}} (integrado, recomendado)",
+    notConnected: "Desconectado",
+    inUse: "Em uso",
+    connected: "Conectado",
+    moveUp: "Mover {{name}} para cima",
+    moveDown: "Mover {{name}} para baixo",
+    forget: "Esquecer",
+    forgetDevice: "Esquecer {{name}}",
+    none: "Nenhum microfone detectado.",
+    showOthers: "Mostrar outros dispositivos",
+    showOthersHint: "(entradas virtuais e de loopback, nunca escolhidas automaticamente)",
+    inputLevel: "Nível de entrada",
+    level: "Nível do microfone",
+    notSure: "Não sabe qual microfone usar?",
+  },
+  micAdvice: {
+    title: "Encontre o microfone ideal para você",
+    progress: "Pergunta {{current, number}} de {{total, number}}",
+    startOver: "Recomeçar",
+    questions: {
+      place: {
+        label: "Onde você mais dita?",
+        quiet: "Em um ambiente silencioso",
+        shared: "Em um escritório compartilhado ou café",
+        moving: "Em movimento",
+      },
+      computer: {
+        label: "Em qual Mac você dita?",
+        laptop: "Um MacBook",
+        desktop: "Um Mac de mesa (mini, iMac, Studio)",
+      },
+      headphones: {
+        label: "Você usa fones de ouvido enquanto dita?",
+        none: "Não",
+        wired: "Fones com fio ou um headset",
+        bluetooth: "AirPods ou outros fones Bluetooth",
+      },
+    },
+    titles: {
+      wiredHeadset: "Um headset com fio",
+      wiredHeadsetOrEarbuds: "Um headset com fio ou fones intra-auriculares com microfone",
+      yourWiredHeadset: "Seu headset com fio",
+      headsetOrUsb: "Um headset ou um microfone USB perto de você",
+      usbMicrophone: "Um microfone USB na sua mesa",
+      builtIn: "O microfone integrado do seu MacBook",
+    },
+    why: {
+      moving:
+        "Um microfone que se move com você fica perto da sua boca onde quer que você esteja, então o ruído de fundo fica baixo.",
+      shared: "Em um ambiente barulhento, um microfone perto da boca ouve você, e não o ambiente.",
+      desktop:
+        "Os Macs de mesa, exceto o iMac, não têm microfone próprio, e um microfone USB oferece um áudio claro e com pouco ruído.",
+      quiet: "Em um ambiente silencioso, ele tem um som claro, está sempre à mão e liga na hora.",
+    },
+    tips: {
+      bluetooth:
+        "Deixe os fones Bluetooth para ouvir: os microfones deles soam abafados, demoram para ligar e mudam seu áudio para um modo de baixa qualidade.",
+      whisper: "Pode falar baixo: o Shrimp amplifica falas suaves e sussurradas.",
+      moving:
+        "Escolha-o na lista ou coloque-o em primeiro lugar para que a detecção automática o use.",
+      shared:
+        "Coloque-o em primeiro lugar para que a detecção automática o escolha sempre que estiver conectado.",
+      desktop: "Posicione-o a 15–30 cm da boca, um pouco de lado.",
+      quiet: "Com a tampa fechada, ele não ouve você; nesse caso, conecte outro microfone.",
+    },
+  },
+  languages: {
+    title: "Idiomas",
+    autoDetect: "Detectar automaticamente",
+    autoDetectBody: "Transcreve qualquer idioma que você falar.",
+    change: "Alterar",
+    body: "Com vários idiomas, cada ditado é transcrito no idioma em que você fala. As variantes de inglês, chinês e alemão definem a ortografia e os caracteres. Passe o ponteiro sobre a Flow Bar para trocar de idioma.",
+    search: "Buscar idiomas",
+    noneSelected: "Selecione pelo menos um idioma ou ative a detecção automática",
+  },
+  shortcuts: {
+    title: "Atalhos",
+    busy: "Termine ou cancele a gravação primeiro.",
+    secureInput:
+      "A Entrada de Teclado Segura está ativada (por {{app}}, segundo o macOS), então atalhos com letras ou outras teclas só funcionam quando ela for desativada. O fn e outros atalhos só com teclas modificadoras continuam funcionando.",
+    resetConfirm: "Redefinir todos os atalhos para o padrão? Não é possível desfazer.",
+    reset: "Redefinir",
+    resetToDefault: "Restaurar padrão",
+    change: "{{action}}: {{shortcut}}. Alterar",
+    remove: "Remover o atalho {{shortcut}} de {{action}}",
+    removeTitle: "Remover atalho",
+    add: "Clique para adicionar um atalho",
+    addAnother: "Adicionar outro atalho para {{action}}",
+    addAnotherTitle: "Adicionar outro",
+    pressKey: "Pressione uma tecla ou um botão do mouse",
+    cancelRecording: "Cancelar gravação",
+    saved: "Atalho salvo",
+    notSet: "Não definido",
+    recorder: "Atalho para {{label}}: {{shortcut}}",
+    removeOne: "Remover",
+    removeOneLabel: "Remover o atalho para {{label}}",
+  },
+  dialog: {
+    done: "Concluído",
+    save: "Salvar",
+  },
+  flowBarMenu: {
+    label: "Menu da Flow Bar",
+    microphone: "Microfone ›",
+    pasteLast: "Colar última transcrição",
+    history: "Histórico de transcrições",
+    settings: "Ajustes",
+    hide: "Ocultar por 1 hora",
+  },
+  answer: {
+    region: "Resposta do Command Mode",
+    dismiss: "Fechar",
+    copied: "Copiado ✓",
+  },
+  changes: {
+    region: "Alterações de {{name}}",
+    retry: "Tentar de novo",
+    undo: "Desfazer",
+    accept: "Aceitar edições",
+  },
+  languageSwitch: {
+    label: "Idioma do ditado",
+    auto: "Auto",
+    detectAmong: "Detectar entre {{languages}}",
+  },
+};

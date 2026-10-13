@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import type { Settings, SettingsPatch } from "../lib/ipc";
 import { ShortcutRecorder } from "./ShortcutRecorder";
 import { useAutosave } from "./useAutosave";
@@ -9,6 +10,7 @@ interface PromptEngineerCardProps {
 }
 
 export function PromptEngineerCard({ settings, update }: PromptEngineerCardProps) {
+  const { t } = useTranslation();
   const saved = settings.transforms.promptEngineer;
   // The text being edited, until the saved prompt catches up.
   const [draft, setDraft] = useState<string | null>(null);
@@ -22,7 +24,7 @@ export function PromptEngineerCard({ settings, update }: PromptEngineerCardProps
   return (
     <section className="card stack" aria-labelledby="prompt-engineer-heading">
       <div className="row">
-        <h2 id="prompt-engineer-heading">Prompt Engineer</h2>
+        <h2 id="prompt-engineer-heading">{t("transforms.promptEngineer.title")}</h2>
         <button
           type="button"
           onClick={() => {
@@ -30,13 +32,13 @@ export function PromptEngineerCard({ settings, update }: PromptEngineerCardProps
             void update({ transforms: { promptEngineer: null } });
           }}
         >
-          Reset
+          {t("transforms.reset")}
         </button>
       </div>
-      <p className="muted">Turns rough thoughts into a structured prompt for an AI assistant.</p>
-      <ShortcutRecorder action="promptEngineer" label="Prompt Engineer" />
+      <p className="muted">{t("transforms.promptEngineer.body")}</p>
+      <ShortcutRecorder action="promptEngineer" label={t("transforms.promptEngineer.title")} />
       <label className="field">
-        <span>Prompt</span>
+        <span>{t("transforms.promptEngineer.prompt")}</span>
         <textarea rows={4} value={prompt} onChange={(event) => setDraft(event.target.value)} />
       </label>
     </section>

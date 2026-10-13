@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import type { CustomTransform } from "../lib/ipc";
 import { ShortcutRecorder } from "./ShortcutRecorder";
 
@@ -18,7 +19,9 @@ export function CustomTransformCard({
   onChange,
   onDelete,
 }: CustomTransformCardProps) {
-  const name = transform.name || `Transform ${index + 1}`;
+  const { t } = useTranslation();
+  const name: string =
+    transform.name || t("transforms.custom.fallbackName", { position: index + 1 });
   const setSample = (at: number, text: string) =>
     onChange({ ...transform, samples: transform.samples.map((s, i) => (i === at ? text : s)) });
 
@@ -26,7 +29,7 @@ export function CustomTransformCard({
     <section className="card stack" aria-label={name}>
       <div className="row">
         <label className="field grow">
-          <span>Name</span>
+          <span>{t("transforms.custom.name")}</span>
           <input
             type="text"
             maxLength={40}
@@ -35,24 +38,24 @@ export function CustomTransformCard({
           />
         </label>
         <button type="button" className="danger" onClick={onDelete}>
-          Delete
+          {t("common.delete")}
         </button>
       </div>
       <ShortcutRecorder action={{ customTransform: index }} label={name} />
       <label className="field">
-        <span>Prompt</span>
+        <span>{t("transforms.custom.prompt")}</span>
         <textarea
           rows={3}
-          placeholder="For example: rewrite this as a friendly reply to a customer"
+          placeholder={t("transforms.custom.placeholder")}
           value={transform.prompt}
           onChange={(event) => onChange({ ...transform, prompt: event.target.value })}
         />
       </label>
       {!transform.name.trim() || !transform.prompt.trim() ? (
-        <p className="muted">Give it a name and a prompt to use it.</p>
+        <p className="muted">{t("transforms.custom.incomplete")}</p>
       ) : null}
-      <h3 className="subheading">Writing samples</h3>
-      <p className="muted">Up to 5 samples of 50 to 500 words whose style the result follows.</p>
+      <h3 className="subheading">{t("transforms.custom.samples")}</h3>
+      <p className="muted">{t("transforms.custom.samplesBody")}</p>
       {transform.samples.map((sample, at) => {
         const count = words(sample);
         const fits = count >= 50 && count <= 500;
@@ -60,19 +63,21 @@ export function CustomTransformCard({
           <div key={at} className="field">
             <textarea
               rows={3}
-              aria-label={`Sample ${at + 1}`}
+              aria-label={t("transforms.custom.sample", { position: at + 1 })}
               value={sample}
               onChange={(event) => setSample(at, event.target.value)}
             />
             <div className="row">
-              <span className={fits ? "muted" : "error"}>{`${count} words`}</span>
+              <span className={fits ? "muted" : "error"}>
+                {t("transforms.custom.words", { count })}
+              </span>
               <button
                 type="button"
                 onClick={() =>
                   onChange({ ...transform, samples: transform.samples.filter((_, i) => i !== at) })
                 }
               >
-                Remove sample
+                {t("transforms.custom.removeSample")}
               </button>
             </div>
           </div>
@@ -83,7 +88,7 @@ export function CustomTransformCard({
           type="button"
           onClick={() => onChange({ ...transform, samples: [...transform.samples, ""] })}
         >
-          Add sample
+          {t("transforms.custom.addSample")}
         </button>
       )}
     </section>

@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
   getPermissions,
   openPermissionSettings,
@@ -10,20 +11,24 @@ import {
 /** Grants change in System Settings, outside the app, so they are polled. */
 const POLL_MS = 2000;
 
-const ROWS: { permission: Permission; name: string; purpose: string }[] = [
-  { permission: "microphone", name: "Microphone", purpose: "Hears you while you dictate." },
+const ROWS = [
+  {
+    permission: "microphone",
+    name: "onboarding.permission.microphone",
+    purpose: "permissionsCard.microphoneWhy",
+  },
   {
     permission: "accessibility",
-    name: "Accessibility",
-    purpose: "Listens for the dictation shortcut and pastes the text.",
+    name: "onboarding.permission.accessibility",
+    purpose: "permissionsCard.accessibilityWhy",
   },
-];
+] as const satisfies readonly { permission: Permission; name: string; purpose: string }[];
 
-const STATUS_TEXT: Record<PermissionStatus, string> = {
-  granted: "Allowed",
-  denied: "Not allowed",
-  notDetermined: "Not asked yet",
-};
+const STATUS_TEXT = {
+  granted: "onboarding.permission.granted",
+  denied: "onboarding.permission.denied",
+  notDetermined: "onboarding.permission.notDetermined",
+} as const satisfies Record<PermissionStatus, string>;
 
 interface PermissionsCardProps {
   /** Home shows the card only while a permission is missing. */
@@ -31,6 +36,7 @@ interface PermissionsCardProps {
 }
 
 export function PermissionsCard({ hideWhenGranted = false }: PermissionsCardProps) {
+  const { t } = useTranslation();
   const [info, setInfo] = useState<PermissionsInfo | null>(null);
 
   useEffect(() => {
@@ -52,26 +58,28 @@ export function PermissionsCard({ hideWhenGranted = false }: PermissionsCardProp
   }
   return (
     <section className="card" aria-labelledby="permissions-heading">
-      <h2 id="permissions-heading">Permissions</h2>
+      <h2 id="permissions-heading">{t("permissionsCard.title")}</h2>
       <ul className="rows">
         {ROWS.map(({ permission, name, purpose }) => {
           const status = info?.[permission];
           return (
             <li key={permission} className="row">
               <div>
-                <p className="card-title">{name}</p>
-                <p className="muted">{purpose}</p>
+                <p className="card-title">{t(name)}</p>
+                <p className="muted">{t(purpose)}</p>
               </div>
               <div className="row-end">
                 <span className={status === "granted" ? "ok" : "muted"}>
-                  {status ? STATUS_TEXT[status] : "…"}
+                  {status ? t(STATUS_TEXT[status]) : "…"}
                 </span>
                 {status && status !== "granted" && (
                   <button
                     type="button"
                     onClick={() => void openPermissionSettings(permission).catch(() => undefined)}
                   >
-                    {status === "notDetermined" ? "Allow…" : "Open Settings"}
+                    {status === "notDetermined"
+                      ? t("permissionsCard.allow")
+                      : t("permissionsCard.openSettings")}
                   </button>
                 )}
               </div>

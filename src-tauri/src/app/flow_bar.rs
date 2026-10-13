@@ -17,6 +17,7 @@ use super::events::FLOW_BAR_HOVER_EVENT;
 use super::flow_bar_place::{self, Area, Spacing};
 use crate::platform;
 use crate::settings::SettingsStore;
+use crate::t;
 
 pub const FLOW_BAR_LABEL: &str = "flow-bar";
 
@@ -48,7 +49,7 @@ pub struct FlowBarState {
 pub fn create<R: Runtime>(app: &AppHandle<R>, settings: Arc<SettingsStore>) -> tauri::Result<()> {
     let window =
         WebviewWindowBuilder::new(app, FLOW_BAR_LABEL, WebviewUrl::App("flow-bar.html".into()))
-            .title("Shrimp Flow Bar")
+            .title(t!("name.flowBarTitle"))
             .inner_size(INITIAL_SIZE.0, INITIAL_SIZE.1)
             .resizable(false)
             .decorations(false)
@@ -97,6 +98,15 @@ fn state<R: Runtime>(app: &AppHandle<R>) -> Option<Arc<FlowBarState>> {
 
 /// Resizes the bar to `width` x `height` logical points, or hides it when
 /// it has nothing to show (0 x 0).
+/// The window's name for VoiceOver, after the interface language changed.
+pub fn retitle<R: Runtime>(app: &AppHandle<R>) {
+    if let Some(window) = app.get_webview_window(FLOW_BAR_LABEL)
+        && let Err(error) = window.set_title(&t!("name.flowBarTitle"))
+    {
+        log::warn!("could not rename the Flow Bar: {error}");
+    }
+}
+
 pub fn resize<R: Runtime>(app: &AppHandle<R>, width: f64, height: f64) {
     on_main(app, move |app| {
         let Some(state) = state(app) else {

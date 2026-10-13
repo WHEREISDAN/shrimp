@@ -8,15 +8,9 @@ use handy_keys::{Key, Modifiers};
 
 use super::trigger::{MODIFIER_GROUPS, Trigger};
 use super::{Action, Binding};
+use crate::t;
 
 const MAX_KEYS: usize = 3;
-
-pub const BOTH_SIDES: &str = "Shortcut cannot contain both left and right version of the same key";
-pub const IN_USE: &str = "This shortcut is already in use";
-pub const TOO_MANY_KEYS: &str = "Shortcut must contain 3 or fewer keys";
-pub const NEEDS_MODIFIER: &str = "Shortcut must include a modifier key or a valid mouse button";
-pub const OVERLAP_WARNING: &str = "Warning: Your Hands-free mode shortcut is a part of a \
-Push-to-talk shortcut. This may lead to conflicts.";
 
 /// Shortcuts macOS or every app relies on.
 fn reserved(trigger: &Trigger) -> bool {
@@ -75,9 +69,9 @@ pub fn validate(
     others: &[Binding],
     label: fn(&Trigger) -> String,
 ) -> Result<(), String> {
-    let not_allowed = || format!("This shortcut is not allowed: {}", label(trigger));
+    let not_allowed = || t!("error.hotkeys.notAllowed", shortcut = label(trigger));
     if trigger.key_count() > MAX_KEYS {
-        return Err(TOO_MANY_KEYS.into());
+        return Err(t!("error.hotkeys.tooManyKeys", max = MAX_KEYS));
     }
     if let Trigger::Keys(hotkey) = trigger
         && hotkey.modifiers.is_empty()
@@ -87,21 +81,21 @@ pub fn validate(
             Some(Key::Escape) if action == Action::Cancel => {}
             Some(Key::CapsLock | Key::Escape) => return Err(not_allowed()),
             Some(key) if types_text(key) => return Err(not_allowed()),
-            _ => return Err(NEEDS_MODIFIER.into()),
+            _ => return Err(t!("error.hotkeys.needsModifier")),
         }
     }
     if reserved(trigger) {
         return Err(not_allowed());
     }
     if others.iter().any(|other| other.trigger.same_as(trigger)) {
-        return Err(IN_USE.into());
+        return Err(t!("error.hotkeys.inUse"));
     }
     Ok(())
 }
 
 /// Wispr's warning when a hands-free combination sits inside a
 /// push-to-talk one (KEYS-07). The change still saves.
-pub fn overlap_warning(bindings: &[Binding]) -> Option<&'static str> {
+pub fn overlap_warning(bindings: &[Binding]) -> Option<String> {
     let of = |action| {
         bindings
             .iter()
@@ -113,7 +107,7 @@ pub fn overlap_warning(bindings: &[Binding]) -> Option<&'static str> {
                 !free.trigger.same_as(&talk.trigger) && free.trigger.is_part_of(&talk.trigger)
             })
         })
-        .then_some(OVERLAP_WARNING)
+        .then(|| t!("error.hotkeys.overlap"))
 }
 
 #[cfg(test)]
@@ -158,7 +152,7 @@ mod tests {
         );
         assert_eq!(
             check("Return", Action::PressEnter).unwrap_err(),
-            NEEDS_MODIFIER
+            "Shortcut must include a modifier key or a valid mouse button"
         );
     }
 
@@ -178,10 +172,16 @@ mod tests {
         );
         assert_eq!(
             check("Cmd+Ctrl+Opt+K", Action::PressEnter).unwrap_err(),
-            TOO_MANY_KEYS
+            "Shortcut must contain 3 or fewer keys"
         );
-        assert_eq!(check("Fn+Space", Action::PressEnter).unwrap_err(), IN_USE);
-        assert_eq!(check("Cmd+Ctrl+V", Action::PushToTalk).unwrap_err(), IN_USE);
+        assert_eq!(
+            check("Fn+Space", Action::PressEnter).unwrap_err(),
+            "This shortcut is already in use"
+        );
+        assert_eq!(
+            check("Cmd+Ctrl+V", Action::PushToTalk).unwrap_err(),
+            "This shortcut is already in use"
+        );
     }
 
     #[test]
@@ -192,6 +192,9 @@ mod tests {
             binding(Action::PushToTalk, "Ctrl+Opt+Space"),
             binding(Action::HandsFree, "Ctrl+Opt"),
         ];
-        assert_eq!(overlap_warning(&overlapping), Some(OVERLAP_WARNING));
+        assert!(
+            overlap_warning(&overlapping)
+                .is_some_and(|warning| warning.starts_with("Warning: Your Hands-free"))
+        );
     }
 }

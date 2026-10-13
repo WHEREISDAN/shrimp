@@ -1,0 +1,127 @@
+/** Settings sections: AI provider, speech engine, sound, Flow Bar, experimental, vibe coding, shortcuts. */
+export const settingsSections = {
+  aiProvider: {
+    title: "AI provider",
+    provider: "Provider",
+    model: "Model",
+    ollamaNote: "Ollama runs on this Mac; nothing leaves it.",
+    cloudNote: "Your dictation text is sent to {{provider}} for cleanup, with your own key.",
+    test: "Test",
+    testing: "Testing…",
+    testOk: "Cleaned up in {{latency, number}} ms: “{{output}}”",
+    testFailed: "Didn't work.",
+  },
+  ollama: {
+    address: "Address",
+    model: "Ollama model",
+    automatic: "Automatic (recommended)",
+    notRunning: "Ollama isn't running at {{url}}.",
+    retry: "Retry",
+  },
+  apiKey: {
+    saved: "Key saved in your keychain",
+    none: "No key yet",
+    label: "{{company}} API key",
+    placeholder: "Paste API key",
+    save: "Save key",
+    remove: "Remove key",
+  },
+  speechEngine: {
+    title: "Speech engine",
+    model: "Speech model",
+    note: "Whisper on this Mac is private and works offline. Cloud engines send your audio to OpenAI or Groq; if one fails, Shrimp falls back to Whisper on this Mac.",
+  },
+  whisperModels: {
+    title: "Whisper model",
+    list: "Whisper models",
+    size: "{{size, number}} MB",
+    recommended: "Recommended",
+    waiting: "Waiting to download",
+    notDownloaded: "Not downloaded",
+    downloading: "Downloading {{percent, number}}%",
+    downloaded: "Downloaded",
+    inUse: "In use",
+    download: "Download",
+    deleteModel: "Delete {{model}}",
+    note: "Larger models are more accurate and slower. A new choice downloads if needed and is used from your next dictation.",
+  },
+  modelCard: {
+    title: "Speech model",
+    onDevice: "{{size, number}} MB · on device",
+    waiting: "Waiting to download…",
+    progress: "Model download progress",
+    downloading: "Downloading {{percent, number}}% ({{received, number}} of {{total, number}} MB)",
+    loading: "Downloaded. Loading…",
+    ready: "Ready. Dictation runs entirely on this Mac.",
+    retry: "Retry",
+  },
+  permissionsCard: {
+    title: "Permissions",
+    microphoneWhy: "Hears you while you dictate.",
+    accessibilityWhy: "Listens for the dictation shortcut and pastes the text.",
+    allow: "Allow…",
+    openSettings: "Open Settings",
+  },
+  sound: {
+    title: "Sound",
+    dictation: "Dictation sounds",
+    dictationBody: "A sound when dictation starts, stops, locks hands-free or is cancelled.",
+    notifications: "Notification sounds",
+    notificationsBody: "A sound with warnings and errors.",
+    mute: "Mute audio while dictating",
+    muteBody: "If something is playing when you start, your Mac stays muted until you finish.",
+    pause: "Pause music while dictating",
+    pauseBody:
+      "Pauses Music, Spotify and other players (never calls) and resumes them when you finish. Replaces muting.",
+  },
+  flowBarSettings: {
+    title: "Flow Bar",
+    alwaysShow: "Show Flow Bar at all times",
+    alwaysShowBody:
+      "When off, the bar appears only while you dictate or when Shrimp has something to tell you.",
+    hiddenUntil: "Hidden until {{time}}",
+    showNow: "Show now",
+    note: "Drag the bar to the bottom, left or right edge of the screen; it follows you to the display your pointer is on. Right-click it for the microphone and more.",
+  },
+  experimental: {
+    title: "Experimental",
+    commandMode: "Command Mode",
+    commandModeBody:
+      "Select text, hold {{shortcut}} and say what to change, like “make this more formal” or “translate to Spanish”. With nothing selected, ask a question.",
+    pressEnter: "“Press enter” voice command",
+    pressEnterBody:
+      "End a dictation with “press enter” to send it: Shrimp leaves the words out and presses Enter after pasting.",
+  },
+  commandModeIntro: {
+    title: "Using Command Mode (beta)",
+    step1: "Select the text you want to change, or put the cursor in a text field.",
+    step2:
+      "Hold <kbd>{{shortcut}}</kbd> and say what to do: “make this shorter”, “translate to Spanish”, “turn this into a list”.",
+    step3: "Release. The result replaces your selection; Cmd+Z undoes it.",
+    body: "With nothing selected, ask a question and the answer appears next to the Flow Bar. Start with “search” to open a web search. Double-press the shortcut to keep listening hands-free; Esc cancels. Your selection and the field you are in are sent to your AI provider.",
+    disable: "Disable",
+    gotIt: "Got it",
+  },
+  vibeCoding: {
+    title: "Vibe coding",
+    fileTagging: "File tagging in chat",
+    fileTaggingBody:
+      "In Cursor and Windsurf chat, say a file's name (“index dot ts”) or “tag” and its name, and Shrimp writes an @-mention. Works for files open or shown in the sidebar.",
+    variables: "Variable recognition",
+    variablesBody:
+      "In Cursor, VS Code and Windsurf, say names naturally, “user ID” for <code>userId</code>: Shrimp matches them to the code on screen. Say “camel case”, “snake case”, “pascal case” or “kebab case” before words to build a new name.",
+    step1: "Open the Command Palette (Cmd+Shift+P).",
+    step2: "Run “Toggle Screen Reader Accessibility Mode”.",
+    step3: "Check that “Screen Reader Optimized” shows in the status bar.",
+  },
+  contextAwareness: {
+    title: "Context awareness",
+    body: "Shrimp reads the text around your cursor and the names on screen, so names are spelled right and the style fits the app. When off, nothing from your screen reaches the speech engine or the AI provider; casing and spacing still adapt to the text around the cursor, on this Mac.",
+  },
+  shortcutsSection: {
+    title: "Shortcuts",
+    pushToTalk: "Push to talk",
+    change: "Change",
+    note: "Each action takes up to four shortcuts, including mouse buttons. Press Enter sends Enter to the app you are in; hold Shift or another modifier with it to send Shift+Enter.",
+  },
+} as const;

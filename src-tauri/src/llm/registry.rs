@@ -10,6 +10,7 @@ use super::{
 };
 use crate::secrets::Secrets;
 use crate::settings::AiSettings;
+use crate::t;
 
 /// Where the edit pipeline gets its provider; tests substitute fakes.
 #[async_trait]
@@ -36,7 +37,7 @@ impl LlmSource for Providers {
         if provider == LlmProviderId::Ollama {
             let installed = ollama::installed_models(&client, &settings.ollama_url).await?;
             let model = catalog::pick_ollama_model(&settings.ollama_model, &installed)
-                .ok_or_else(|| LlmError::Unavailable("no Ollama model is installed".into()))?;
+                .ok_or_else(|| LlmError::Unavailable(t!("error.llm.noOllamaModel")))?;
             return Ok(Arc::new(Ollama::new(client, &settings.ollama_url, model)));
         }
         let account = catalog::key_account(provider).ok_or(LlmError::MissingKey)?;

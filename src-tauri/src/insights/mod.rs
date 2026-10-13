@@ -10,6 +10,7 @@ use serde::Serialize;
 
 use crate::notify::{Notice, NoticeAction, NoticeCategory};
 use crate::storage::{StorageError, stats};
+use crate::t;
 
 /// The heatmap covers this many days back from today.
 const HEATMAP_DAYS: u64 = 371;
@@ -183,32 +184,22 @@ pub fn milestone(before: i64, after: i64) -> Option<Milestone> {
 
 /// The "Milestones" notification for `milestone`.
 pub fn notice(milestone: Milestone) -> Notice {
-    let notice =
-        match milestone {
-            Milestone::Words(count) => Notice::info(format!(
-                "You've dictated {} words with Shrimp.",
-                thousands(count)
-            ))
-            .with_action(NoticeAction::OpenInsights),
-            Milestone::VoiceProfile { first: true } => Notice::info("Discover your Voice Profile")
-                .with_action(NoticeAction::SeeVoiceProfile),
-            Milestone::VoiceProfile { first: false } => Notice::info("Update your Voice Profile")
-                .with_action(NoticeAction::UpdateVoiceProfile),
-        };
-    notice.in_category(NoticeCategory::Milestone)
-}
-
-/// 25000 as "25,000".
-fn thousands(count: i64) -> String {
-    let digits = count.to_string();
-    let mut out = String::new();
-    for (index, digit) in digits.chars().enumerate() {
-        if index > 0 && (digits.len() - index).is_multiple_of(3) {
-            out.push(',');
+    let notice = match milestone {
+        Milestone::Words(count) => {
+            let count = crate::i18n::number(count);
+            Notice::info(t!("notice.milestone.words", count = count))
+                .with_action(NoticeAction::OpenInsights)
         }
-        out.push(digit);
-    }
-    out
+        Milestone::VoiceProfile { first: true } => {
+            Notice::info(t!("notice.milestone.discoverProfile"))
+                .with_action(NoticeAction::SeeVoiceProfile)
+        }
+        Milestone::VoiceProfile { first: false } => {
+            Notice::info(t!("notice.milestone.updateProfile"))
+                .with_action(NoticeAction::UpdateVoiceProfile)
+        }
+    };
+    notice.in_category(NoticeCategory::Milestone)
 }
 
 fn parse(day: &str) -> Option<NaiveDate> {

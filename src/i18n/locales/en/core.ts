@@ -1,5 +1,5 @@
-/** The English interface text, the source for every other language (LANG-06). */
-export const en = {
+/** Shared text, Home, History, Insights, Settings › System and onboarding. */
+export const core = {
   common: {
     cancel: "Cancel",
     close: "Close",
@@ -194,7 +194,7 @@ export const en = {
     dataBackup: "The latest backup is from {{date}}.",
     restoreBackup: "Restore backup",
     startFresh: "Start fresh",
-    storageTitle: "Storage Full",
+    storageTitle: "Storage full",
     storageBody:
       "You are running out of space on your computer. Shrimp needs room to save recordings and history. Free up some space, then check again.",
     storageFree: "{{free}} free",
@@ -222,6 +222,7 @@ export const en = {
     streak_one: "{{count, number}}-day streak",
     streak_many: "{{count, number}}-day streak",
     streak_other: "{{count, number}}-day streak",
+    streak_zero: "{{count, number}}-day streak",
     viewInsights: "View insights",
   },
   insights: {
@@ -253,12 +254,15 @@ export const en = {
     words_one: "{{count, number}} word",
     words_many: "{{count, number}} words",
     words_other: "{{count, number}} words",
+    words_zero: "{{count, number}} words",
     days_one: "{{count, number}} day",
     days_many: "{{count, number}} days",
     days_other: "{{count, number}} days",
+    days_zero: "{{count, number}} days",
     appsUsed_one: "{{count, number}} app",
     appsUsed_many: "{{count, number}} apps",
     appsUsed_other: "{{count, number}} apps",
+    appsUsed_zero: "{{count, number}} apps",
   },
   voice: {
     title: "Your voice",
@@ -266,14 +270,19 @@ export const en = {
       "A profile of how you speak: your archetype, catchphrase, most corrected word and when you dictate most.",
     privacy:
       "Your dictations are only stored on this Mac. Generating sends your stats and a sample of recent transcripts to {{provider}}.",
-    generatesIn: "Generates in {{count, number}} words",
-    nextUpdate: "Next update in {{count, number}} more words",
+    generatesIn_one: "Generates in {{count, number}} word",
+    generatesIn_many: "Generates in {{count, number}} words",
+    generatesIn_other: "Generates in {{count, number}} words",
+    generatesIn_zero: "Generates in {{count, number}} words",
+    nextUpdate_one: "Next update in {{count, number}} more word",
+    nextUpdate_many: "Next update in {{count, number}} more words",
+    nextUpdate_other: "Next update in {{count, number}} more words",
+    nextUpdate_zero: "Next update in {{count, number}} more words",
     updateReady: "Update ready!",
     generate: "Generate profile",
     regenerate: "Regenerate profile",
     building: "Insights are building…",
     failed: "Something went wrong. Try again.",
-    unavailable: "Voice Profile unavailable",
     notEnoughTitle: "Keep dictating",
     notEnoughStored: "You only have {{stored, number}} words stored locally.",
     notEnoughMore:
@@ -336,7 +345,6 @@ export const en = {
     deleteWarning: "Deleted transcripts cannot be undone or restored.",
     deleteConfirm: "Yes, delete it",
     deleted: "Transcript deleted",
-    rowLabel: "{{time}}, {{app}}: {{text}}",
     unknownApp: "Unknown app",
     recording: "Recording, {{seconds}} s",
   },
@@ -375,8 +383,3 @@ export const en = {
     neverConfirm: "Delete all data",
   },
 } as const;
-
-type Messages<T> = { [K in keyof T]: T[K] extends string ? string : Messages<T[K]> };
-
-/** What every translation must provide: the same keys as English. */
-export type Catalog = Messages<typeof en>;

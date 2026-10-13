@@ -1,0 +1,126 @@
+/** The Style and Transforms pages. */
+export const styleTransforms = {
+  style: {
+    title: "Style",
+    cleanup: {
+      title: "Auto Cleanup",
+      none: "None",
+      noneBody:
+        "Pastes the raw transcript, including filler words, false starts, and spoken errors.",
+      light: "Light",
+      lightBody: "Removes filler words and fixes grammar.",
+      medium: "Medium",
+      mediumBody: "May reword phrases for clarity and conciseness while preserving meaning.",
+    },
+    styles: {
+      title: "Styles",
+      tabs: "Styles",
+      appliesTo: "<label>Applies to </label>{{apps}}",
+      group: "{{category}} style",
+      next: "Next",
+      footnote:
+        "Styles apply to new dictations. AI assistants such as ChatGPT and Claude get no style formatting.",
+    },
+    // Each title is written in its own style: capitals and punctuation show the difference.
+    options: {
+      formal: { title: "Formal.", description: "Caps + punctuation." },
+      casual: { title: "Casual", description: "Caps + less punctuation." },
+      veryCasual: { title: "very casual", description: "No caps + less punctuation." },
+      excited: { title: "Excited!", description: "More exclamations." },
+    },
+    // Within a category the examples use the same words; only capitals and punctuation change.
+    categories: {
+      personal: {
+        label: "Personal messages",
+        apps: "Messages, WhatsApp, Discord, Signal, Telegram, Instagram",
+        formal: "Hey, are you free for lunch tomorrow? Let's do 12 if that works.",
+        casual: "Hey are you free for lunch tomorrow? Let's do 12 if that works",
+        veryCasual: "hey are you free for lunch tomorrow? let's do 12 if that works",
+      },
+      work: {
+        label: "Work messages",
+        apps: "Slack, Microsoft Teams, LinkedIn",
+        formal: "Thanks for the update. The numbers look good. Let's go with the first option.",
+        casual: "Thanks for the update, the numbers look good. Let's go with the first option",
+        excited: "Thanks for the update! The numbers look good! Let's go with the first option!",
+      },
+      email: {
+        label: "Email",
+        apps: "Mail, Outlook, Missive, Superhuman, Spark, Thunderbird, Mimestream",
+        formal:
+          "Hi Dana, thanks for sending the contract over. I'll review it today and get back to you by Friday.",
+        casual:
+          "Hi Dana thanks for sending the contract over, I'll review it today and get back to you by Friday",
+        excited:
+          "Hi Dana! Thanks for sending the contract over! I'll review it today and get back to you by Friday!",
+      },
+      other: {
+        label: "Other",
+        apps: "Everything else, including AI assistants and terminals.",
+        formal: "The build finished and the tests all passed, so I'm merging it now.",
+        casual: "The build finished and the tests all passed so I'm merging it now",
+        excited: "The build finished and the tests all passed so I'm merging it now!",
+      },
+    },
+  },
+  transforms: {
+    title: "Transforms",
+    heading: "Rewrite any text with AI",
+    toggle: "Transforms",
+    toggleBody:
+      "Select text anywhere and press a transform's shortcut: the result replaces it, and “See changes” shows what changed. Your text is sent to your AI provider.",
+    newTransform: "New transform",
+    afterDictation: "After dictation",
+    autoApply: "Apply a transform after every dictation",
+    off: "Off",
+    autoApplyBody: "If the transform fails, your dictation is pasted as it was.",
+    seeChanges: "See changes",
+    reset: "Reset",
+    polish: {
+      title: "Polish",
+      body: "Rewrites the selected text, or the text box, or your last dictation from the past minute.",
+      concise: "Make more concise",
+      conciseBody: "Cuts filler, repetition and padding.",
+      clarity: "Reword for clarity",
+      clarityBody: "Replaces vague or awkward phrasing.",
+      reorder: "Reorder for readability",
+      reorderBody: "Puts the main point first and related points together.",
+      structure: "Add structure for readability",
+      structureBody: "Short paragraphs, and lists for enumerated items.",
+      tone: "Maintain your tone",
+      toneBody: "Keeps your voice as it is.",
+      instructions: "Custom instructions",
+      remove: "Remove",
+      removeInstruction: "Remove {{instruction}}",
+      newInstruction: "New instruction",
+      placeholder: "For example: use British spelling",
+      add: "Add",
+      tooLong_one: "Keep each instruction under {{count, number}} word.",
+      tooLong_many: "Keep each instruction under {{count, number}} words.",
+      tooLong_other: "Keep each instruction under {{count, number}} words.",
+      tooLong_zero: "Keep each instruction under {{count, number}} words.",
+      duplicate: "That instruction is already in the list.",
+    },
+    promptEngineer: {
+      title: "Prompt Engineer",
+      body: "Turns rough thoughts into a structured prompt for an AI assistant.",
+      prompt: "Prompt",
+    },
+    custom: {
+      fallbackName: "Transform {{position, number}}",
+      name: "Name",
+      prompt: "Prompt",
+      placeholder: "For example: rewrite this as a friendly reply to a customer",
+      incomplete: "Give it a name and a prompt to use it.",
+      samples: "Writing samples",
+      samplesBody: "Up to 5 samples of 50 to 500 words whose style the result follows.",
+      sample: "Sample {{position, number}}",
+      words_one: "{{count, number}} word",
+      words_many: "{{count, number}} words",
+      words_other: "{{count, number}} words",
+      words_zero: "{{count, number}} words",
+      removeSample: "Remove sample",
+      addSample: "Add sample",
+    },
+  },
+} as const;

@@ -12,6 +12,7 @@ use crate::audio::{AudioClip, level};
 use crate::dictation::state::ControllerInput;
 use crate::lang;
 use crate::notify::{Notice, NoticeAction, NoticeCategory};
+use crate::t;
 
 /// Only a clear guess counts.
 const CONFIDENT: f32 = 0.75;
@@ -24,10 +25,10 @@ fn today() -> String {
     (seconds / SECONDS_PER_DAY).to_string()
 }
 
-/// The display name of a Whisper code.
+/// The display name of a Whisper code, in the interface language.
 fn language_name(code: &str) -> String {
     let id = lang::catalog::from_locale(code).unwrap_or_else(|| code.to_owned());
-    lang::catalog::languages()
+    let english = lang::catalog::languages()
         .into_iter()
         .find(|language| language.id == id)
         .map(|language| {
@@ -38,7 +39,8 @@ fn language_name(code: &str) -> String {
                 .unwrap_or_default()
                 .to_owned()
         })
-        .unwrap_or_else(|| code.to_owned())
+        .unwrap_or_else(|| code.to_owned());
+    crate::i18n::language_name(code, &english)
 }
 
 impl Controller {
@@ -77,15 +79,13 @@ impl Controller {
         if let Err(error) = self.settings.update(&patch) {
             log::warn!("could not note the language card: {error}");
         }
+        let language = language_name(&code);
         self.ui.notice(
-            Notice::info(format!(
-                "Speaking a different language? That sounded like {}.",
-                language_name(&code)
-            ))
-            .with_action(NoticeAction::OpenLanguageSettings)
-            .with_action(NoticeAction::AddDetectedLanguage)
-            .with_action(NoticeAction::DismissLanguageCard)
-            .in_category(NoticeCategory::Suggestion),
+            Notice::info(t!("notice.language.detected", language = language))
+                .with_action(NoticeAction::OpenLanguageSettings)
+                .with_action(NoticeAction::AddDetectedLanguage)
+                .with_action(NoticeAction::DismissLanguageCard)
+                .in_category(NoticeCategory::Suggestion),
         );
         self.detected_language = Some(code);
     }

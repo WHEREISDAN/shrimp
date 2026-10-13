@@ -147,7 +147,7 @@ impl Matcher {
             .into_iter()
             .map(|action| {
                 self.pressed.remove(&action);
-                log::info!("{} looked stuck; released it", action.label());
+                log::info!("{action:?} looked stuck; released it");
                 Matched::Shortcut(ShortcutEvent::new(action, false))
             })
             .collect()

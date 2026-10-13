@@ -4,9 +4,10 @@ use std::collections::HashSet;
 use std::sync::Mutex;
 
 use super::guard::Rejection;
-use super::pipeline::RAW_INSERTED;
+use super::pipeline::raw_inserted;
 use crate::llm::{LlmError, LlmProviderId};
 use crate::notify::{Notice, NoticeAction};
+use crate::t;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Failure {
@@ -22,7 +23,7 @@ impl Failure {
             return None;
         };
         let name = provider.label();
-        let raw = RAW_INSERTED;
+        let without_edits = |reason: String| format!("{reason} {}", raw_inserted());
         let notice = match error {
             LlmError::MissingKey => {
                 let first = missing_key_shown
@@ -32,37 +33,50 @@ impl Failure {
                 if !first {
                     return None;
                 }
-                Notice::warning(format!(
-                    "AI edits need your {name} API key. Add it in Settings, or turn AI edits off."
-                ))
-                .with_action(NoticeAction::OpenAiSettings)
+                Notice::warning(t!("notice.ai.missingKey", provider = name))
+                    .with_action(NoticeAction::OpenAiSettings)
             }
             LlmError::Unauthorized(_) => {
-                Notice::error(format!("{name} rejected your API key. {raw}"))
+                Notice::error(without_edits(t!("notice.ai.unauthorized", provider = name)))
                     .with_action(NoticeAction::OpenAiSettings)
             }
             LlmError::Quota(_) => {
-                Notice::error(format!("Your {name} account is out of credits. {raw}"))
+                Notice::error(without_edits(t!("notice.ai.quota", provider = name)))
             }
             LlmError::RateLimited(_) => {
-                Notice::warning(format!("{name} rate limit reached. {raw}"))
+                Notice::warning(without_edits(t!("notice.ai.rateLimited", provider = name)))
             }
-            LlmError::Offline(_) => Notice::warning(format!("Can't reach {name}. {raw}")),
-            LlmError::Timeout => Notice::warning(format!("{name} took too long. {raw}")),
+            LlmError::Offline(_) => {
+                Notice::warning(without_edits(t!("notice.ai.offline", provider = name)))
+            }
+            LlmError::Timeout => {
+                Notice::warning(without_edits(t!("notice.ai.timeout", provider = name)))
+            }
             LlmError::Unavailable(message) if provider == LlmProviderId::Ollama => {
                 let message = if message.contains("Ollama") {
-                    message
+                    capitalized(&message)
                 } else {
                     format!("Ollama: {message}")
                 };
-                Notice::warning(format!("{message}. {raw}"))
+                Notice::warning(without_edits(format!("{message}.")))
             }
-            LlmError::Unavailable(_) => Notice::warning(format!("{name} is unavailable. {raw}")),
+            LlmError::Unavailable(_) => {
+                Notice::warning(without_edits(t!("notice.ai.unavailable", provider = name)))
+            }
             LlmError::Failed(message) => {
-                Notice::error(format!("AI edit failed ({message}). {raw}"))
+                Notice::error(without_edits(t!("notice.ai.failed", error = message)))
             }
             LlmError::Cancelled => return None,
         };
         Some(notice)
     }
+}
+
+/// "no Ollama model is installed" as the start of a notice.
+fn capitalized(text: &str) -> String {
+    let mut chars = text.chars();
+    chars
+        .next()
+        .map(|first| first.to_uppercase().chain(chars).collect())
+        .unwrap_or_default()
 }

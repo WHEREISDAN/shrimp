@@ -14,6 +14,7 @@ use whisper_rs::{
 
 use super::{SttEngine, SttEngineId, SttError, SttOptions, Transcript};
 use crate::audio::{AudioClip, STT_SAMPLE_RATE};
+use crate::t;
 
 /// whisper.cpp skips input shorter than one second, so short clips are padded.
 const MIN_SAMPLES: usize = STT_SAMPLE_RATE as usize * 6 / 5;
@@ -55,13 +56,13 @@ impl LocalWhisper {
         let mut params = WhisperContextParameters::default();
         params.flash_attn(true);
         let context = WhisperContext::new_with_params(utf8(model)?, params)
-            .map_err(|err| SttError::Unavailable(format!("could not load the model: {err}")))?;
+            .map_err(|err| SttError::Unavailable(t!("error.whisper.loadModel", details = err)))?;
         let vad = vad_model
             .map(|path| {
                 let mut params = WhisperVadContextParams::new();
                 params.set_use_gpu(false);
                 WhisperVadContext::new(utf8(path)?, params).map_err(|err| {
-                    SttError::Unavailable(format!("could not load speech detection: {err}"))
+                    SttError::Unavailable(t!("error.whisper.loadVad", details = err))
                 })
             })
             .transpose()?;
@@ -95,7 +96,7 @@ impl SttEngine for LocalWhisper {
             run(&context, speech, &options)
         })
         .await
-        .map_err(|err| SttError::Failed(format!("transcription task failed: {err}")))?
+        .map_err(|err| SttError::Failed(t!("error.whisper.taskFailed", details = err)))?
     }
 
     async fn detect_language(&self, clip: &AudioClip) -> Option<(String, f32)> {
@@ -155,7 +156,7 @@ fn detect_among(
 
 fn utf8(path: &Path) -> Result<&str, SttError> {
     path.to_str()
-        .ok_or_else(|| SttError::Unavailable(format!("{} is not a UTF-8 path", path.display())))
+        .ok_or_else(|| SttError::Unavailable(t!("error.whisper.notUtf8", path = path.display())))
 }
 
 /// Silero's speech threshold, below its 0.5 default so the soft starts of
@@ -173,7 +174,7 @@ fn speech_only(vad: &Mutex<WhisperVadContext>, samples: Vec<f32>) -> Result<Vec<
     let mut vad = vad.lock().unwrap_or_else(|err| err.into_inner());
     let segments = vad
         .segments_from_samples(vad_params(), &samples)
-        .map_err(|err| SttError::Failed(format!("speech detection failed: {err}")))?;
+        .map_err(|err| SttError::Failed(t!("error.whisper.vadFailed", details = err)))?;
     let count = segments.num_segments();
     if count == 0 {
         return Err(SttError::NoSpeech);

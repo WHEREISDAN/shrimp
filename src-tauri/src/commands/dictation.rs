@@ -16,6 +16,7 @@ use crate::notify::{Notice, NoticeAction};
 use crate::platform::{self, Permission};
 use crate::settings::SettingsStore;
 use crate::stt::ModelManager;
+use crate::t;
 
 #[tauri::command]
 pub fn get_dictation_state(controller: State<'_, ControllerHandle>) -> DictationState {
@@ -86,7 +87,7 @@ pub fn flow_bar_action(
                 .update(&serde_json::json!({"flowBar": {"hiddenUntil": until}}))
                 .map_err(|err| CommandError::new("invalid", err))?;
             ui.notice(
-                Notice::info("Flow Bar hidden for 1 hour").with_action(NoticeAction::ShowFlowBar),
+                Notice::info(t!("notice.flowBar.hidden")).with_action(NoticeAction::ShowFlowBar),
             );
         }
     }

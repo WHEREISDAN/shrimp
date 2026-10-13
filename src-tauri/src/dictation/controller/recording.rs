@@ -9,8 +9,9 @@ use super::Controller;
 use crate::dictation::bindings;
 use crate::dictation::gestures::{CancelReason, RecordingMode};
 use crate::dictation::state::{ControllerInput, LastStatus, RecordingStatus};
-use crate::hotkeys::{Action, RecordUpdate, Recording, validation};
+use crate::hotkeys::{Action, RecordUpdate, Recording};
 use crate::notify::Notice;
+use crate::t;
 
 /// Another key this soon after a held dictation starts was meant for
 /// another app (CORE-12).
@@ -22,14 +23,14 @@ impl Controller {
         bindings::triggers(action, &self.bindings, &self.settings.get())
             .first()
             .map(self.label)
-            .unwrap_or_else(|| action.label().to_owned())
+            .unwrap_or_else(|| action.label())
     }
 
     pub(super) fn record_shortcut(&mut self, action: Action, index: Option<usize>) {
         if self.recording.is_some() || self.gestures.is_busy() {
             self.ui.shortcut_recording(RecordingStatus::Failed {
                 action,
-                message: "Finish dictating first.".into(),
+                message: t!("notice.shortcuts.finishDictating"),
             });
             return;
         }
@@ -69,7 +70,7 @@ impl Controller {
             RecordUpdate::Cancelled => RecordingStatus::Cancelled { action },
             RecordUpdate::Done(recorded) if recorded.both_sides => RecordingStatus::Failed {
                 action,
-                message: validation::BOTH_SIDES.into(),
+                message: t!("error.hotkeys.bothSides"),
             },
             RecordUpdate::Done(recorded) => {
                 let settings = self.settings.get();
@@ -91,7 +92,7 @@ impl Controller {
                     Ok(warning) => RecordingStatus::Saved {
                         action,
                         shortcut: (self.label)(&recorded.trigger),
-                        warning: warning.map(str::to_owned),
+                        warning,
                     },
                     Err(message) => RecordingStatus::Failed { action, message },
                 }
@@ -128,11 +129,8 @@ impl Controller {
         let was_on =
             std::mem::replace(&mut *super::lock(&self.secure_input), owner.clone()).is_some();
         if let (Some(app), false) = (owner, was_on) {
-            self.ui.notice(Notice::warning(format!(
-                "Secure Keyboard Entry is on (macOS names {app}), so shortcuts with letters or \
-                 other keys are blocked until it's off. fn and other modifier-only shortcuts \
-                 still work."
-            )));
+            let message = t!("notice.shortcuts.secureInput", app = app);
+            self.ui.notice(Notice::warning(message));
         }
     }
 

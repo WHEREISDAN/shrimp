@@ -8,16 +8,18 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use rusqlite::Connection;
 use rusqlite_migration::{M, Migrations};
 
+use crate::t;
+
 #[derive(Debug, thiserror::Error)]
 pub enum StorageError {
     /// A user-facing validation message.
     #[error("{0}")]
     Invalid(String),
-    #[error("not found")]
+    #[error("{}", t!("error.storage.notFound"))]
     NotFound,
-    #[error("database error: {0}")]
+    #[error("{}", t!("error.storage.database", details = .0))]
     Sqlite(#[from] rusqlite::Error),
-    #[error("database migration failed: {0}")]
+    #[error("{}", t!("error.storage.migration", details = .0))]
     Migration(#[from] rusqlite_migration::Error),
 }
 

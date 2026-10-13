@@ -2,6 +2,8 @@
 
 use serde::{Deserialize, Serialize};
 
+use crate::t;
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub enum Edge {
@@ -40,7 +42,7 @@ impl Eq for FlowBarSettings {}
 impl FlowBarSettings {
     pub fn validate(&self) -> Result<(), String> {
         if !(0.0..=1.0).contains(&self.position) {
-            return Err("The Flow Bar's position must be between 0 and 1.".into());
+            return Err(t!("error.settings.flowBarPosition"));
         }
         Ok(())
     }

@@ -1,0 +1,135 @@
+import type { ControlsCatalog } from "../en";
+
+/** German: microphone, languages, shortcuts, shared dialog buttons and the Flow Bar's cards and menu. */
+export const controls: ControlsCatalog = {
+  microphone: {
+    title: "Mikrofon",
+    autoDetect: "Automatisch",
+    autoDetectHint: "nutzt das oberste verbundene Mikrofon der Liste",
+    list: "Mikrofone",
+    builtIn: "{{name}} (integriert, empfohlen)",
+    notConnected: "Nicht verbunden",
+    inUse: "In Verwendung",
+    connected: "Verbunden",
+    moveUp: "{{name}} nach oben",
+    moveDown: "{{name}} nach unten",
+    forget: "Ignorieren",
+    forgetDevice: "{{name}} ignorieren",
+    none: "Kein Mikrofon gefunden.",
+    showOthers: "Andere Geräte anzeigen",
+    showOthersHint: "(virtuelle und Loopback-Eingänge, nie automatisch gewählt)",
+    inputLevel: "Eingangspegel",
+    level: "Mikrofonpegel",
+    notSure: "Unsicher, welches Mikrofon du nehmen sollst?",
+  },
+  micAdvice: {
+    title: "Finde das richtige Mikrofon",
+    progress: "Frage {{current, number}} von {{total, number}}",
+    startOver: "Neu beginnen",
+    questions: {
+      place: {
+        label: "Wo diktierst du meistens?",
+        quiet: "In einem ruhigen Raum",
+        shared: "In einem Großraumbüro oder Café",
+        moving: "Unterwegs",
+      },
+      computer: {
+        label: "Auf welchem Mac diktierst du?",
+        laptop: "Auf einem MacBook",
+        desktop: "Auf einem Desktop-Mac (mini, iMac, Studio)",
+      },
+      headphones: {
+        label: "Trägst du beim Diktieren Kopfhörer?",
+        none: "Nein",
+        wired: "Kabelgebundene Kopfhörer oder ein Headset",
+        bluetooth: "AirPods oder andere Bluetooth-Kopfhörer",
+      },
+    },
+    titles: {
+      wiredHeadset: "Ein kabelgebundenes Headset",
+      wiredHeadsetOrEarbuds: "Ein kabelgebundenes Headset oder In-Ear-Kopfhörer mit Mikrofon",
+      yourWiredHeadset: "Dein kabelgebundenes Headset",
+      headsetOrUsb: "Ein Headset oder ein USB-Mikrofon in deiner Nähe",
+      usbMicrophone: "Ein USB-Mikrofon auf deinem Schreibtisch",
+      builtIn: "Das integrierte Mikrofon deines MacBook",
+    },
+    why: {
+      moving:
+        "Ein Mikrofon, das mit dir mitkommt, bleibt überall nah an deinem Mund, sodass Hintergrundgeräusche gering bleiben.",
+      shared: "In einem lauten Raum hört ein Mikrofon nah am Mund dich statt des Raums.",
+      desktop:
+        "Desktop-Macs außer dem iMac haben kein eigenes Mikrofon, und ein USB-Mikrofon liefert klaren, rauscharmen Klang.",
+      quiet: "In einem ruhigen Raum klingt es klar, ist immer da und sofort bereit.",
+    },
+    tips: {
+      bluetooth:
+        "Nutze Bluetooth-Kopfhörer zum Zuhören: Ihre Mikrofone klingen dumpf, brauchen Zeit zum Starten und schalten dein Audio in einen Modus mit geringer Qualität.",
+      whisper: "Leises Sprechen ist kein Problem: Shrimp verstärkt leise und geflüsterte Sprache.",
+      moving:
+        "Wähle es in der Mikrofonauswahl oder setz es ganz nach oben, damit „Automatisch“ es nutzt.",
+      shared: "Setz es ganz nach oben, damit „Automatisch“ es wählt, sobald es angeschlossen ist.",
+      desktop: "Stell es 15–30 cm von deinem Mund entfernt auf, etwas seitlich.",
+      quiet: "Bei geschlossenem Deckel hört es dich nicht; schließ dann ein anderes Mikrofon an.",
+    },
+  },
+  languages: {
+    title: "Sprachen",
+    autoDetect: "Automatisch erkennen",
+    autoDetectBody: "Jede Sprache transkribieren, die du sprichst.",
+    change: "Ändern",
+    body: "Mit mehreren Sprachen wird jedes Diktat in der Sprache transkribiert, die du sprichst. Varianten von Englisch, Chinesisch und Deutsch legen Schreibweise und Schriftzeichen fest. Zeig auf die Flow Bar, um die Sprache zu wechseln.",
+    search: "Sprachen suchen",
+    noneSelected: "Wähle mindestens eine Sprache aus oder aktiviere die automatische Erkennung",
+  },
+  shortcuts: {
+    title: "Kurzbefehle",
+    busy: "Beende die Aufnahme oder brich sie zuerst ab.",
+    secureInput:
+      "Sichere Tastatureingabe ist aktiv (laut macOS durch {{app}}), daher funktionieren Kurzbefehle mit Buchstaben oder anderen Tasten erst, wenn sie aus ist. fn und andere reine Sondertasten-Kurzbefehle funktionieren weiterhin.",
+    resetConfirm:
+      "Alle Kurzbefehle auf ihre Standardwerte zurücksetzen? Das kann nicht rückgängig gemacht werden.",
+    reset: "Zurücksetzen",
+    resetToDefault: "Auf Standard zurücksetzen",
+    change: "{{action}}: {{shortcut}}. Ändern",
+    remove: "Kurzbefehl {{shortcut}} von {{action}} entfernen",
+    removeTitle: "Kurzbefehl entfernen",
+    add: "Klick, um einen Kurzbefehl hinzuzufügen",
+    addAnother: "Weiteren Kurzbefehl für {{action}} hinzufügen",
+    addAnotherTitle: "Weiteren hinzufügen",
+    pressKey: "Taste oder Maustaste drücken",
+    cancelRecording: "Aufzeichnung abbrechen",
+    saved: "Kurzbefehl gespeichert",
+    notSet: "Nicht festgelegt",
+    recorder: "Kurzbefehl für {{label}}: {{shortcut}}",
+    removeOne: "Entfernen",
+    removeOneLabel: "Kurzbefehl für {{label}} entfernen",
+  },
+  dialog: {
+    done: "Fertig",
+    save: "Speichern",
+  },
+  flowBarMenu: {
+    label: "Menü der Flow Bar",
+    microphone: "Mikrofon ›",
+    pasteLast: "Letztes Transkript einfügen",
+    history: "Transkriptverlauf",
+    settings: "Einstellungen",
+    hide: "1 Stunde ausblenden",
+  },
+  answer: {
+    region: "Antwort im Command Mode",
+    dismiss: "Schließen",
+    copied: "Kopiert ✓",
+  },
+  changes: {
+    region: "{{name}}: Änderungen",
+    retry: "Wiederholen",
+    undo: "Widerrufen",
+    accept: "Änderungen übernehmen",
+  },
+  languageSwitch: {
+    label: "Diktiersprache",
+    auto: "Auto",
+    detectAmong: "Automatisch erkennen aus: {{languages}}",
+  },
+};

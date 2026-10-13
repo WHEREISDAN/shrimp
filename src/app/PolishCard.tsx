@@ -1,31 +1,11 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import type { PolishRules, Settings, SettingsPatch } from "../lib/ipc";
 import { ShortcutRecorder } from "./ShortcutRecorder";
 import { ToggleRow } from "./ToggleRow";
 
-const RULES: { key: keyof PolishRules; label: string; description: string }[] = [
-  {
-    key: "concise",
-    label: "Make more concise",
-    description: "Cuts filler, repetition and padding.",
-  },
-  {
-    key: "clarity",
-    label: "Reword for clarity",
-    description: "Replaces vague or awkward phrasing.",
-  },
-  {
-    key: "reorder",
-    label: "Reorder for readability",
-    description: "Puts the main point first and related points together.",
-  },
-  {
-    key: "structure",
-    label: "Add structure for readability",
-    description: "Short paragraphs, and lists for enumerated items.",
-  },
-  { key: "tone", label: "Maintain your tone", description: "Keeps your voice as it is." },
-];
+/** The rules in display order; each has `transforms.polish.<rule>` and `<rule>Body` text. */
+const RULES: (keyof PolishRules)[] = ["concise", "clarity", "reorder", "structure", "tone"];
 
 const MAX_INSTRUCTIONS = 5;
 const MAX_INSTRUCTION_WORDS = 50;
@@ -37,6 +17,7 @@ interface PolishCardProps {
 }
 
 export function PolishCard({ settings, update }: PolishCardProps) {
+  const { t } = useTranslation();
   const polish = settings.transforms.polish;
   const [draft, setDraft] = useState("");
   const [problem, setProblem] = useState<string | null>(null);
@@ -47,11 +28,11 @@ export function PolishCard({ settings, update }: PolishCardProps) {
       return;
     }
     if (words(text) > MAX_INSTRUCTION_WORDS) {
-      setProblem(`Keep each instruction under ${MAX_INSTRUCTION_WORDS} words.`);
+      setProblem(t("transforms.polish.tooLong", { count: MAX_INSTRUCTION_WORDS }));
       return;
     }
     if (polish.instructions.some((other) => other.toLowerCase() === text.toLowerCase())) {
-      setProblem("That instruction is already in the list.");
+      setProblem(t("transforms.polish.duplicate"));
       return;
     }
     setProblem(null);
@@ -62,35 +43,33 @@ export function PolishCard({ settings, update }: PolishCardProps) {
   return (
     <section className="card stack" aria-labelledby="polish-heading">
       <div className="row">
-        <h2 id="polish-heading">Polish</h2>
+        <h2 id="polish-heading">{t("transforms.polish.title")}</h2>
         <button
           type="button"
           onClick={() => void update({ transforms: { polish: { rules: null } } })}
         >
-          Reset
+          {t("transforms.reset")}
         </button>
       </div>
-      <p className="muted">
-        Rewrites the selected text, or the text box, or your last dictation from the past minute.
-      </p>
-      <ShortcutRecorder action="polish" label="Polish" />
+      <p className="muted">{t("transforms.polish.body")}</p>
+      <ShortcutRecorder action="polish" label={t("transforms.polish.title")} />
       {RULES.map((rule) => (
         <ToggleRow
-          key={rule.key}
-          label={rule.label}
-          description={rule.description}
-          checked={polish.rules[rule.key]}
-          onChange={(on) => void update({ transforms: { polish: { rules: { [rule.key]: on } } } })}
+          key={rule}
+          label={t(`transforms.polish.${rule}`)}
+          description={t(`transforms.polish.${rule}Body`)}
+          checked={polish.rules[rule]}
+          onChange={(on) => void update({ transforms: { polish: { rules: { [rule]: on } } } })}
         />
       ))}
-      <h3 className="subheading">Custom instructions</h3>
+      <h3 className="subheading">{t("transforms.polish.instructions")}</h3>
       <ul className="rows">
         {polish.instructions.map((instruction, index) => (
           <li key={instruction} className="row">
             <span>{instruction}</span>
             <button
               type="button"
-              aria-label={`Remove ${instruction}`}
+              aria-label={t("transforms.polish.removeInstruction", { instruction })}
               onClick={() =>
                 void update({
                   transforms: {
@@ -99,7 +78,7 @@ export function PolishCard({ settings, update }: PolishCardProps) {
                 })
               }
             >
-              Remove
+              {t("transforms.polish.remove")}
             </button>
           </li>
         ))}
@@ -114,13 +93,13 @@ export function PolishCard({ settings, update }: PolishCardProps) {
         >
           <input
             type="text"
-            aria-label="New instruction"
-            placeholder="For example: use British spelling"
+            aria-label={t("transforms.polish.newInstruction")}
+            placeholder={t("transforms.polish.placeholder")}
             value={draft}
             onChange={(event) => setDraft(event.target.value)}
           />
           <button type="submit" disabled={!draft.trim()}>
-            Add
+            {t("transforms.polish.add")}
           </button>
         </form>
       )}

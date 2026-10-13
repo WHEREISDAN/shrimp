@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
   errorMessage,
   EVENTS,
@@ -13,14 +14,13 @@ import { useTauriEvent } from "../lib/useTauriEvent";
 import { Dialog } from "./Dialog";
 import { useShortcutRecording, type ShortcutRecording } from "./useShortcutRecording";
 
-const BUSY = "Finish or cancel the recording first.";
-
 interface ShortcutsDialogProps {
   onClose: () => void;
 }
 
 /** Every action and its bindings (KEYS-01): click one to record a replacement, + to add one. */
 export function ShortcutsDialog({ onClose }: ShortcutsDialogProps) {
+  const { t } = useTranslation();
   const [list, setList] = useState<ShortcutList | null>(null);
   const [problem, setProblem] = useState<string | null>(null);
   const [confirmReset, setConfirmReset] = useState(false);
@@ -36,7 +36,7 @@ export function ShortcutsDialog({ onClose }: ShortcutsDialogProps) {
 
   const guard = (work: () => void) => () => {
     if (recording.active) {
-      setProblem(BUSY);
+      setProblem(t("shortcuts.busy"));
       return;
     }
     setProblem(null);
@@ -55,11 +55,10 @@ export function ShortcutsDialog({ onClose }: ShortcutsDialogProps) {
 
   const { result } = recording;
   return (
-    <Dialog title="Shortcuts" onClose={close} wide>
+    <Dialog title={t("shortcuts.title")} onClose={close} wide>
       {list?.secureInput && (
         <p className="banner" role="status">
-          Secure Keyboard Entry is on (macOS names {list.secureInput}), so shortcuts with letters or
-          other keys don't work until it's off. fn and other modifier-only shortcuts still work.
+          {t("shortcuts.secureInput", { app: list.secureInput })}
         </p>
       )}
       <ul className="shortcut-list">
@@ -93,9 +92,9 @@ export function ShortcutsDialog({ onClose }: ShortcutsDialogProps) {
       </div>
       {confirmReset ? (
         <div className="dialog-actions">
-          <p className="grow">Reset every shortcut to its default? This can't be undone.</p>
+          <p className="grow">{t("shortcuts.resetConfirm")}</p>
           <button type="button" onClick={() => setConfirmReset(false)}>
-            Cancel
+            {t("common.cancel")}
           </button>
           <button
             type="button"
@@ -105,16 +104,16 @@ export function ShortcutsDialog({ onClose }: ShortcutsDialogProps) {
               void run(resetShortcuts());
             }}
           >
-            Reset
+            {t("shortcuts.reset")}
           </button>
         </div>
       ) : (
         <div className="dialog-actions">
           <button type="button" onClick={guard(() => setConfirmReset(true))}>
-            Reset to default
+            {t("shortcuts.resetToDefault")}
           </button>
           <button type="button" className="primary" onClick={close}>
-            Done
+            {t("dialog.done")}
           </button>
         </div>
       )}
@@ -130,6 +129,7 @@ interface ShortcutItemProps {
 }
 
 function ShortcutItem({ row, recording, guard, onRemove }: ShortcutItemProps) {
+  const { t } = useTranslation();
   const { active } = recording;
   const mine = active !== null && sameAction(active.action, row.action);
   const field = mine ? (
@@ -148,7 +148,7 @@ function ShortcutItem({ row, recording, guard, onRemove }: ShortcutItemProps) {
               <button
                 type="button"
                 className="binding-key"
-                aria-label={`${row.name}: ${label}. Change`}
+                aria-label={t("shortcuts.change", { action: row.name, shortcut: label })}
                 onClick={guard(() => recording.start(row.action, index))}
               >
                 {label}
@@ -157,8 +157,8 @@ function ShortcutItem({ row, recording, guard, onRemove }: ShortcutItemProps) {
                 <button
                   type="button"
                   className="binding-remove"
-                  aria-label={`Remove shortcut ${label} from ${row.name}`}
-                  title="Remove shortcut"
+                  aria-label={t("shortcuts.remove", { shortcut: label, action: row.name })}
+                  title={t("shortcuts.removeTitle")}
                   onClick={guard(() => onRemove(index))}
                 >
                   <svg viewBox="0 0 16 16" aria-hidden="true">
@@ -177,15 +177,15 @@ function ShortcutItem({ row, recording, guard, onRemove }: ShortcutItemProps) {
               className="binding-empty"
               onClick={guard(() => recording.start(row.action, null))}
             >
-              Click to add a shortcut
+              {t("shortcuts.add")}
             </button>
           ) : (
             row.shortcuts.length < row.max && (
               <button
                 type="button"
                 className="binding-add"
-                aria-label={`Add another shortcut for ${row.name}`}
-                title="Add another"
+                aria-label={t("shortcuts.addAnother", { action: row.name })}
+                title={t("shortcuts.addAnotherTitle")}
                 onClick={guard(() => recording.start(row.action, null))}
               >
                 +
@@ -198,13 +198,14 @@ function ShortcutItem({ row, recording, guard, onRemove }: ShortcutItemProps) {
 }
 
 function RecordingField({ preview, onCancel }: { preview: string | null; onCancel: () => void }) {
+  const { t } = useTranslation();
   return (
     <span className="binding recording" role="status">
-      <span>{preview ?? "Press key or mouse button"}</span>
+      <span>{preview ?? t("shortcuts.pressKey")}</span>
       <button
         type="button"
         className="binding-remove"
-        aria-label="Cancel recording"
+        aria-label={t("shortcuts.cancelRecording")}
         onClick={onCancel}
       >
         ✕

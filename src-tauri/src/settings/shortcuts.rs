@@ -9,6 +9,7 @@ use serde::{Deserialize, Serialize};
 
 use super::transforms::{TransformSettings, custom_key};
 use crate::hotkeys::{Action, Trigger};
+use crate::{t, tn};
 
 #[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", default)]
@@ -54,22 +55,22 @@ impl ShortcutSettings {
     pub fn validate(&self, transforms: &TransformSettings) -> Result<(), String> {
         for (key, shortcuts) in &self.bindings {
             let action = action_for_key(key, transforms)
-                .ok_or_else(|| format!("{key} is not an action with shortcuts."))?;
+                .ok_or_else(|| t!("error.shortcuts.unknownAction", key = key))?;
             if shortcuts.len() > action.max_bindings() {
-                return Err(format!(
-                    "{} takes at most {} shortcuts.",
-                    action.label(),
-                    action.max_bindings()
+                return Err(tn!(
+                    "error.shortcuts.tooMany",
+                    action.max_bindings(),
+                    action = action.label()
                 ));
             }
             if shortcuts.is_empty() && action.required() {
-                return Err(format!("{} needs a shortcut.", action.label()));
+                return Err(t!("error.shortcuts.required", action = action.label()));
             }
             if let Some(bad) = shortcuts
                 .iter()
                 .find(|shortcut| shortcut.parse::<Trigger>().is_err())
             {
-                return Err(format!("{bad} is not a shortcut."));
+                return Err(t!("error.shortcuts.invalid", shortcut = bad));
             }
         }
         Ok(())

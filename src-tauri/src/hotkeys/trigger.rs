@@ -7,6 +7,8 @@ use std::str::FromStr;
 
 use handy_keys::{Hotkey, Key, Modifiers};
 
+use crate::t;
+
 /// Modifier groups, either side.
 pub const MODIFIER_GROUPS: [Modifiers; 5] = [
     Modifiers::CTRL,
@@ -37,8 +39,8 @@ impl MouseButton {
 
     pub fn label(self) -> String {
         match self.0 {
-            2 => "Middle Click".into(),
-            number => format!("Mouse {}", number + 1),
+            2 => t!("name.key.middleClick"),
+            number => t!("name.key.mouseButton", number = number + 1),
         }
     }
 

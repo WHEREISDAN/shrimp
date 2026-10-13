@@ -4,6 +4,7 @@ use handy_keys::{Hotkey, Key, Modifiers};
 use serde::{Deserialize, Serialize};
 
 use super::trigger::{MouseButton, Trigger};
+use crate::t;
 
 /// Everything a global shortcut can trigger.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -30,19 +31,19 @@ pub enum Action {
 }
 
 impl Action {
-    pub fn label(self) -> &'static str {
+    pub fn label(self) -> String {
         match self {
-            Self::PushToTalk => "Push to talk",
-            Self::HandsFree => "Hands-free mode",
-            Self::Cancel => "Cancel dictation",
-            Self::PasteLast => "Paste last transcript",
-            Self::CopyLast => "Copy last transcript",
-            Self::CommandMode => "Command Mode",
-            Self::PressEnter => "Press Enter",
-            Self::Polish => "Polish",
-            Self::PromptEngineer => "Prompt Engineer",
-            Self::CustomTransform(_) => "a custom transform",
-            Self::ViewChanges => "View changes",
+            Self::PushToTalk => t!("name.action.pushToTalk"),
+            Self::HandsFree => t!("name.action.handsFree"),
+            Self::Cancel => t!("name.action.cancel"),
+            Self::PasteLast => t!("name.action.pasteLast"),
+            Self::CopyLast => t!("name.action.copyLast"),
+            Self::CommandMode => t!("name.action.commandMode"),
+            Self::PressEnter => t!("name.action.pressEnter"),
+            Self::Polish => t!("name.action.polish"),
+            Self::PromptEngineer => t!("name.action.promptEngineer"),
+            Self::CustomTransform(_) => t!("name.action.customTransform"),
+            Self::ViewChanges => t!("name.action.viewChanges"),
         }
     }
 }
@@ -242,7 +243,8 @@ pub fn macos_label(trigger: &Trigger) -> String {
             Some(Key::Return) => label.push('↩'),
             Some(Key::Delete) => label.push('⌫'),
             Some(Key::ForwardDelete) => label.push('⌦'),
-            Some(Key::CapsLock) => label.push_str("Caps Lock"),
+            Some(Key::CapsLock) => label.push_str(&t!("name.key.capsLock")),
+            Some(Key::Space) => label.push_str(&t!("name.key.space")),
             Some(key) => label.push_str(&key.to_string()),
             None => {}
         },

@@ -1,4 +1,5 @@
 import { useMemo } from "react";
+import { useTranslation } from "react-i18next";
 import { diffWords } from "../lib/diff";
 import { transformAction, type TransformAction, type TransformView } from "../lib/ipc";
 
@@ -9,6 +10,7 @@ interface ChangesCardProps {
 
 /** What a transform changed, with Copy, Retry, Accept edits and Undo (TRF-04). */
 export function ChangesCard({ view, onClose }: ChangesCardProps) {
+  const { t } = useTranslation();
   const parts = useMemo(() => diffWords(view.original, view.result), [view]);
   const act = (action: TransformAction, close: boolean) => () => {
     void transformAction(action).catch(() => undefined);
@@ -17,10 +19,15 @@ export function ChangesCard({ view, onClose }: ChangesCardProps) {
     }
   };
   return (
-    <section className="answer changes" aria-label={`${view.name} changes`}>
+    <section className="answer changes" aria-label={t("changes.region", { name: view.name })}>
       <header className="answer-head">
         <p className="answer-question">{view.name}</p>
-        <button type="button" className="notice-close" aria-label="Close" onClick={onClose}>
+        <button
+          type="button"
+          className="notice-close"
+          aria-label={t("common.close")}
+          onClick={onClose}
+        >
           ×
         </button>
       </header>
@@ -37,16 +44,16 @@ export function ChangesCard({ view, onClose }: ChangesCardProps) {
       </div>
       <div className="answer-actions">
         <button type="button" className="notice-action" onClick={act("copy", false)}>
-          Copy
+          {t("common.copy")}
         </button>
         <button type="button" className="notice-action" onClick={act("retry", false)}>
-          Retry
+          {t("changes.retry")}
         </button>
         <button type="button" className="notice-action" onClick={act("undo", true)}>
-          Undo
+          {t("changes.undo")}
         </button>
         <button type="button" className="notice-action primary" onClick={onClose}>
-          Accept edits
+          {t("changes.accept")}
         </button>
       </div>
     </section>

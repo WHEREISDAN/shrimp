@@ -4,6 +4,7 @@
 use super::state::{Delivered, DictationUi, LastDictation, LastStatus, Outcome};
 use crate::notify::{Notice, NoticeAction};
 use crate::platform::{CopyReason, InsertText};
+use crate::t;
 
 /// Shows the notices or the answer for `outcome`. Returns what to remember
 /// for paste and copy last transcript, or None to keep the previous one.
@@ -21,16 +22,12 @@ pub fn report(outcome: Outcome, ui: &dyn DictationUi) -> Option<LastDictation> {
         Outcome::Copied(text, reason) => {
             match reason {
                 CopyReason::NoTextField => ui.notice(
-                    Notice::warning(
-                        "No text field is focused. Your transcript is on the clipboard.",
-                    )
-                    .with_action(NoticeAction::CopyLastTranscript),
+                    Notice::warning(t!("notice.paste.noTextField"))
+                        .with_action(NoticeAction::CopyLastTranscript),
                 ),
                 CopyReason::AccessibilityMissing => ui.notice(
-                    Notice::error(
-                        "Shrimp needs Accessibility to paste. Your transcript is on the clipboard.",
-                    )
-                    .with_action(NoticeAction::OpenAccessibilitySettings),
+                    Notice::error(t!("notice.paste.needAccessibility"))
+                        .with_action(NoticeAction::OpenAccessibilitySettings),
                 ),
                 // The command explains it in its own notice.
                 CopyReason::TargetChanged => {}
@@ -38,15 +35,16 @@ pub fn report(outcome: Outcome, ui: &dyn DictationUi) -> Option<LastDictation> {
             remember(LastStatus::Copied, Some(text), None)
         }
         Outcome::NoSpeech => {
-            ui.notice(Notice::info("No speech detected"));
+            ui.notice(Notice::info(t!("notice.dictation.noSpeech")));
             None
         }
         Outcome::NothingToInsert => {
-            ui.notice(Notice::info("Nothing to insert"));
+            ui.notice(Notice::info(t!("notice.dictation.nothingToInsert")));
             None
         }
         Outcome::RecordingFailed(message) => {
-            ui.notice(Notice::error(format!("Recording failed: {message}")));
+            let message = t!("notice.dictation.recordingFailed", error = message);
+            ui.notice(Notice::error(message));
             None
         }
         Outcome::SttFailed {
@@ -57,13 +55,13 @@ pub fn report(outcome: Outcome, ui: &dyn DictationUi) -> Option<LastDictation> {
             ui.notice(if unavailable {
                 Notice::warning(message)
             } else {
-                Notice::error(format!("Couldn't transcribe: {message}"))
+                Notice::error(t!("notice.dictation.transcribeFailed", error = message))
             });
             remember(LastStatus::Failed, None, Some(clip))
         }
         Outcome::InsertFailed(text, message) => {
             ui.notice(
-                Notice::error(format!("Couldn't paste: {message}"))
+                Notice::error(t!("notice.paste.failed", error = message))
                     .with_action(NoticeAction::CopyLastTranscript),
             );
             remember(LastStatus::Failed, Some(text), None)
@@ -89,7 +87,7 @@ pub fn report(outcome: Outcome, ui: &dyn DictationUi) -> Option<LastDictation> {
             remember(LastStatus::Inserted, Some(text), None)
         }
         Outcome::TransformUndone => {
-            ui.notice(Notice::info("Undone"));
+            ui.notice(Notice::info(t!("notice.transform.undone")));
             None
         }
         Outcome::Retried => None,
@@ -98,9 +96,7 @@ pub fn report(outcome: Outcome, ui: &dyn DictationUi) -> Option<LastDictation> {
             None
         }
         Outcome::TransformCopied(text) => {
-            ui.notice(Notice::warning(
-                "The text changed, so the result is on the clipboard.",
-            ));
+            ui.notice(Notice::warning(t!("notice.transform.textChanged")));
             remember(LastStatus::Copied, Some(text), None)
         }
     }

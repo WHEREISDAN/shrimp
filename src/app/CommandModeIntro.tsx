@@ -1,3 +1,4 @@
+import { Trans, useTranslation } from "react-i18next";
 import { Dialog } from "./Dialog";
 
 interface CommandModeIntroProps {
@@ -8,27 +9,27 @@ interface CommandModeIntroProps {
 
 /** Shown once, when Command Mode is first turned on (CMD-06). */
 export function CommandModeIntro({ shortcut, onDone, onDisable }: CommandModeIntroProps) {
+  const { t } = useTranslation();
   return (
-    <Dialog title="Using Command Mode (beta)" onClose={onDone}>
+    <Dialog title={t("commandModeIntro.title")} onClose={onDone}>
       <ol className="intro-steps">
-        <li>Select the text you want to change, or put the cursor in a text field.</li>
+        <li>{t("commandModeIntro.step1")}</li>
         <li>
-          Hold <kbd>{shortcut}</kbd> and say what to do: “make this shorter”, “translate to
-          Spanish”, “turn this into a list”.
+          <Trans
+            i18nKey="commandModeIntro.step2"
+            values={{ shortcut }}
+            components={{ kbd: <kbd /> }}
+          />
         </li>
-        <li>Release. The result replaces your selection; Cmd+Z undoes it.</li>
+        <li>{t("commandModeIntro.step3")}</li>
       </ol>
-      <p className="muted">
-        With nothing selected, ask a question and the answer appears next to the Flow Bar. Start
-        with “search” to open a web search. Double-press the shortcut to keep listening hands-free;
-        Esc cancels. Your selection and the field you are in are sent to your AI provider.
-      </p>
+      <p className="muted">{t("commandModeIntro.body")}</p>
       <div className="dialog-actions">
         <button type="button" onClick={onDisable}>
-          Disable
+          {t("commandModeIntro.disable")}
         </button>
         <button type="button" className="primary" onClick={onDone} autoFocus>
-          Got it
+          {t("commandModeIntro.gotIt")}
         </button>
       </div>
     </Dialog>

@@ -2,6 +2,7 @@ use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 
 use crate::audio::AudioClip;
+use crate::t;
 
 /// Mirrors `SttEngineId` in src/lib/ipc.ts.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -45,14 +46,14 @@ pub struct Transcript {
 
 #[derive(Debug, thiserror::Error)]
 pub enum SttError {
-    #[error("no speech detected")]
+    #[error("{}", t!("error.stt.noSpeech"))]
     NoSpeech,
     /// The engine cannot run yet: model not downloaded, API key missing, offline.
-    #[error("speech-to-text unavailable: {0}")]
+    #[error("{}", t!("error.stt.unavailable", details = .0))]
     Unavailable(String),
-    #[error("transcription failed: {0}")]
+    #[error("{}", t!("error.stt.failed", details = .0))]
     Failed(String),
-    #[error("transcription cancelled")]
+    #[error("{}", t!("error.stt.cancelled"))]
     Cancelled,
 }
 

@@ -156,6 +156,8 @@ dictation/              orchestration                                           
   outcomes.rs           notices and paste-last memory per outcome                      (built)
   muted.rs              MutedNotices: drops notices whose category is switched off     (built)
   state.rs              DictationState, DictationUi, Timing, inputs, outcomes          (built)
+i18n/                   Rust's own text per interface language: `t!`, `tn!`, catalogs
+                        compiled from `locales/<lang>/*.json` (LANG-06)                (built)
 hotkeys/                bindings, platform independent                                 (built)
   binding.rs            Action, Binding (with pass-through), macOS defaults (with and
                         without an Apple Fn key, CORE-10), labels                      (built)
@@ -206,13 +208,14 @@ src/
   lib/ipc.ts            typed wrappers for every command and event                     (built)
   lib/useTauriEvent.ts  event subscription hook                                        (built)
   lib/devBridge.ts      loads the tauri-plugin-mcp listeners in development builds     (built)
-  i18n/                 i18next setup and the interface text per language; English
-                        (`locales/en.ts`) is the source and defines the keys          (built)
+  i18n/                 i18next setup and the interface text per language
+                        (`locales/<lang>/`, one module per area); English is the
+                        source and defines the keys (LANG-06)                          (built)
 ```
 
 Interface text goes through i18next (`useTranslation`, `t("history.title")`). The keys
 are typed from the English catalog (`i18n/i18next.d.ts`), so a missing or misspelt key
-fails `tsc`. Home's history (`HistorySection`) lists dictations by day with search
+fails `tsc`; see "Interface language" for the translations. Home's history (`HistorySection`) lists dictations by day with search
 (Cmd+F or /), ↑/↓ or j/k between rows (one Tab stop for the list), Enter or a click to
 copy, Retry or Recover for failed and interrupted ones, and a row menu with Undo/Redo AI
 edit, Play audio (the WAV as an `ArrayBuffer`, played from a blob URL; the CSP allows
@@ -845,6 +848,37 @@ fixed languages, Whisper checks the clip's language in the background; a confide
 sounded like French." at most once a day, with Open language settings, Add language and
 Don't show again. Hovering the Flow Bar with two or more languages shows Auto and one
 chip per language.
+
+### Interface language (LANG-06)
+
+The interface is in English, German, Spanish, Italian or Portuguese (Brazil), set in
+Settings › General › App language (`settings.app.language`: `system` or a code; `system`
+takes the first of the Mac's preferred languages Shrimp has, else English). Both sides
+keep their text in catalogs, and English is the source:
+
+- The webviews use i18next. `src/i18n/locales/<lang>/` has one module per area (core,
+  library, styleTransforms, settingsSections, controls); each translation is typed against
+  the English modules, so a missing or extra key fails `tsc`, and `catalogs.test.ts`
+  checks that every `{{placeholder}}` and `<tag>` survives. Plural keys have `_zero`,
+  `_one`, `_many` and `_other` forms (`_zero` keeps "0 palavras" plural). Numbers use
+  `{{count, number}}`. Language names come from `Intl.DisplayNames` outside English.
+  Both windows follow the setting (`useInterfaceLanguage`, which also sets `<html lang>`).
+- Rust's own text (notices, the tray menu, validation errors, labels and notes in pickers,
+  the Flow Bar window's title) goes through `i18n::t!("notice.noSpeech")` and
+  `tn!("key", count)` (`.one`/`.other`). The catalogs are flat JSON in
+  `src-tauri/locales/<lang>/{notices,errors,names}.json`, compiled in. A test checks that
+  every key in the source exists in English and every English key is used, and that every
+  language has the same keys and `{placeholders}`. `i18n::language_name` names languages
+  with `NSLocale`, the same names the webview shows. The language is set at startup
+  before any notice is built, and an `on_change` callback registered first switches it,
+  so the tray menu, the Flow Bar title and Settings' Rust-provided labels are rebuilt in
+  the new language.
+- Prompts and anything else sent to an LLM stay English; the voice profile asks for
+  its text in the interface language. Spoken commands ("new line", "press enter",
+  backtrack cues) are still English only, and the translations say so.
+- The bundle declares `CFBundleLocalizations` and carries `InfoPlist.strings` per
+  language (`src-tauri/locales/macos/`), so the microphone prompt is translated and macOS
+  offers Shrimp in System Settings › General › Language & Region › Applications.
 
 ### Command Mode
 

@@ -2,11 +2,12 @@
 //! defaults. Latency measurements behind the defaults are in
 //! docs/ARCHITECTURE.md ("LLM providers and the edit pipeline").
 
-use serde::Serialize;
+use serde::{Serialize, Serializer};
 
 use super::LlmProviderId;
 use crate::secrets::KeyAccount;
 use crate::stt::SttEngineId;
+use crate::t;
 
 pub const DEFAULT_OLLAMA_URL: &str = "http://localhost:11434";
 pub const DEFAULT_OPENAI_STT_MODEL: &str = "gpt-transcribe";
@@ -24,10 +25,46 @@ pub const OLLAMA_PREFERENCE: [&str; 3] = ["qwen3.5:4b", "gemma3:4b", "llama3.2:3
 pub struct ModelOption {
     pub id: &'static str,
     pub label: &'static str,
-    pub note: &'static str,
+    pub note: Note,
 }
 
-const fn model(id: &'static str, label: &'static str, note: &'static str) -> ModelOption {
+/// The line under a model in Settings, sent in the interface language.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Note {
+    FastestRecommended,
+    Recommended,
+    SlowerCareful,
+    SlowestThinksFirst,
+    PreviousGeneration,
+    LargerSlower,
+    Preview,
+    RetiredFebruary2027,
+    SlowerMoreAccurate,
+}
+
+impl Note {
+    pub fn text(self) -> String {
+        match self {
+            Self::FastestRecommended => t!("name.modelNote.fastestRecommended"),
+            Self::Recommended => t!("name.modelNote.recommended"),
+            Self::SlowerCareful => t!("name.modelNote.slowerCareful"),
+            Self::SlowestThinksFirst => t!("name.modelNote.slowestThinksFirst"),
+            Self::PreviousGeneration => t!("name.modelNote.previousGeneration"),
+            Self::LargerSlower => t!("name.modelNote.largerSlower"),
+            Self::Preview => t!("name.modelNote.preview"),
+            Self::RetiredFebruary2027 => t!("name.modelNote.retiredFebruary2027"),
+            Self::SlowerMoreAccurate => t!("name.modelNote.slowerMoreAccurate"),
+        }
+    }
+}
+
+impl Serialize for Note {
+    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        serializer.serialize_str(&self.text())
+    }
+}
+
+const fn model(id: &'static str, label: &'static str, note: Note) -> ModelOption {
     ModelOption { id, label, note }
 }
 
@@ -35,38 +72,42 @@ const ANTHROPIC: &[ModelOption] = &[
     model(
         "claude-haiku-5-5",
         "Claude Haiku 5.5",
-        "Fastest. Recommended.",
+        Note::FastestRecommended,
     ),
     model(
         "claude-sonnet-5-5",
         "Claude Sonnet 5.5",
-        "Slower, more careful.",
+        Note::SlowerCareful,
     ),
     model(
         "claude-opus-5-5",
         "Claude Opus 5.5",
-        "Slowest; always thinks first.",
+        Note::SlowestThinksFirst,
     ),
 ];
 
 const OPENAI: &[ModelOption] = &[
-    model("gpt-6-luna", "GPT-6 Luna", "Fastest. Recommended."),
-    model("gpt-5.6-luna", "GPT-5.6 Luna", "Previous generation."),
-    model("gpt-5.4-mini", "GPT-5.4 mini", "Larger, slower."),
+    model("gpt-6-luna", "GPT-6 Luna", Note::FastestRecommended),
+    model("gpt-5.6-luna", "GPT-5.6 Luna", Note::PreviousGeneration),
+    model("gpt-5.4-mini", "GPT-5.4 mini", Note::LargerSlower),
 ];
 
 const GROQ: &[ModelOption] = &[
-    model("openai/gpt-oss-20b", "GPT-OSS 20B", "Fastest. Recommended."),
-    model("openai/gpt-oss-120b", "GPT-OSS 120B", "Larger, slower."),
-    model("qwen/qwen3.8-27b", "Qwen 3.8 27B", "Preview model."),
+    model(
+        "openai/gpt-oss-20b",
+        "GPT-OSS 20B",
+        Note::FastestRecommended,
+    ),
+    model("openai/gpt-oss-120b", "GPT-OSS 120B", Note::LargerSlower),
+    model("qwen/qwen3.8-27b", "Qwen 3.8 27B", Note::Preview),
 ];
 
 const OPENAI_STT: &[ModelOption] = &[
-    model("gpt-transcribe", "GPT Transcribe", "Recommended."),
+    model("gpt-transcribe", "GPT Transcribe", Note::Recommended),
     model(
         "gpt-4o-mini-transcribe",
         "GPT-4o mini Transcribe",
-        "Retired by OpenAI in February 2027.",
+        Note::RetiredFebruary2027,
     ),
 ];
 
@@ -74,12 +115,12 @@ const GROQ_STT: &[ModelOption] = &[
     model(
         "whisper-large-v3-turbo",
         "Whisper Large v3 Turbo",
-        "Fastest. Recommended.",
+        Note::FastestRecommended,
     ),
     model(
         "whisper-large-v3",
         "Whisper Large v3",
-        "Slower, slightly more accurate.",
+        Note::SlowerMoreAccurate,
     ),
 ];
 
@@ -129,7 +170,7 @@ pub struct ProviderInfo {
 #[serde(rename_all = "camelCase")]
 pub struct SttEngineInfo {
     pub id: SttEngineId,
-    pub label: &'static str,
+    pub label: String,
     pub models: &'static [ModelOption],
     pub default_model: &'static str,
     pub key: Option<KeyAccount>,
@@ -162,21 +203,21 @@ pub fn options() -> AiOptions {
     let stt_engines = vec![
         SttEngineInfo {
             id: SttEngineId::LocalWhisper,
-            label: "Whisper on this Mac",
+            label: t!("name.sttEngine.localWhisper"),
             models: &[],
             default_model: "",
             key: None,
         },
         SttEngineInfo {
             id: SttEngineId::OpenAi,
-            label: "OpenAI",
+            label: "OpenAI".into(),
             models: OPENAI_STT,
             default_model: DEFAULT_OPENAI_STT_MODEL,
             key: Some(KeyAccount::OpenAi),
         },
         SttEngineInfo {
             id: SttEngineId::Groq,
-            label: "Groq",
+            label: "Groq".into(),
             models: GROQ_STT,
             default_model: DEFAULT_GROQ_STT_MODEL,
             key: Some(KeyAccount::Groq),

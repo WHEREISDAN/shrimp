@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
   deleteDictionaryEntries,
   errorMessage,
@@ -39,6 +40,7 @@ const matches = (entry: DictionaryEntry, query: string) =>
   (entry.misspelling?.toLowerCase().includes(query) ?? false);
 
 export function DictionaryPage() {
+  const { t } = useTranslation();
   const [entries, setEntries] = useState<DictionaryEntry[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [query, setQuery] = useState("");
@@ -138,12 +140,10 @@ export function DictionaryPage() {
     modal = (
       <ConfirmDialog
         title={
-          bulk
-            ? `Delete ${ids.length} ${ids.length === 1 ? "entry" : "entries"}?`
-            : "Delete this word?"
+          bulk ? t("dictionary.deleteEntries", { count: ids.length }) : t("dictionary.deleteWord")
         }
-        message={bulk ? undefined : "It will be removed from your dictionary."}
-        confirmLabel={bulk ? "Delete" : "Yes, delete it"}
+        message={bulk ? undefined : t("dictionary.deleteWordBody")}
+        confirmLabel={bulk ? t("common.delete") : t("dictionary.confirmDelete")}
         onConfirm={() => deleteIds(ids)}
         onCancel={() => setDialog(null)}
       />
@@ -152,14 +152,10 @@ export function DictionaryPage() {
     modal = (
       <ImportDialog
         flow={importer}
-        title="Import words"
-        hint="One word per row, or misspelling,correction."
-        importLabel={(count) => `Import ${count} ${count === 1 ? "item" : "items"}`}
-        allExistText={(count) =>
-          count === 1
-            ? "This item already exists in your dictionary"
-            : `All ${count} items already exist in your dictionary`
-        }
+        title={t("dictionary.importTitle")}
+        hint={t("dictionary.importHint")}
+        importLabel={(count) => t("dictionary.importItems", { count })}
+        allExistText={(count) => t("dictionary.importAllExist", { count })}
       />
     );
   }
@@ -171,10 +167,10 @@ export function DictionaryPage() {
         className="primary"
         onClick={() => setDialog({ kind: "edit", entry: null })}
       >
-        Add word
+        {t("dictionary.addWord")}
       </button>
       <button type="button" onClick={importer.pick}>
-        Import CSV
+        {t("dictionary.importCsv")}
       </button>
       <ImportFileInput flow={importer} accept=".csv,text/csv" />
     </>
@@ -182,25 +178,25 @@ export function DictionaryPage() {
   const pageError = importer.error ?? error;
 
   return (
-    <Page title="Dictionary" actions={actions} modal={modal}>
+    <Page title={t("dictionary.title")} actions={actions} modal={modal}>
       <AutoLearnToggle />
       <input
         type="search"
         className="search"
-        aria-label="Search dictionary"
-        placeholder="Search"
+        aria-label={t("dictionary.search")}
+        placeholder={t("dictionary.searchPlaceholder")}
         value={query}
         onChange={(event) => setQuery(event.target.value)}
       />
       {selectedIds.length > 0 && (
         <div className="selection-bar">
-          <span>{`${selectedIds.length} selected`}</span>
+          <span>{t("dictionary.selected", { count: selectedIds.length })}</span>
           <button
             type="button"
             className="danger"
             onClick={() => setDialog({ kind: "delete", ids: selectedIds, bulk: true })}
           >
-            Delete
+            {t("common.delete")}
           </button>
         </div>
       )}
@@ -210,13 +206,11 @@ export function DictionaryPage() {
         </p>
       )}
       {entries === null ? (
-        <p className="muted">Loading…</p>
+        <p className="muted">{t("common.loading")}</p>
       ) : entries.length === 0 ? (
-        <p className="empty">
-          No words yet. Add names, jargon and spellings Shrimp should get right.
-        </p>
+        <p className="empty">{t("dictionary.empty")}</p>
       ) : visible.length === 0 ? (
-        <p className="empty">No matches.</p>
+        <p className="empty">{t("dictionary.noMatches")}</p>
       ) : (
         <ul className="list">
           {visible.map((entry) => (

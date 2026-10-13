@@ -6,6 +6,8 @@ use objc2_app_kit::NSRunningApplication;
 use objc2_core_foundation::{CFDictionary, CFNumber, CFRetained, CFString, CFType};
 use objc2_core_graphics::CGSessionCopyCurrentDictionary;
 
+use crate::t;
+
 #[link(name = "Carbon", kind = "framework")]
 unsafe extern "C" {
     fn IsSecureEventInputEnabled() -> bool;
@@ -20,7 +22,7 @@ pub fn secure_input_owner() -> Option<String> {
         .and_then(NSRunningApplication::runningApplicationWithProcessIdentifier)
         .and_then(|app| app.localizedName())
         .map(|name| name.to_string());
-    Some(name.unwrap_or_else(|| "Another app".into()))
+    Some(name.unwrap_or_else(|| t!("notice.secureInput.anotherApp")))
 }
 
 fn owner_pid() -> Option<libc::pid_t> {

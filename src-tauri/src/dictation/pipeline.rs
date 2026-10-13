@@ -17,6 +17,7 @@ use crate::lang;
 use crate::notify::{Notice, NoticeCategory};
 use crate::settings::SettingsStore;
 use crate::storage::{HistoryStatus, now_ms};
+use crate::t;
 
 use crate::platform::{
     AppIdentity, FieldKind, InsertOptions, InsertOutcome, InsertText, PasteSplit, SyntheticKey,
@@ -217,15 +218,15 @@ impl Pipeline {
     /// History's Retry and Recover: transcribes an entry's audio again and
     /// updates the entry; nothing is pasted (HIS-05, HIS-06).
     pub async fn retry(&self, id: i64) -> Processed {
-        const FAILED: &str = "Retry failed. Please try again.";
+        let failed = || t!("notice.history.retryFailed");
         let Some(history) = self.history.clone() else {
-            return Outcome::RetryFailed(FAILED.into()).into();
+            return Outcome::RetryFailed(failed()).into();
         };
         let loading = Arc::clone(&history);
         let clip = match tokio::task::spawn_blocking(move || loading.retry_clip(id)).await {
             Ok(Ok(clip)) => clip,
             Ok(Err(error)) => return Outcome::RetryFailed(error.to_string()).into(),
-            Err(_) => return Outcome::RetryFailed(FAILED.into()).into(),
+            Err(_) => return Outcome::RetryFailed(failed()).into(),
         };
         let mut record = Dictation {
             replaces: Some(id),
@@ -262,13 +263,13 @@ impl Pipeline {
             Err(Outcome::SttFailed { message, .. }) => {
                 record.error = Some(message);
                 (
-                    Outcome::RetryFailed(FAILED.into()),
+                    Outcome::RetryFailed(failed()),
                     HistoryStatus::Failed,
                     Vec::new(),
                 )
             }
             Err(_) => (
-                Outcome::RetryFailed(FAILED.into()),
+                Outcome::RetryFailed(failed()),
                 HistoryStatus::Failed,
                 Vec::new(),
             ),
@@ -277,7 +278,7 @@ impl Pipeline {
             Ok(stored) if stored.id.is_some() => {
                 notices.extend(stored.milestone.map(insights::notice));
             }
-            _ => notices.push(Notice::error(FAILED)),
+            _ => notices.push(Notice::error(failed())),
         }
         Processed {
             notices,
@@ -303,10 +304,7 @@ impl Pipeline {
             Err(SttError::NoSpeech) => Err(SttError::NoSpeech),
             Err(error) => match self.fall_back(&clip, &options, &error).await {
                 Some(Ok(transcript)) => {
-                    notices.push(Notice::warning(format!(
-                        "{} Used Whisper on this Mac instead.",
-                        cloud_failure(&error)
-                    )));
+                    notices.push(Notice::warning(fell_back(&error)));
                     Ok(transcript)
                 }
                 Some(Err(_)) | None => Err(error),
@@ -404,10 +402,11 @@ impl Pipeline {
     }
 }
 
-fn cloud_failure(error: &SttError) -> String {
+/// Why the cloud engine wasn't used, and that local Whisper was.
+fn fell_back(error: &SttError) -> String {
     match error {
-        SttError::Unavailable(message) => message.clone(),
-        error => format!("Cloud transcription failed ({error})."),
+        SttError::Unavailable(message) => t!("notice.stt.unavailableFellBack", message = message),
+        error => t!("notice.stt.failedFellBack", error = error),
     }
 }
 

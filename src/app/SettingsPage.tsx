@@ -63,7 +63,7 @@ export function SettingsPage({
   target = { section: "general", count: 0 },
   onOpenShortcuts = () => undefined,
 }: SettingsPageProps) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { settings, error, update } = useSettings();
   const [section, setSection] = useState<SettingsSection>(target.section);
   const [options, setOptions] = useState<AiOptions | null>(null);
@@ -95,6 +95,17 @@ export function SettingsPage({
       cancelled = true;
     };
   }, []);
+
+  // Provider notes come from Rust in the interface language.
+  useEffect(() => {
+    const reload = () => {
+      getAiOptions()
+        .then(setOptions)
+        .catch(() => undefined);
+    };
+    i18n.on("languageChanged", reload);
+    return () => i18n.off("languageChanged", reload);
+  }, [i18n]);
 
   const move = (step: number) => {
     const next = neighbour(section, step);

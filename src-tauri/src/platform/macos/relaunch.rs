@@ -8,15 +8,16 @@ use std::path::Path;
 use std::process::{Command, Stdio};
 
 use crate::platform::PlatformError;
+use crate::t;
 
 /// Opens the app again once this process has exited. The caller exits next.
 pub fn relaunch_after_exit() -> Result<(), PlatformError> {
     let executable = std::env::current_exe()
-        .map_err(|err| PlatformError::Failed(format!("can't find the app: {err}")))?;
+        .map_err(|err| PlatformError::Failed(t!("error.relaunch.noExecutable", details = err)))?;
     let bundle = executable
         .ancestors()
         .find(|path| path.extension().is_some_and(|extension| extension == "app"))
-        .ok_or_else(|| PlatformError::Failed("Shrimp isn't running from an app bundle".into()))?;
+        .ok_or_else(|| PlatformError::Failed(t!("error.relaunch.notBundled")))?;
     spawn_waiter(std::process::id(), bundle)
 }
 
@@ -32,5 +33,5 @@ fn spawn_waiter(pid: u32, bundle: &Path) -> Result<(), PlatformError> {
         .stderr(Stdio::null())
         .spawn()
         .map(|_| ())
-        .map_err(|err| PlatformError::Failed(format!("can't restart: {err}")))
+        .map_err(|err| PlatformError::Failed(t!("error.relaunch.failed", details = err)))
 }

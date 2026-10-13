@@ -22,6 +22,7 @@ use crate::storage::{
     now_ms, stats,
 };
 use crate::stt::SttEngineId;
+use crate::t;
 use journal::Journal;
 
 /// Recordings are kept this long for Retry and Play audio (HIS-04).
@@ -63,15 +64,15 @@ pub struct HistoryList {
 /// Why a history action couldn't run, in Wispr Flow's words.
 #[derive(Debug, thiserror::Error)]
 pub enum HistoryError {
-    #[error("Cannot retry transcription as audio is no longer available (older than 14 days)")]
+    #[error("{}", t!("error.history.retryAudioGone"))]
     RetryAudioGone,
-    #[error("Can't play audio because it's no longer available (older than 14 days)")]
+    #[error("{}", t!("error.history.playAudioGone"))]
     PlayAudioGone,
-    #[error("Cannot download audio as it is no longer available (older than 14 days)")]
+    #[error("{}", t!("error.history.downloadAudioGone"))]
     DownloadAudioGone,
-    #[error("This transcript can't be retried.")]
+    #[error("{}", t!("error.history.notRetryable"))]
     NotRetryable,
-    #[error("That transcript no longer exists.")]
+    #[error("{}", t!("error.history.notFound"))]
     NotFound,
     #[error("{0}")]
     Storage(StorageError),
