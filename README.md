@@ -26,7 +26,15 @@ breaks, Auto Cleanup levels, app-aware styles (personal, work, email, other), a 
 dictionary that also biases Whisper, snippets with rich text, and CSV/JSON imports. The
 cleanup runs on Anthropic, OpenAI, Groq or a local Ollama with keys in the keychain, and
 falls back to the raw transcript whenever the model fails or answers instead of editing.
-OpenAI and Groq can also transcribe. [docs/PARITY.md](docs/PARITY.md) tracks every feature.
+OpenAI and Groq can also transcribe.
+
+Phase 3 adds Command Mode (hold fn ⌃ and say what to do with the selection, or ask a
+question), transforms (Polish, Prompt Engineer and custom rewrites with a changes view and
+auto-apply), context awareness (names and casing from the text around the cursor, styles
+by website), split pasting for terminals and AI coding CLIs, remote-desktop pasting, the
+Press Enter shortcut and voice command, variable recognition, syntax-aware dictation and
+file tagging for coding, and dictionary auto-learn.
+[docs/PARITY.md](docs/PARITY.md) tracks every feature.
 
 ## Getting started
 
