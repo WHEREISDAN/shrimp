@@ -105,6 +105,8 @@ pub enum NoticeAction {
     SeeVoiceProfile,
     /// Opens the voice profile, which can now be updated.
     UpdateVoiceProfile,
+    /// Installs the downloaded update and restarts (PKG-03).
+    RestartToUpdate,
 }
 
 static NEXT_ID: AtomicU64 = AtomicU64::new(1);

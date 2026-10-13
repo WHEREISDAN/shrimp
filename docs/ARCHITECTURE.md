@@ -29,7 +29,7 @@ phase that adds it (phases are defined in [PARITY.md](PARITY.md)).
 | ------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Main window   | `main` webview: Home, Insights, Dictionary, Snippets, Style, Transforms, Settings, onboarding. Closing hides it **(built)**.                                                                                                |
 | Flow Bar      | `flow-bar` webview in a transparent, always-on-top window that never takes focus, on the bottom, left or right edge of the display under the cursor. On macOS it is a non-activating `NSPanel` (tauri-nspanel) **(built)**. |
-| Tray          | Menu-bar / notification-area icon and menu: Open Shrimp, Shortcuts…, Paste last transcript, Copy last transcript, Privacy mode, Quit **(built)**.                                                                           |
+| Tray          | Menu-bar / notification-area icon and menu: Open Shrimp, Shortcuts…, Check for updates…, Paste last transcript, Copy last transcript, Privacy mode, Quit **(built)**.                                                       |
 | Hotkey thread | Owns the OS keyboard hook (a CGEventTap run loop on macOS, `WH_KEYBOARD_LL` on Windows) **(built)**.                                                                                                                        |
 | Audio thread  | The cpal input stream callback, which only converts samples to f32 and sends them **(built)**.                                                                                                                              |
 | Async runtime | Tauri's tokio runtime: the dictation controller task, IPC commands, HTTP calls.                                                                                                                                             |
@@ -50,6 +50,7 @@ app/                    shell                                                   
   system.rs             startup: pending reset or repair, crash and storage checks,
                         launch at login, background start (APP-06..09)                (built)
   tray.rs               tray icon and menu                                             (built)
+  updates.rs            update checks, download, install when idle (PKG-03, PKG-04)   (built)
   flow_bar.rs           Flow Bar window: sizing, hiding when empty, edge placement on
                         the cursor's display, dragging (BAR-04, BAR-05)                (built)
   flow_bar_place.rs     where on a display's work area the bar goes, nearest edge      (built)
@@ -1225,6 +1226,32 @@ alone.
   Settings and Check again (debug builds read `SHRIMP_FAKE_FREE_BYTES`). The main window
   shows the screen instead of the app, the most serious problem first.
 
+## Updates (PKG-03, PKG-04)
+
+`app/updates.rs`, on tauri-plugin-updater. Releases are built by `scripts/macos/release.sh`
+([RELEASING.md](RELEASING.md)).
+
+- **Feed.** `tauri.conf.json` holds only the updater's public key. The release script adds
+  `plugins.updater.endpoints` at build time from `SHRIMP_UPDATE_FEED`. Without a feed the
+  tray item reads "Updates aren't configured" (disabled) and nothing is checked.
+- **Checks.** The tray's "Check for updates…" says when Shrimp is up to date or the check
+  failed. A quiet check also runs a minute after launch and every six hours.
+- **Download.** The archive is downloaded into memory and its minisign signature checked
+  against the public key and the version it was signed for (`requireSignedVersion`). Then
+  a notice says "Update ready, restart now?" with Restart now, and the tray item becomes
+  "Restart to update".
+- **Install (PKG-04).** Restart waits until the dictation controller is idle and has stayed
+  idle for 1 s, or 6 s when a dictation ran while it waited (longer than the remote desktop
+  clipboard hold, INS-10). It then installs (on macOS the new bundle is swapped in place of
+  the running one), quits normally and opens the bundle again (`relaunch_after_exit`). A
+  failed install keeps the current version and shows an error notice.
+- **After.** The first launch of a new version (`onboarding.version` differs) opens the
+  main window, even from a background launch, and re-checks the privacy grants (ONB-08).
+  Grants survive because the release's designated requirement stays the same
+  ([RELEASING.md](RELEASING.md#privacy-grants-across-updates-pkg-05)).
+- **Statuses.** Unconfigured, Idle, Checking, Downloading, Ready, Restarting; the tray
+  item's text follows them.
+
 ## Onboarding (ONB-01..08)
 
 A fresh install (no `settings.json`) opens the main window on onboarding
@@ -1285,7 +1312,11 @@ request or settings pane does nothing.
   icon gets a dot and the tooltip reads "Shrimp (Privacy mode)". Model downloads still use
   the network.
 - Dev builds are signed with a local self-signed identity; release builds with Developer
-  ID and notarization (P5). See [DEVELOPMENT.md](DEVELOPMENT.md#stable-code-signing-identity).
+  ID, the hardened runtime and notarization (**built**, [RELEASING.md](RELEASING.md)). See
+  [DEVELOPMENT.md](DEVELOPMENT.md#stable-code-signing-identity).
+- Updates are accepted only when their archive carries a minisign signature from the
+  updater key, bound to the version the feed announces (`requireSignedVersion`); the feed
+  must be HTTPS (plain HTTP only for a loopback test feed).
 
 ## Testing
 
@@ -1312,6 +1343,7 @@ needs 1.90 or later.
 | ------------------------------------------------------------------------------------------------------------------------------------------- | ----------------- | ----- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | tauri / tauri-build                                                                                                                         | 2.12 / 2.7        | built | App framework; `tray-icon` feature. The `@tauri-apps/api` npm package must stay on the same minor.                                                                                                                             |
 | tauri-plugin-single-instance                                                                                                                | 2.5               | built | Second launch focuses the running app.                                                                                                                                                                                         |
+| tauri-plugin-updater                                                                                                                        | 2.13.3            | built | Update checks, minisign verification, in-place install (PKG-03, PKG-04). Its JavaScript commands are not granted to any webview.                                                                                               |
 | tauri-plugin-mcp (git `c7d271a`)                                                                                                            | 0.3.1             | built | Dev-only automation bridge. npm `tauri-plugin-mcp` 0.3.1 and `tauri-plugin-mcp-server` 0.3.1.                                                                                                                                  |
 | hound                                                                                                                                       | 3.5.1             | built | WAV read/write.                                                                                                                                                                                                                |
 | rubato                                                                                                                                      | 5.0.1             | built | Resampling to 16 kHz (`Fft` + `process_all`).                                                                                                                                                                                  |

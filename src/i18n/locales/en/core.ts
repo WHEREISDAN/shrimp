@@ -38,6 +38,7 @@ export const core = {
       openInsights: "View insights",
       seeVoiceProfile: "See profile",
       updateVoiceProfile: "Update profile",
+      restartToUpdate: "Restart now",
     },
   },
   bar: {

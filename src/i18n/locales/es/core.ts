@@ -40,6 +40,7 @@ export const core: CoreCatalog = {
       openInsights: "Ver estadísticas",
       seeVoiceProfile: "Ver perfil",
       updateVoiceProfile: "Actualizar perfil",
+      restartToUpdate: "Reiniciar ahora",
     },
   },
   bar: {

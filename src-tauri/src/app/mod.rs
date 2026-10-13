@@ -1,4 +1,4 @@
-//! App shell: setup, windows, tray, Flow Bar, events and the dev-only MCP bridge.
+//! App shell: setup, windows, tray, Flow Bar, events, updates and the dev-only MCP bridge.
 
 #[cfg(debug_assertions)]
 pub mod dev_bridge;
@@ -8,6 +8,7 @@ mod flow_bar_place;
 pub mod setup;
 mod system;
 pub mod tray;
+pub mod updates;
 pub mod window;
 
 use std::sync::Arc;

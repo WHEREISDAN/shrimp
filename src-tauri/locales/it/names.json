@@ -34,5 +34,11 @@
   "tray.copyLast": "Copia l'ultima trascrizione",
   "tray.privacyMode": "Modalità privacy",
   "tray.quit": "Esci da Shrimp",
-  "tray.privacyTooltip": "Shrimp (modalità privacy)"
+  "tray.privacyTooltip": "Shrimp (modalità privacy)",
+  "tray.checkForUpdates": "Cerca aggiornamenti…",
+  "tray.checkingForUpdates": "Ricerca di aggiornamenti…",
+  "tray.downloadingUpdate": "Download dell'aggiornamento…",
+  "tray.restartToUpdate": "Riavvia per aggiornare",
+  "tray.restartingToUpdate": "Riavvio per l'aggiornamento…",
+  "tray.updatesNotConfigured": "Aggiornamenti non configurati"
 }

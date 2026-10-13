@@ -114,5 +114,12 @@
   "notice.transform.textChanged": "The text changed, so the result is on the clipboard.",
   "notice.transform.timedOut": "Transform timed out",
   "notice.transform.tooLong": "Oops, too long to transform. Try again with under {max} words.",
-  "notice.transform.undone": "Undone"
+  "notice.transform.undone": "Undone",
+  "notice.update.checkFailed": "Couldn't check for updates: {error}",
+  "notice.update.downloadFailed": "Couldn't download the update: {error}",
+  "notice.update.downloading": "Downloading Shrimp {version}…",
+  "notice.update.installFailed": "Couldn't install the update: {error}",
+  "notice.update.ready": "Update ready, restart now? Shrimp {version} is downloaded.",
+  "notice.update.upToDate": "You're up to date. Shrimp {version} is the latest version.",
+  "notice.update.waiting": "Shrimp restarts to update when you finish dictating."
 }

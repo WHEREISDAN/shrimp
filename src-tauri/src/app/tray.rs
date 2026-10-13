@@ -6,7 +6,7 @@ use tauri::tray::TrayIconBuilder;
 use tauri::{AppHandle, Emitter, Manager, Runtime, include_image};
 
 use super::events::NAVIGATE_EVENT;
-use super::window;
+use super::{updates, window};
 use crate::dictation::{ControllerHandle, ControllerInput};
 use crate::hotkeys::Action;
 use crate::settings::{Settings, SettingsStore};
@@ -38,6 +38,7 @@ pub fn create<R: Runtime>(app: &AppHandle<R>, settings: &Settings) -> tauri::Res
             PASTE_LAST_ID => send(app, Action::PasteLast),
             COPY_LAST_ID => send(app, Action::CopyLast),
             PRIVACY_ID => toggle_privacy_mode(app),
+            updates::MENU_ID => updates::menu_clicked(app),
             QUIT_ID => app.exit(0),
             _ => {}
         })
@@ -65,6 +66,7 @@ fn menu<R: Runtime>(app: &AppHandle<R>, settings: &Settings) -> tauri::Result<Me
         |id, text, accelerator: Option<&str>| MenuItem::with_id(app, id, text, true, accelerator);
     let open = item(OPEN_ID, t!("tray.open"), None)?;
     let shortcuts = item(SHORTCUTS_ID, t!("tray.shortcuts"), None)?;
+    let update = updates::menu_item(app)?;
     let paste_last = item(PASTE_LAST_ID, t!("tray.pasteLast"), Some("Ctrl+Cmd+V"))?;
     let copy_last = item(COPY_LAST_ID, t!("tray.copyLast"), Some("Ctrl+Cmd+C"))?;
     let privacy = CheckMenuItem::with_id(
@@ -81,6 +83,7 @@ fn menu<R: Runtime>(app: &AppHandle<R>, settings: &Settings) -> tauri::Result<Me
         &[
             &open,
             &shortcuts,
+            &update,
             &PredefinedMenuItem::separator(app)?,
             &paste_last,
             &copy_last,
