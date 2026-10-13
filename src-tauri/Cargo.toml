@@ -30,8 +30,11 @@ tokio = { version = "1", features = ["sync", "time", "macros", "rt"] }
 cpal = "0.18.2"
 whisper-rs = "0.16.0"
 handy-keys = "0.3.4"
-reqwest = "0.13.5"
+reqwest = { version = "0.13.5", features = ["json", "multipart"] }
 sha2 = "0.10"
+rusqlite_migration = "2.6"
+keyring = "4.2.0"
+rusqlite = { version = "0.40", features = ["bundled"] }
 
 [target.'cfg(target_os = "macos")'.dependencies]
 whisper-rs = { version = "0.16.0", features = ["metal"] }
