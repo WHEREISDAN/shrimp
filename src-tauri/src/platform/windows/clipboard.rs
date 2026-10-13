@@ -18,6 +18,7 @@ use windows::core::{PCWSTR, w};
 
 use crate::platform::{InsertText, PlatformError};
 
+const CF_DIB: u32 = 8;
 const CF_UNICODETEXT: u32 = 13;
 const CF_DIBV5: u32 = 17;
 /// Formats that hold GDI handles rather than memory; Windows synthesises
@@ -126,6 +127,17 @@ fn mark_private() -> Result<(), PlatformError> {
     )
 }
 
+/// Whether a snapshot holding `kept` takes `format` too. Windows converts
+/// between CF_BITMAP, CF_DIB and CF_DIBV5, so only the first of the two
+/// memory images is kept: putting back a CF_DIBV5 that Windows made from a
+/// bitmap gives a bitmap shifted by its colour masks.
+fn keeps(format: u32, kept: &[(u32, Vec<u8>)]) -> bool {
+    let image = |format: u32| matches!(format, CF_DIB | CF_DIBV5);
+    !(HANDLE_FORMATS.contains(&format)
+        || (0x300..=0x3FF).contains(&format)
+        || (image(format) && kept.iter().any(|(other, _)| image(*other))))
+}
+
 pub fn snapshot() -> Result<Snapshot, PlatformError> {
     let _open = Open::new()?;
     let mut formats = Vec::new();
@@ -135,7 +147,7 @@ pub fn snapshot() -> Result<Snapshot, PlatformError> {
         if format == 0 {
             break;
         }
-        if HANDLE_FORMATS.contains(&format) || (0x300..=0x3FF).contains(&format) {
+        if !keeps(format, &formats) {
             continue;
         }
         let Ok(handle) = (unsafe { GetClipboardData(format) }) else {
@@ -313,6 +325,17 @@ mod tests {
         );
         assert!(html[offset("StartHTML")..].starts_with("<html>"));
         assert_eq!(offset("EndHTML"), bytes.len());
+    }
+
+    #[test]
+    fn a_snapshot_keeps_one_memory_image_and_no_handles() {
+        let text = (CF_UNICODETEXT, Vec::new());
+        assert!(keeps(CF_DIB, std::slice::from_ref(&text)));
+        assert!(!keeps(CF_DIBV5, &[text.clone(), (CF_DIB, Vec::new())]));
+        assert!(!keeps(CF_DIB, &[(CF_DIBV5, Vec::new())]));
+        assert!(keeps(CF_DIBV5, &[]));
+        assert!(!keeps(2, &[]), "CF_BITMAP is a GDI handle");
+        assert!(!keeps(0x300, &[]), "private formats are handles too");
     }
 
     /// The clipboard of the test's own window station, never the desktop's.
