@@ -662,6 +662,19 @@ in Notepad). It runs the macOS cases with the Windows shortcuts and the Windows-
 - By tests only on Windows: STY-05's identifiers, Word's and WhatsApp's 3 s hold for the real
   apps, and the macOS-only APP-07, APP-10 and APP-11 (not run).
 
+Re-verified on macOS after the Windows phase 6 changes:
+
+- 2026-10-14: macOS re-verified at `b0fef24`. `pnpm check` passed (206 Vitest tests, 549 Rust
+  tests, clippy with `-D warnings`). The regression walkthrough passed with 85 cases over 128
+  items: 0 failures, and the same 2 `qwen2.5-coder:7b` warnings (FMT-07, FMT-09).
+  `scripts/macos/release.sh` without a feed signed and notarized the app and the DMG.
+  `codesign`, `spctl` (Notarized Developer ID) and `stapler` accepted the DMG, and the app
+  inside it, mounted read-only. The walkthrough had stopped at once under a UTF-8 locale:
+  Bash 3.2 read `$WORK…` in `run.sh` as another variable. `b0fef24` fixes this. Two earlier
+  full runs each had one timing failure, and both cases then passed three times alone. TRF-02's
+  Prompt Engineer request took 10.8 s against its 10.75 s limit while the Mac was swapping.
+  TRF-05's changes view didn't arrive within 10 s.
+
 Verified partly, in phase 5:
 
 - PKG-01: as the brief asked, the DMG was not installed into /Applications; its layout,
