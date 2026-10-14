@@ -89,7 +89,8 @@ export const core: CoreCatalog = {
     launchAtLoginBody:
       "Shrimp se abre en segundo plano al iniciar sesión y queda disponible en la barra de menús.",
     showInDock: "Mostrar la app en el Dock",
-    showInDockBody: "Si está desactivado, Shrimp solo aparece en la barra de menús.",
+    showInDockBody:
+      "Si está desactivado, Shrimp vive en la barra de menús y solo aparece en el Dock mientras su ventana está abierta.",
     resetTitle: "Restablecer la app",
     resetBody:
       "Elimina los datos locales de Shrimp en este Mac y reinicia la app. Úsalo si Shrimp sigue dando problemas.",

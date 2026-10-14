@@ -86,7 +86,8 @@ export const core = {
     launchAtLogin: "Launch at login",
     launchAtLoginBody: "Shrimp starts in the background when you log in, ready in the menu bar.",
     showInDock: "Show app in Dock",
-    showInDockBody: "When off, Shrimp lives only in the menu bar.",
+    showInDockBody:
+      "When off, Shrimp lives in the menu bar and shows in the Dock only while its window is open.",
     resetTitle: "Reset app",
     resetBody:
       "Deletes Shrimp's local data on this Mac and restarts it. Use it if Shrimp keeps misbehaving.",

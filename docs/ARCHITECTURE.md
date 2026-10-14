@@ -1293,8 +1293,11 @@ alone.
 - **Settings › System** lives in `settings.app` (`language`, `launchAtLogin`,
   `showInDock`). At startup the login item's real state wins over the saved switch (the
   user may have turned it off in System Settings); a failed change puts the switch back
-  with a notice. "Show app in Dock" calls Tauri's `set_dock_visibility`; Windows has no
-  Dock, so the switch is hidden there. The main window is created hidden and unfocused
+  with a notice. "Show app in Dock" sets the activation policy (`window::update_dock`): Regular
+  with the Dock icon and the app's menu bar, or Accessory with only the menu bar icon.
+  With it off, the Dock icon still shows while the main window is open or minimized
+  and goes when the window closes to the tray, as Wispr Flow's does; the Flow Bar never
+  brings it back. Windows has no Dock, so the switch is hidden there. The main window is created hidden and unfocused
   (`focus: false`), so a background launch never takes focus (WebView2 would otherwise
   focus the hidden window); `show_main` focuses it when it is shown.
 - **Reset & restart (APP-08)** writes `reset-requested` and restarts. The next launch

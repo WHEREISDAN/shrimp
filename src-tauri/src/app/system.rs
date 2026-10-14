@@ -97,7 +97,7 @@ pub fn follow_system_settings(
         log::warn!("could not note the login item: {error}");
     }
     let app = settings.get().app;
-    window::show_in_dock(handle, app.show_in_dock);
+    window::update_dock(handle);
     let previous = Mutex::new(app);
     let handle = handle.clone();
     let store = Arc::clone(settings);
@@ -105,11 +105,7 @@ pub fn follow_system_settings(
         let mut previous = previous.lock().unwrap_or_else(|err| err.into_inner());
         let next = settings.app.clone();
         if next.show_in_dock != previous.show_in_dock {
-            let handle = handle.clone();
-            let show = next.show_in_dock;
-            let _ = handle
-                .clone()
-                .run_on_main_thread(move || window::show_in_dock(&handle, show));
+            window::update_dock(&handle);
         }
         if next.launch_at_login != previous.launch_at_login
             && login_item.enabled() != next.launch_at_login
