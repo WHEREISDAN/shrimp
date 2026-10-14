@@ -312,15 +312,35 @@ Debug builds can pretend states that are hard to produce for real:
 | `SHRIMP_PRETEND_OUTSIDE_APPLICATIONS=1`               | macOS: shows "Move Shrimp to the Applications folder" and no shortcut dictates. Debug builds skip the real check; Move only logs what it would copy.                          |
 | `SHRIMP_REGION=CA`                                    | Pretends the system region (two letters), for the Canadian English suggestion (LANG-07).                                                                                      |
 | `SHRIMP_FAKE_MOUSE_BUTTONS=5`                         | Pretends a connected mouse with that many buttons, for the mouse button suggestion (CORE-18); `0` pretends none.                                                              |
+| `SHRIMP_NO_HOTKEYS=1`                                 | Installs no keyboard or mouse hook: no shortcut dictates, and fn reaches the release Shrimp (or Wispr Flow) running beside it. Dictate with `flow_bar_control` instead.       |
 
-Set environment variables with `scripts/macos/dev-app.sh open --env NAME=value`. The
-Canadian English and mouse button suggestions show once ever: set
-`notices.canadianEnglishShown` or `notices.mouseButtonsShown` back to `false`
-(`update_settings`) to see one again. To test onboarding, quit the app and move
-`~/Library/Application Support/com.shrimp.desktop.dev` aside first (it starts on a fresh
-install), then put it back. The login item is visible with
-`osascript -e 'tell application "System Events" to get the name of every login item'`;
-don't use `sfltool dumpbtm`, which asks for an administrator password.
+Set environment variables with `scripts/macos/dev-app.sh open --env NAME=value`.
+
+### Beside a release Shrimp
+
+To work on the dev app while a release Shrimp is in use on the same Mac:
+
+- Launch the bundle in the background with its hooks off:
+  `scripts/macos/dev-app.sh open -g --env SHRIMP_NO_HOTKEYS=1`. `-g` keeps the person's
+  app in front; tauri-mcp's `manage_window` `show` shows the window without taking focus.
+- `pnpm tauri:dev` runs the raw binary, which comes to the front when it launches, and
+  restarts (coming to the front again) whenever `src-tauri/` changes. For hot reloading
+  beside someone's work, run it as
+  `SHRIMP_NO_HOTKEYS=1 pnpm tauri dev --no-watch --config src-tauri/tauri.conf.dev.json`
+  and give focus back once it is up.
+- `dev_set_theme` `{ "theme": "dark" }` (`"light"`, or `null` for the system's) shows every
+  window light or dark, so both appearances can be checked without changing the Mac's own
+  setting.
+- A dictation pastes into the app in front, so drive only states that insert nothing:
+  notices (`manage_ipc` `emit` of `notify://notice` to `flow-bar`), `dictation://state`, and
+  the pages and dialogs. The
+  Canadian English and mouse button suggestions show once ever: set
+  `notices.canadianEnglishShown` or `notices.mouseButtonsShown` back to `false`
+  (`update_settings`) to see one again. To test onboarding, quit the app and move
+  `~/Library/Application Support/com.shrimp.desktop.dev` aside first (it starts on a fresh
+  install), then put it back. The login item is visible with
+  `osascript -e 'tell application "System Events" to get the name of every login item'`;
+  don't use `sfltool dumpbtm`, which asks for an administrator password.
 
 ### Keyboards without an Fn key
 

@@ -1,14 +1,16 @@
 //! What debug builds can pretend about the system, so features that depend
 //! on it can be tried on any machine: the region (`SHRIMP_REGION=CA`,
 //! LANG-07) and a mouse with extra buttons (`SHRIMP_FAKE_MOUSE_BUTTONS=5`,
-//! CORE-18). See docs/DEVELOPMENT.md.
+//! CORE-18). `SHRIMP_NO_HOTKEYS=1` installs no keyboard or mouse hook, so a
+//! dev app can run beside a release Shrimp that owns fn. See docs/DEVELOPMENT.md.
 
 use std::sync::Arc;
 
-use super::{MouseDevices, Platform};
+use super::{InertHotkeys, MouseDevices, Platform};
 
 const REGION_ENV: &str = "SHRIMP_REGION";
 const MOUSE_BUTTONS_ENV: &str = "SHRIMP_FAKE_MOUSE_BUTTONS";
+const NO_HOTKEYS_ENV: &str = "SHRIMP_NO_HOTKEYS";
 
 /// One connected mouse with a fixed number of buttons.
 struct FakeMouse(u32);
@@ -37,6 +39,10 @@ pub fn apply(mut platform: Platform) -> Platform {
     if let Some(buttons) = buttons {
         log::info!("pretending a mouse with {buttons} buttons");
         platform.mice = Arc::new(FakeMouse(buttons));
+    }
+    if std::env::var(NO_HOTKEYS_ENV).is_ok_and(|value| value.trim() == "1") {
+        log::info!("global hotkeys are off ({NO_HOTKEYS_ENV}=1)");
+        platform.hotkeys = Box::new(InertHotkeys);
     }
     platform
 }

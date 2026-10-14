@@ -112,6 +112,8 @@ pub const NAMES: &[&str] = &[
     "dev_set_microphones",
     #[cfg(debug_assertions)]
     "dev_set_permissions",
+    #[cfg(debug_assertions)]
+    "dev_set_theme",
 ];
 
 /// The error every command returns. Mirrors `CommandError` in src/lib/ipc.ts.

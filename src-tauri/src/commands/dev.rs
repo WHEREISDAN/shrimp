@@ -3,7 +3,7 @@
 use std::sync::Arc;
 
 use serde::{Deserialize, Serialize};
-use tauri::State;
+use tauri::{AppHandle, Manager, State, Theme};
 
 use super::CommandError;
 use crate::audio::{AudioSourceSpec, FakeDevice, SwitchableDevices};
@@ -232,4 +232,27 @@ pub fn dev_set_permissions(
     use crate::platform::Permission;
     permissions.pretend(Permission::Microphone, microphone);
     permissions.pretend(Permission::Accessibility, accessibility);
+}
+
+/// Shows every window light or dark (`null` follows the system again), so
+/// both appearances can be checked without changing the Mac's own setting.
+#[tauri::command]
+pub fn dev_set_theme(theme: Option<String>, app: AppHandle) -> Result<(), CommandError> {
+    let theme = match theme.as_deref() {
+        None => None,
+        Some("light") => Some(Theme::Light),
+        Some("dark") => Some(Theme::Dark),
+        Some(other) => {
+            return Err(CommandError::new(
+                "invalidTheme",
+                format!("{other} is not light or dark"),
+            ));
+        }
+    };
+    for window in app.webview_windows().values() {
+        window
+            .set_theme(theme)
+            .map_err(|err| CommandError::new("theme", err))?;
+    }
+    Ok(())
 }

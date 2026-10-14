@@ -132,7 +132,8 @@ pub fn run() {
         commands::dev::dev_edit_text,
         commands::dev::dev_read_context,
         commands::dev::dev_set_microphones,
-        commands::dev::dev_set_permissions
+        commands::dev::dev_set_permissions,
+        commands::dev::dev_set_theme
     );
     #[cfg(not(debug_assertions))]
     let handler: fn(tauri::ipc::Invoke) -> bool = handler!();
