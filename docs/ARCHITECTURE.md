@@ -482,7 +482,9 @@ kinds (terminals, remote desktops, browsers, code editors) are decided in portab
 and paste long text in parts of at most 700 characters and 2 line breaks, 150 ms apart,
 because Claude Code collapses a paste over 800 characters or 2 line breaks into
 "[Pasted text #1 +N lines]" and Codex one over 1,000 characters (INS-09, INS-11); remote
-desktops skip the field check and hold the clipboard for 5 s (INS-10).
+desktops skip the field check and hold the clipboard for 5 s (INS-10). The lists cover
+macOS bundle IDs and Windows executable names; the commits that add entries name their
+sources.
 
 Bindings, their validation rules and the per-platform defaults live in `hotkeys/`. Gesture
 recognition (hold, double-tap, short tap) lives in `dictation/gestures.rs`. Both are platform
