@@ -207,6 +207,10 @@ export const core = {
       "Your settings and history are safe. If you were dictating, the recording was saved: recover it from History on Home.",
     crashDetails: "Details",
     continue: "Continue",
+    moveTitle: "Move Shrimp to the Applications folder",
+    moveBody: "Shrimp needs to be in the Applications folder to run and update.",
+    moveToApplications: "Move to Applications",
+    quit: "Quit",
   },
   home: {
     tagline: "Speech to text, anywhere.",

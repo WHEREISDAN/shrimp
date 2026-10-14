@@ -46,7 +46,7 @@ function backend(models: ModelStatus[]) {
       case "get_voice_profile":
         return VOICE_PROFILE;
       case "get_app_health":
-        return { crash: null, data: null, storage: null };
+        return { crash: null, data: null, storage: null, misplaced: false };
       default:
         throw new Error(`unexpected command ${cmd}`);
     }

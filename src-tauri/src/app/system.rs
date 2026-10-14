@@ -1,6 +1,6 @@
 //! Startup chores of the app shell: pending resets and repairs, crash and
-//! storage checks (APP-08, APP-09), launch at login and the Dock icon
-//! (APP-06, APP-07).
+//! storage checks (APP-08, APP-09), where the app runs from (APP-11),
+//! launch at login and the Dock icon (APP-06, APP-07).
 
 use std::path::Path;
 use std::sync::{Arc, Mutex};
@@ -15,7 +15,7 @@ use crate::commands::system::free_bytes;
 use crate::dictation::DictationUi;
 use crate::health::{self, Health, Pending};
 use crate::notify::{Notice, NoticeAction};
-use crate::platform::{LoginItem, Permission, PermissionStatus, Permissions, RELAUNCH_ARG};
+use crate::platform::{self, LoginItem, Permission, PermissionStatus, Permissions, RELAUNCH_ARG};
 use crate::secrets::{KeyAccount, Secrets};
 use crate::settings::SettingsStore;
 use crate::storage::Database;
@@ -36,7 +36,12 @@ pub fn prepare(data_dir: &Path) -> (Arc<Health>, Pending) {
         Pending::Nothing => {}
     }
     health::record_panics(data_dir);
-    (Arc::new(Health::start(data_dir)), pending)
+    let health = Arc::new(Health::start(data_dir));
+    if platform::outside_applications() {
+        log::warn!("Shrimp runs outside the Applications folders; dictation stays off");
+        health.outside_applications();
+    }
+    (health, pending)
 }
 
 /// Reset & restart also forgets the API keys.

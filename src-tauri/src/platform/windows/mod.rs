@@ -49,6 +49,6 @@ pub fn platform(_main_thread: MainThread) -> Platform {
 
 pub use focus::set_own_field_focused;
 pub use system::{
-    free_bytes, language_name, open_keyboard_settings, open_sound_settings, open_storage_settings,
-    relaunch_after_exit,
+    free_bytes, language_name, move_to_applications, open_keyboard_settings, open_sound_settings,
+    open_storage_settings, outside_applications, relaunch_after_exit,
 };

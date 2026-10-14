@@ -215,6 +215,10 @@ export const core: CoreCatalog = {
       "Seus ajustes e seu histórico estão seguros. Se você estava ditando, a gravação foi salva: recupere-a no Histórico, em Início.",
     crashDetails: "Detalhes",
     continue: "Continuar",
+    moveTitle: "Mova o Shrimp para a pasta Aplicativos",
+    moveBody: "O Shrimp precisa estar na pasta Aplicativos para funcionar e se atualizar.",
+    moveToApplications: "Mover para Aplicativos",
+    quit: "Encerrar",
   },
   home: {
     tagline: "Voz em texto, em qualquer lugar.",

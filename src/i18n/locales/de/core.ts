@@ -217,6 +217,10 @@ export const core: CoreCatalog = {
       "Deine Einstellungen und dein Verlauf sind sicher. Falls du gerade diktiert hast, wurde die Aufnahme gesichert: Stell sie im Verlauf unter „Start“ wieder her.",
     crashDetails: "Details",
     continue: "Weiter",
+    moveTitle: "Shrimp in den Ordner „Programme“ verschieben",
+    moveBody: "Shrimp muss im Ordner „Programme“ liegen, um zu laufen und sich zu aktualisieren.",
+    moveToApplications: "In „Programme“ verschieben",
+    quit: "Beenden",
   },
   home: {
     tagline: "Sprache zu Text, überall.",

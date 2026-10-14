@@ -107,8 +107,9 @@ llm/                    LLM providers                                           
   catalog.rs            models offered per provider and engine, defaults               (built)
   http.rs               shared reqwest client, status and transport error mapping      (built)
   registry.rs           LlmSource: builds the chosen provider with its key             (built)
-health/                 error screens: crash marker, damaged database, low disk; Reset
-                        & restart and database repairs at the next launch (APP-08/09) (built)
+health/                 error screens: crash marker, damaged database, low disk, the
+                        app outside Applications; Reset & restart and database
+                        repairs at the next launch (APP-08, APP-09, APP-11)           (built)
 edit/                   AI edit pipeline                                               (built)
   pipeline.rs           Editor: pre-pass, LLM pass, post-pass, raw fallback            (built)
   prompts.rs            system prompt per cleanup level, style and category            (built)
@@ -177,7 +178,7 @@ platform/               OS integration behind traits (next section)             
                         lid, Caps Lock), core_audio (devices, output mute and volume),
                         media (mute, MediaRemote pause), insert, pasteboard, keymap,
                         focus, context, ax, permissions, sound, globe, flow_bar, login
-                        (launch at login)                                              (built)
+                        (launch at login), relaunch, install (Move to Applications)    (built)
   windows/              hook (keyboard and mouse hooks), hotkeys, keycode, input
                         (SendInput), clipboard, insert, process (foreground app,
                         elevation), uia, focus, context (UI Automation), audio
@@ -256,7 +257,7 @@ Built so far:
 | Phase 3  | `transform_action` (the changes view's Copy, Retry and Undo)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
 | Phase 4  | `get_shortcuts` (every action's bindings, the overlap warning, Secure Keyboard Entry), `record_shortcut` (records through the hooks; progress as `shortcuts://recording`), `cancel_shortcut_recording`, `remove_shortcut`, `reset_shortcuts`; `retry_model`, `download_model`, `delete_model`; `get_microphones`, `select_microphone`, `rank_microphone`, `forget_microphone`, `start_mic_preview`, `stop_mic_preview`; `get_languages`, `set_languages`, `set_active_language`; `flow_bar_drag`, `flow_bar_action` (the right-click menu)      |
 | Phase 4b | `get_app_health`, `dismiss_crash`, `check_storage`, `open_storage_settings`, `repair_data`, `reset_app` (both restart the app); `get_insights`, `get_voice_profile`, `generate_voice_profile` (rejects with `{kind}`), `copy_image` and `save_image` (a raw PNG request body; the file name in an `x-file-name` header); `list_history`, `copy_history`, `set_history_raw` (Undo/Redo AI edit), `retry_history`, `history_audio` (raw WAV bytes), `extract_history_audio`, `delete_history`, `set_history_storage` ("never" needs "delete all") |
-| Phase 6  | `delete_all_history` (Delete all transcripts)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| Phase 6  | `delete_all_history` (Delete all transcripts); `move_to_applications`, `quit_app` (the Move to Applications screen)                                                                                                                                                                                                                                                                                                                                                                                                                             |
 | Phase 2  | `get_settings`, `update_settings`, `get_ai_options`, `get_api_keys`, `set_api_key`, `delete_api_key`, `list_ollama_models`, `test_ai_provider`; dictionary and snippet CRUD and imports (`list_dictionary`, `add_dictionary_entry`, `update_dictionary_entry`, `set_dictionary_pinned`, `delete_dictionary_entries`, `preview_dictionary_import`, `import_dictionary`, `list_snippets`, `add_snippet`, `update_snippet`, `delete_snippets`, `preview_snippet_import`, `import_snippets`)                                                        |
 | Dev only | `dev_get_audio_source`, `dev_set_audio_source`, `dev_set_app_category`, `dev_edit_text`, `dev_read_context`, `dev_set_microphones`, `dev_set_permissions` (debug builds; see DEVELOPMENT.md)                                                                                                                                                                                                                                                                                                                                                    |
 | Events   | `dictation://state`, `dictation://level` (Flow Bar only), `notify://notice`, `command://answer` and `transform://changes` (Flow Bar only), `models://status`, `app://navigate`, `settings://changed`, `shortcuts://recording`, `notify://dismiss` (a notice whose cause went away), `mic://devices`, `mic://level`, `flow-bar://hover` (Flow Bar only), `app://main-visible` (main window shown or closed to the tray)                                                                                                                          |
@@ -383,7 +384,9 @@ pub struct Platform {
     pub user_name: Option<String>,    // first name for Home's greeting (NSFullUserName)
     pub login_item: Arc<dyn LoginItem>,
 }
-// Also: platform::free_bytes(path) (statvfs) and open_storage_settings() for APP-09.
+// Also: platform::free_bytes(path) (statvfs) and open_storage_settings() for APP-09;
+// outside_applications() and move_to_applications() for APP-11 (Windows: false and
+// Unsupported); InertHotkeys, a backend that binds nothing.
 
 /// Global shortcuts with press and release: keys, Fn and modifier-only chords, mouse buttons.
 pub trait HotkeyBackend: Send {
@@ -1336,6 +1339,20 @@ alone.
   launch and every 10 minutes; under 200 MB the "Storage Full" screen offers Open Storage
   Settings and Check again (debug builds read `SHRIMP_FAKE_FREE_BYTES`). The main window
   shows the screen instead of the app, the most serious problem first.
+- **Move to Applications (APP-11, macOS).** A release running outside `/Applications`
+  and `~/Applications` (at any depth; for example on the mounted disk image, in
+  Downloads or under an App Translocation path) can't update itself, so `AppHealth`
+  says `misplaced`, the main window opens on "Move Shrimp to the Applications folder" /
+  "Shrimp needs to be in the Applications folder to run and update." before any other
+  screen, and the controller gets `InertHotkeys`, so no shortcut dictates in that run.
+  Move to Applications (`move_to_applications`) copies the bundle with
+  `ditto --noqtn` (keeping its signature, dropping the quarantine flag so the copy
+  isn't translocated again) into `/Applications`, or `~/Applications` when
+  `/Applications` isn't writable, replacing an older copy only once the new one is
+  complete; it then opens the copy with `--relaunched` once this process has quit
+  normally. A failure shows its message on the screen, which stays. Quit (`quit_app`)
+  quits. Debug builds skip the check unless `SHRIMP_PRETEND_OUTSIDE_APPLICATIONS=1`, and
+  their Move only logs what it would copy where. Windows never shows the screen.
 
 ## Updates (PKG-03, PKG-04)
 

@@ -17,7 +17,7 @@ import {
   VOICE_PROFILE,
 } from "./testBackend";
 
-const HEALTHY: AppHealth = { crash: null, data: null, storage: null };
+const HEALTHY: AppHealth = { crash: null, data: null, storage: null, misplaced: false };
 
 function backend(health: AppHealth = HEALTHY, extra: Record<string, () => unknown> = {}) {
   let settings: Settings = SETTINGS;
@@ -54,6 +54,8 @@ function backend(health: AppHealth = HEALTHY, extra: Record<string, () => unknow
     check_storage: () => HEALTHY,
     open_storage_settings: () => null,
     repair_data: () => null,
+    move_to_applications: () => null,
+    quit_app: () => null,
     ...extra,
   });
 }
@@ -109,7 +111,7 @@ describe("App navigation", () => {
   });
 
   it("shows an error screen instead of the app when something is wrong", async () => {
-    backend({ crash: { details: null }, data: null, storage: null });
+    backend({ crash: { details: null }, data: null, storage: null, misplaced: false });
     render(<App />);
     expect(
       await screen.findByRole("heading", { name: "Shrimp quit unexpectedly" }),
@@ -202,9 +204,58 @@ describe("Settings pages", () => {
 });
 
 describe("ErrorScreen", () => {
+  const misplaced: AppHealth = { ...HEALTHY, misplaced: true, crash: { details: null } };
+
+  it("asks to move Shrimp to Applications before anything else", async () => {
+    backend(misplaced);
+    render(<App />);
+    expect(
+      await screen.findByRole("heading", { name: "Move Shrimp to the Applications folder" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText("Shrimp needs to be in the Applications folder to run and update."),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("navigation", { name: "Main" })).not.toBeInTheDocument();
+  });
+
+  it("moves to Applications or quits", async () => {
+    const { argsOf } = backend();
+    render(<ErrorScreen health={misplaced} />);
+    fireEvent.click(screen.getByRole("button", { name: "Move to Applications" }));
+    await waitFor(() => expect(argsOf("move_to_applications")).toEqual([{}]));
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "Move to Applications" })).toBeEnabled(),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Quit" }));
+    await waitFor(() => expect(argsOf("quit_app")).toEqual([{}]));
+  });
+
+  it("keeps the screen and says why when the move fails", async () => {
+    backend(HEALTHY, {
+      move_to_applications: () => {
+        throw {
+          code: "platform",
+          message: "Shrimp couldn't be copied to /Applications: Permission denied",
+        };
+      },
+    });
+    render(<ErrorScreen health={misplaced} />);
+    fireEvent.click(screen.getByRole("button", { name: "Move to Applications" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Shrimp couldn't be copied to /Applications: Permission denied",
+    );
+    expect(
+      screen.getByRole("heading", { name: "Move Shrimp to the Applications folder" }),
+    ).toBeInTheDocument();
+  });
+
   it("offers the backup for damaged data", async () => {
     const { argsOf } = backend();
-    render(<ErrorScreen health={{ crash: null, storage: null, data: { backup: "2026-10-12" } }} />);
+    render(
+      <ErrorScreen
+        health={{ crash: null, storage: null, data: { backup: "2026-10-12" }, misplaced: false }}
+      />,
+    );
     expect(
       screen.getByRole("heading", { name: "Some of your local data is corrupted." }),
     ).toHaveFocus();
@@ -218,7 +269,9 @@ describe("ErrorScreen", () => {
   it("says the disk is full and checks again", async () => {
     const { argsOf } = backend();
     render(
-      <ErrorScreen health={{ crash: null, data: null, storage: { freeBytes: 52_000_000 } }} />,
+      <ErrorScreen
+        health={{ crash: null, data: null, storage: { freeBytes: 52_000_000 }, misplaced: false }}
+      />,
     );
     expect(screen.getByRole("heading", { name: "Storage full" })).toBeInTheDocument();
     expect(screen.getByText("52 MB free")).toBeInTheDocument();
@@ -233,7 +286,12 @@ describe("ErrorScreen", () => {
     const { argsOf } = backend();
     render(
       <ErrorScreen
-        health={{ crash: { details: "panicked at x.rs" }, data: null, storage: null }}
+        health={{
+          crash: { details: "panicked at x.rs" },
+          data: null,
+          storage: null,
+          misplaced: false,
+        }}
       />,
     );
     expect(screen.getByText("panicked at x.rs")).toBeInTheDocument();

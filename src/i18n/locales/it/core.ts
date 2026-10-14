@@ -216,6 +216,10 @@ export const core: CoreCatalog = {
       "Impostazioni e cronologia sono al sicuro. Se stavi dettando, la registrazione è stata salvata: recuperala dalla cronologia nella Home.",
     crashDetails: "Dettagli",
     continue: "Continua",
+    moveTitle: "Sposta Shrimp nella cartella Applicazioni",
+    moveBody: "Shrimp deve trovarsi nella cartella Applicazioni per funzionare e aggiornarsi.",
+    moveToApplications: "Sposta in Applicazioni",
+    quit: "Esci",
   },
   home: {
     tagline: "Dalla voce al testo, ovunque.",

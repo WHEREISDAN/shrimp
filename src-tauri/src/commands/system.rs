@@ -1,5 +1,5 @@
-//! Settings › System's Reset & restart (APP-08) and the error screens'
-//! actions (APP-09).
+//! Settings › System's Reset & restart (APP-08), the error screens'
+//! actions (APP-09) and Move to Applications (APP-11).
 
 use std::sync::Arc;
 
@@ -74,6 +74,27 @@ pub(crate) fn restart<R: Runtime>(app: &AppHandle<R>) -> Result<(), CommandError
 pub fn repair_data(repair: Repair, app: AppHandle) -> Result<(), CommandError> {
     health::request_repair(&data_dir(&app)?, repair).map_err(|err| CommandError::new("io", err))?;
     restart(&app)
+}
+
+/// The Move to Applications screen's button (APP-11): copies Shrimp into
+/// the Applications folder, quits and opens the copy. Debug builds only
+/// log what they would copy and keep running.
+#[tauri::command]
+pub async fn move_to_applications(app: AppHandle) -> Result<(), CommandError> {
+    let quit = tauri::async_runtime::spawn_blocking(platform::move_to_applications)
+        .await
+        .map_err(|err| CommandError::new("platform", err))?
+        .map_err(|err| CommandError::new("platform", err))?;
+    if quit {
+        app.exit(0);
+    }
+    Ok(())
+}
+
+/// Quits normally, from the Move to Applications screen.
+#[tauri::command]
+pub fn quit_app(app: AppHandle) {
+    app.exit(0);
 }
 
 /// Reset & restart: local data, settings and API keys are deleted at the

@@ -568,11 +568,13 @@ export type VoiceProfileError =
   | { kind: "notYet"; nextAt: number }
   | { kind: "failed"; message: string };
 
-/** Mirrors `health::AppHealth`: what the error screens show (APP-09). */
+/** Mirrors `health::AppHealth`: what the error screens show (APP-09, APP-11). */
 export interface AppHealth {
   crash: { details: string | null } | null;
   data: { backup: string | null } | null;
   storage: { freeBytes: number } | null;
+  /** The Mac app runs outside the Applications folders and must move first. */
+  misplaced: boolean;
 }
 
 /** Mirrors `health::Repair`. */
@@ -796,6 +798,11 @@ export const repairData = (repair: Repair): Promise<void> => invoke("repair_data
 
 /** Reset & restart. */
 export const resetApp = (): Promise<void> => invoke("reset_app");
+
+/** Copies Shrimp into Applications, then quits and opens the copy (debug builds only log). */
+export const moveToApplications = (): Promise<void> => invoke("move_to_applications");
+
+export const quitApp = (): Promise<void> => invoke("quit_app");
 
 /** Event names emitted by src-tauri/src/app/events.rs. */
 export const EVENTS = {

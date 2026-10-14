@@ -9,6 +9,7 @@ mod focus;
 mod globe;
 mod hotkeys;
 mod insert;
+mod install;
 mod iokit;
 mod keymap;
 mod launcher;
@@ -64,6 +65,7 @@ fn first_name() -> Option<String> {
 
 pub use focus::set_own_field_focused;
 pub use globe::{open_keyboard_settings, open_sound_settings, open_storage_settings};
+pub use install::{move_to_applications, outside_applications};
 pub use relaunch::relaunch_after_exit;
 
 /// Debug builds read this variable to pretend the keyboard has (1) or

@@ -4,7 +4,7 @@
 //! Instead a small shell waits for this process to end, then opens the
 //! bundle through LaunchServices with `RELAUNCH_ARG`.
 
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 
 use crate::platform::{PlatformError, RELAUNCH_ARG};
@@ -12,16 +12,23 @@ use crate::t;
 
 /// Opens the app again once this process has exited. The caller exits next.
 pub fn relaunch_after_exit() -> Result<(), PlatformError> {
-    let executable = std::env::current_exe()
-        .map_err(|err| PlatformError::Failed(t!("error.relaunch.noExecutable", details = err)))?;
-    let bundle = executable
-        .ancestors()
-        .find(|path| path.extension().is_some_and(|extension| extension == "app"))
-        .ok_or_else(|| PlatformError::Failed(t!("error.relaunch.notBundled")))?;
-    spawn_waiter(std::process::id(), bundle)
+    open_after_exit(&running_bundle()?)
 }
 
-fn spawn_waiter(pid: u32, bundle: &Path) -> Result<(), PlatformError> {
+/// The `.app` bundle this process runs from.
+pub fn running_bundle() -> Result<PathBuf, PlatformError> {
+    let executable = std::env::current_exe()
+        .map_err(|err| PlatformError::Failed(t!("error.relaunch.noExecutable", details = err)))?;
+    executable
+        .ancestors()
+        .find(|path| path.extension().is_some_and(|extension| extension == "app"))
+        .map(Path::to_path_buf)
+        .ok_or_else(|| PlatformError::Failed(t!("error.relaunch.notBundled")))
+}
+
+/// Opens `bundle` once this process has exited. The caller exits next.
+pub fn open_after_exit(bundle: &Path) -> Result<(), PlatformError> {
+    let pid = std::process::id();
     Command::new("/bin/sh")
         .arg("-c")
         .arg(format!(

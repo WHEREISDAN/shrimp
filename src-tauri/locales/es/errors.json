@@ -71,6 +71,7 @@
   "error.relaunch.noExecutable": "no se encuentra la app: {details}",
   "error.relaunch.notBundled": "Shrimp no se está ejecutando desde un paquete de app",
   "error.relaunch.failed": "no se puede reiniciar: {details}",
+  "error.install.copyFailed": "No se pudo copiar Shrimp a {folder}: {details}",
   "error.models.unknown": "Ese modelo no está en el catálogo.",
   "error.models.inUse": "Cambia a otro modelo antes de eliminar este.",
   "error.models.deleteFailed": "No se pudo eliminar el modelo: {details}",

@@ -115,6 +115,8 @@ pub fn run() {
                 commands::system::open_storage_settings,
                 commands::system::repair_data,
                 commands::system::reset_app,
+                commands::system::move_to_applications,
+                commands::system::quit_app,
                 $($dev)*
             ]
         };

@@ -102,6 +102,16 @@ pub fn relaunch_after_exit() -> Result<(), PlatformError> {
         .map_err(|err| PlatformError::Failed(t!("error.relaunch.failed", details = err)))
 }
 
+/// Windows runs Shrimp from wherever its installer put it; only the Mac app
+/// asks to be moved into Applications (APP-11).
+pub fn outside_applications() -> bool {
+    false
+}
+
+pub fn move_to_applications() -> Result<bool, PlatformError> {
+    Err(PlatformError::Unsupported)
+}
+
 /// Free space on the volume holding `path`, for this user, in bytes (APP-09).
 pub fn free_bytes(path: &std::path::Path) -> Option<u64> {
     let mut free = 0u64;
