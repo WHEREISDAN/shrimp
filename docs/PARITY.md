@@ -316,7 +316,7 @@ this file.
 | [ ]    | WIN-01 | Feature parity     | Every phase 1–4 item passes on Windows 10 and 11 (x64), with NVDA standing in for VoiceOver.                                                                                                     | 5     |
 | [x]    | WIN-02 | Default shortcuts  | Ctrl+Win is push to talk (Start stays closed while held), Ctrl+Win+Space hands-free, Ctrl+Win+Alt Command Mode, Shift+Alt+Z paste last, Shift+Alt+X copy last, Win+Alt+1/2/O for Transforms.     | 5     |
 | [x]    | WIN-03 | Reserved shortcuts | Standalone Ctrl, Win+E/R/L/D/Tab/I/S/X/P/Up/Down/Q, Ctrl+C and Ctrl+V are rejected.                                                                                                              | 5     |
-| [ ]    | WIN-04 | Paste rules        | Shift+Insert pastes in coding editors and their terminals; the clipboard is held about 3 s for Outlook, Word and WhatsApp and about 5 s for remote desktops; text, HTML and images are restored. | 5     |
+| [x]    | WIN-04 | Paste rules        | Shift+Insert pastes in coding editors and their terminals; the clipboard is held about 3 s for Outlook, Word and WhatsApp and about 5 s for remote desktops; text, HTML and images are restored. | 5     |
 | [x]    | WIN-05 | Clipboard history  | Shrimp's clipboard writes stay out of Win+V history and cloud clipboard sync.                                                                                                                    | 5     |
 | [x]    | WIN-06 | Elevated apps      | When a paste into an elevated app fails, Shrimp says "Run Shrimp as administrator to insert text everywhere".                                                                                    | 5     |
 | [x]    | WIN-07 | Placeholder fields | A field that shows only placeholder text counts as empty for casing and spacing.                                                                                                                 | 5     |
@@ -508,6 +508,7 @@ tap, with a WAV file as the audio source.
 | A11Y-02 | Live AX dump (as VoiceOver reads it) of Home and Settings › General: every control has a name and role except the window's traffic lights; axe-core over five screens and jsx-a11y lint. Reduce Motion is a `prefers-reduced-motion` stylesheet rule and was not toggled live.                                                                                                                                                                                                           |
 | WIN-02  | Live on Windows: holding Ctrl+Win dictated into Notepad and the Start menu stayed closed (Notepad kept the foreground); Ctrl+Win+Space started and stopped hands-free; Ctrl+Win+Alt rewrote the Notepad selection through Command Mode; Shift+Alt+Z pasted and Shift+Alt+X copied the last transcript; Win+Alt+1 started Polish and opened no taskbar jump list. Settings › Shortcuts listed every default.                                                                              |
 | WIN-03  | Live on Windows: recording Ctrl+C and Ctrl alone ended with "This shortcut is not allowed: Ctrl+C" and "…: Ctrl". The Win shortcuts were not pressed, because they act on the desktop (Win+L locks it); `windows_rejects_its_reserved_shortcuts` covers each one.                                                                                                                                                                                                                        |
+| WIN-04  | Live on Windows with portable VS Code 1.141.1 and Windows Terminal 1.25 on scratch files: a hook logging injected keys saw Shrimp's paste as Shift+Insert (its tagged events) in the VS Code editor, its terminal and Windows Terminal; the saved file and a script reading the terminal line got the transcript. The 3 s and 5 s holds for Outlook, Word, WhatsApp and remote desktops are tests only. Text, HTML and image restore ran live.                                           |
 | WIN-05  | Live on Windows with clipboard history on: after dictations and their clipboard restores, `Clipboard.GetHistoryItemsAsync` listed only copies made on purpose (Copy last transcript and the test's own items); no paste or restore by Shrimp appeared.                                                                                                                                                                                                                                   |
 | WIN-06  | Live on Windows: dictating into a Notepad started as administrator showed "Run Shrimp as administrator to insert text everywhere. Your transcript is on the clipboard." with Copy, and nothing reached that Notepad.                                                                                                                                                                                                                                                                     |
 | WIN-07  | Live on Windows: the context read of an Edge input showing only its placeholder ("Search the docs") and of a contenteditable showing a CSS placeholder (`aria-placeholder`) gave an empty field. Unit tests cover the placeholder rule.                                                                                                                                                                                                                                                  |
@@ -552,11 +553,22 @@ scratch Notepad, an InPrivate Edge page and Command Prompt, and by tauri-mcp.
   roles were read from the UI Automation tree), and there is a single display at 100 %, so
   other scaling and moving the bar between displays rest on Tauri's per-monitor DPI
   handling. Cloud engines and providers had no key; every AI run used Ollama.
-- WIN-04: VS Code, Cursor, JetBrains IDEs, Windows Terminal, Office, WhatsApp and remote
-  desktop clients aren't installed. Shift+Insert for editors and their terminals and the
-  longer clipboard hold are unit tests (`insert_options`, `reads_clipboard_late`). The
+- WIN-04: Office, WhatsApp and remote desktop clients aren't installed, so the 3 s and
+  5 s clipboard holds rest on `tests/context.rs`
+  (`late_clipboard_readers_hold_the_clipboard_for_three_seconds`,
+  `remote_desktops_hold_the_clipboard_and_skip_context_spacing`); Cursor and JetBrains IDEs
+  take the editor path by executable name (`windows_editors_and_terminals_paste_with_shift_insert`).
+  VS Code and Windows Terminal ran as portable copies that were deleted afterwards. The
   restore of text, HTML and an image ran live: the HTML, the text and the image's
   `CF_DIB` came back byte for byte and the image read back pixel for pixel.
+- PKG-03 and PKG-04 on Windows: with a throwaway updater key (deleted afterwards) and a
+  loopback feed, `release.ps1` built 0.1.0 and 0.1.1. The installed 0.1.0, started with
+  `--background`, fetched `latest.json` and the 0.1.1 installer a minute after launch;
+  "Restart now" in its notice (invoked through UI Automation) installed 0.1.1 in place,
+  which started 3 s later with the same arguments and opened its main window on Home (no
+  crash screen); the uninstall entry read 0.1.1 and the login item was unchanged. The
+  tray's Check for updates… was not clicked (the icon sits in the taskbar overflow), and
+  waiting for a running dictation rests on the macOS run and unit tests.
 - APP-01 on Windows: closing the main window to the tray released the microphone of the
   Settings meter (Windows' own record of microphone use) and showing it again restarted
   the meter.
