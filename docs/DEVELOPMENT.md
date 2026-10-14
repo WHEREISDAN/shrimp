@@ -647,9 +647,14 @@ Not covered on Windows, besides the macOS list's microphone, cloud, onboarding a
 items: WIN-06 (an elevated app needs a UAC prompt), WIN-07 (placeholders shown as text are a
 browser's; a native field's cue banner is no value), WIN-08 and WIN-12 (they act on whatever
 the PC is playing), and the macOS-only APP-07, APP-10, APP-11 and CORE-10. APP-03 and APP-12
-skip when Shrimp's tray icon sits in the taskbar's flyout of hidden icons: Windows gives no
+click Shrimp's tray icon with the mouse, at the taskbar button UI Automation finds for it,
+and skip when the icon sits in the taskbar's flyout of hidden icons: Windows gives no
 position for it there (`Shell_NotifyIconGetRect` returns `S_FALSE`), and tray-icon ignores a
-click it can't place. The walkthrough doesn't open the flyout, which belongs to Explorer.
+click it can't place. The walkthrough doesn't open the flyout, which belongs to Explorer. To
+run them, set Shrimp's rows to "Show icon and notifications" in the Notification Area Icons
+control panel (`explorer shell:::{05d7b0f4-2121-4eff-bf6b-ed3f69b894d9}`) before the run and
+back afterwards. Windows 10 drops that choice when Shrimp quits, so APP-12, which restarts
+Shrimp first, still skips in a full walkthrough.
 
 Things to know:
 

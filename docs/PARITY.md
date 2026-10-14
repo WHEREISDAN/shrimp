@@ -617,16 +617,10 @@ in Notepad). It runs the macOS cases with the Windows shortcuts and the Windows-
   - STA-06: regression, with the target app running as `WINWORD.EXE`: the documents count
     grew, and the clipboard came back about 3 s after the paste (WIN-04).
   - STY-05: the new executable names are pinned by unit tests; no browser was launched.
-  - APP-03: in one trial run, with Explorer's flyout of hidden icons open, a posted right
-    click opened the tray menu and UI Automation listed Open Shrimp, Shortcuts…, Paste last
-    transcript, Copy last transcript, Restart Shrimp and Quit Shrimp. The left click and the
-    rest of the runs are skipped: Shrimp's icon sits in that flyout on this PC, where Windows
-    gives no position for it (`Shell_NotifyIconGetRect` returns `S_FALSE`), and tray-icon
-    ignores a click it can't place; opening the flyout means operating Explorer, which left
-    it stuck open once and was dropped.
-  - APP-12: skipped for the same reason. The relaunch it uses (`relaunch_after_exit`, the
-    same `system::restart` as Reset & restart) ran live in APP-08, which relaunched Shrimp as
-    a new process.
+  - APP-03 and APP-12 skip in the walkthrough: Shrimp's icon sits in Explorer's flyout of
+    hidden icons on this PC, where Windows gives no position for it
+    (`Shell_NotifyIconGetRect` returns `S_FALSE`), and tray-icon ignores a click it can't
+    place. They passed live in separate runs (see "Verified on Windows, after phase 6").
 - Windows items of phase 5, re-run by the regression: WIN-02 (every default listed; Start
   stayed closed while Ctrl+Win was held), WIN-03 (Ctrl alone and Ctrl+C refused), WIN-04,
   WIN-05 (no paste in clipboard history; Copy last transcript in it), WIN-09 (after a start
@@ -674,6 +668,29 @@ Re-verified on macOS after the Windows phase 6 changes:
   full runs each had one timing failure, and both cases then passed three times alone. TRF-02's
   Prompt Engineer request took 10.8 s against its 10.75 s limit while the Mac was swapping.
   TRF-05's changes view didn't arrive within 10 s.
+
+Verified on Windows, after phase 6 (APP-03, APP-12), on 2026-10-14:
+
+Each run set Shrimp's three rows in the Notification Area Icons control panel to "Show icon
+and notifications" through UI Automation, ran the cases with `pnpm regression:win`'s script
+(`-Only`), and set the rows back. The helper now clicks Shrimp's icon with real mouse
+buttons at the taskbar button UI Automation finds for it, after checking that the button
+lies where `Shell_NotifyIconGetRect` places the icon. Windows dropped the rows' choice once
+Shrimp quit, so each run's icon was shown before Shrimp started. `EnableAutoTray` is absent
+on this PC, and absent again after the trials: setting it to 0 with a `TraySettings`
+broadcast didn't move the icon without restarting Explorer, and the control panel's "Always
+show all icons and notifications on the taskbar" pushed Shrimp's icon past the screen's edge.
+
+- APP-03: passed twice. A right click on the icon opened the tray menu, and UI Automation
+  listed Open Shrimp, Shortcuts…, Paste last transcript, Copy last transcript, Restart Shrimp
+  and Quit Shrimp; with the main window closed, a left click on the icon opened it.
+- APP-12: passed. A right click on the icon opened the menu, and Restart Shrimp (invoked
+  through UI Automation) relaunched Shrimp as a new process (43304 became 38932) with its
+  main window open and no crash screen. As the rows' choice doesn't survive a restart, this
+  run left out the case's opening restart and used the instance the run started.
+- After each run the three rows read "Only show notifications" again, as before; the
+  taskbar showed its 4 usual icons; and the flyout, the menu and the control panel were
+  closed.
 
 Verified partly, in phase 5:
 
