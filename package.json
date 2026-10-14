@@ -20,6 +20,7 @@
     "tauri:dev": "tauri dev --config src-tauri/tauri.conf.dev.json",
     "app:dev": "scripts/macos/dev-app.sh build",
     "app:dev:open": "scripts/macos/dev-app.sh open",
+    "regression:mac": "scripts/macos/regression/run.sh",
     "app:dev:win": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/windows/dev-app.ps1 build",
     "app:dev:win:open": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/windows/dev-app.ps1 open",
     "release:win": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/windows/release.ps1"

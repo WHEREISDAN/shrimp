@@ -31,6 +31,7 @@ pnpm install
 | `pnpm app:dev`                  | Builds the signed debug app bundle `Shrimp Dev.app`.                                   |
 | `pnpm app:dev:open`             | Quits any running `Shrimp Dev`, then launches the bundle (builds it first if missing). |
 | `scripts/macos/dev-app.sh quit` | Quits the running `Shrimp Dev` app.                                                    |
+| `pnpm regression:mac`           | The macOS regression walkthrough against `Shrimp Dev` (see below).                     |
 | `pnpm app:dev:win`              | Windows: builds the debug app `shrimp.exe` (`scripts/windows/dev-app.ps1 build`).      |
 | `pnpm app:dev:win:open`         | Windows: quits a running `Shrimp Dev`, then launches it (builds it first if missing).  |
 | `pnpm release:win`              | Windows: the per-user NSIS installer with Whisper on the GPU (`release.ps1`).          |
@@ -448,6 +449,63 @@ Documents/com~apple~TextEdit/Documents/Untitled*.rtf`) as soon as they change. C
 A WAV source needs no microphone permission. Everything from recording to transcription
 and AI edits can therefore be tested without privacy grants. Only the hotkey and the paste
 into another app still need them.
+
+## Regression walkthrough (macOS)
+
+`pnpm regression:mac` (`scripts/macos/regression/run.sh`) drives the signed dev app through
+every automatable PARITY item (AUD-02) and prints one line per case with the items it
+covers. It takes about 10 minutes.
+
+```sh
+pnpm regression:mac                         # every case
+pnpm regression:mac --only core,CMD-01      # suites (core, editing, library, commands, app, relaunch) or PARITY ids
+pnpm regression:mac --build --report out.json
+pnpm regression:mac latency --runs 10       # AUD-03 instead: key-release-to-insert latency
+```
+
+What it needs:
+
+- The terminal (or agent host) that runs it has Accessibility, and Shrimp Dev has
+  Accessibility (see [One-time grants](#one-time-grants-from-phase-1)). The microphone is not
+  used.
+- The default Whisper model downloaded. Ollama running with a model for the AI cases;
+  without it they are skipped.
+- Wispr Flow quit: it also reacts to fn (the script warns).
+- Nobody using the Mac: the cases press fn and other keys, and bring windows to the front.
+
+What it does:
+
+1. Builds `helper.swift` (synthetic keys and mouse buttons at the HID event tap, the
+   clipboard, Accessibility reads and writes, and the latency timer) and `target.swift`, a
+   small app with a text view, a text field, a password field and a list, into a temporary
+   folder. Every dictation goes into that app, so no TextEdit document or iCloud file is
+   created.
+2. Builds `Shrimp Dev.app` if it is missing (or with `--build`), quits it, copies its data
+   folder except `models/`, and saves the clipboard.
+3. Launches the app and the target app and runs `walkthrough.mjs`, which talks to the app
+   over tauri-mcp's socket (`mcp-client.mjs`: the same JSON lines the MCP server sends),
+   switches the WAV source with `dev_set_audio_source`, uses the fake microphones, and
+   reads the app's log for notices. The fixtures are the repository's WAV files plus a few
+   sentences made with `say`.
+4. Afterwards, whatever happened: quits both apps, puts the data folder and the clipboard
+   back, and deletes the temporary folder.
+
+Results are `PASS`, `FAIL`, `WARN` (the pipeline worked but a local model's output missed a
+quality check, such as a list that wasn't formatted; model quality is measured by the eval
+in [AI edits](#ai-edits)) and `SKIP`. The exit status is 1 when a case failed.
+
+Not covered, and why:
+
+| Items                                                                    | Why                                                                                                                                  |
+| ------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------ |
+| ENG-04, MIC-01, ENG-05, ENG-06                                           | Need a microphone or cloud keys with credits (the owner's checks).                                                                   |
+| SND-03, SND-04                                                           | Mute and pause act on whatever the Mac is playing.                                                                                   |
+| INS-03, INS-09, INS-10, INS-11, CORE-08, CORE-14, HIS-04, FMT-13, FMT-14 | Keyboard layouts, terminals and remote desktops, and long or dated timings: unit and controller tests.                               |
+| KEYS-04, KEYS-09, CORE-02 (the emoji picker)                             | Caps Lock and Secure Keyboard Entry change system state; the Globe key needs a physical press.                                       |
+| DEV-01, DEV-02, STY-04, STY-05, CTX-04                                   | Cursor, Windsurf and browsers aren't launched; unit and controller tests.                                                            |
+| ONB-_, A11Y-_, APP-03, MIC-10, STA-03, STA-04, TRF-03                    | Onboarding needs a fresh data folder; the tray needs real clicks; UI covered by Vitest and axe; the voice profile needs 2,000 words. |
+| PKG-*                                                                    | Release builds: see [RELEASING.md](RELEASING.md).                                                                                    |
+| WIN-*                                                                    | Windows.                                                                                                                             |
 
 ## Windows
 
