@@ -56,3 +56,20 @@ fn buttons(device: &RAWINPUTDEVICELIST) -> Option<u32> {
     }
     Some(unsafe { info.Anonymous.mouse }.dwNumberOfButtons)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn reads_the_connected_mice() {
+        let mice = devices()
+            .into_iter()
+            .filter(|device| device.dwType == RIM_TYPEMOUSE)
+            .count();
+        let buttons = RawInputMice.most_buttons();
+        println!("{mice} mice, at most {buttons} buttons");
+        assert!(buttons <= 32);
+        assert!(mice == 0 || buttons > 0, "a mouse without buttons");
+    }
+}
