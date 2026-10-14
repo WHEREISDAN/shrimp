@@ -458,7 +458,7 @@ pub use macos::{
 pub use windows::{
     free_bytes, is_windows_11, language_name, move_to_applications, open_keyboard_settings,
     open_sound_settings, open_storage_settings, outside_applications, relaunch_after_exit,
-    set_own_field_focused,
+    set_own_field_focused, small_icon_size,
 };
 
 /// What a restart passes the new instance, so it opens its main window even
@@ -500,7 +500,7 @@ pub fn register_plugins<R: tauri::Runtime>(builder: tauri::Builder<R>) -> tauri:
 pub use macos::flow_bar;
 
 #[cfg(target_os = "windows")]
-pub use windows::flow_bar;
+pub use windows::{flow_bar, main_window};
 
 #[cfg(test)]
 mod tests {

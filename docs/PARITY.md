@@ -846,6 +846,63 @@ rerun (Ollama's first request had outlasted the 5 s limit), and FMT-07 and FMT-0
 with the usual local-model warnings. The Windows title bar, caption buttons and Mica
 still need a run on Windows.
 
+Redesign, 0.1.1 (2026-10-14), Windows: `Shrimp Dev` on Windows 10 IoT Enterprise LTSC 21H2
+(build 19044, one 1920 × 1080 display at 100 %), hooks off (`SHRIMP_NO_HOTKEYS=1`), light and
+dark through `dev_set_theme` (the system theme was left alone). Fmt, oxlint, tsc, Vitest
+(209), `cargo test` (577) and clippy `-D warnings` in debug and in release with Vulkan pass.
+Live, with `SendInput` only into Shrimp, only in front and only while the person at the PC
+had been idle for five minutes (a hook that ignores injected input stopped the run at any
+other input; none came):
+
+- Caption buttons: Segoe MDL2 Assets draws the glyphs (Windows 10 has no Segoe Fluent
+  Icons), Maximize turns into Restore and back, Minimize minimizes, and Close and Alt+F4
+  hide the window to the tray with Shrimp still running.
+- Dragging the title area moves the window; double-clicking it maximizes and restores.
+  Dragging to the left edge snaps to half the screen (Snap Assist opens), dragging off
+  restores the size, and dragging to the top maximizes. Win+Up maximizes, Win+Down
+  restores and then minimizes, Win+Left and Win+Right snap and restore.
+- Alt+Space opens the system menu at the window's corner; a right click on the title area
+  opens the same menu at the pointer (Restore greyed while the window isn't maximized);
+  Esc closes both.
+- Resizing works from all four edges and all four corners.
+- Segoe UI renders at 14/20 px with 28 px titles (Segoe UI Variable is Windows 11's), German
+  labels fit (Settings' "Daten und Datenschutz" wraps to two lines), the taskbar shows the
+  new icon, and the window's own icon is crisp at 16 to 48 px.
+- Screens captured in light and dark: Home, Settings › General (also scrolled, and in
+  German), Dictionary, the Add word dialog, onboarding (welcome and shortcut), Insights,
+  Help, Transforms, and the Flow Bar resting, recording, processing and with notices. No
+  seam between the title area and the content on any page.
+
+Fixed on Windows:
+
+- Windows 10 drew a translucent 1 px frame line on the left, right and bottom of the
+  undecorated window (none at the top) that turned light over anything light behind it:
+  tao keeps a frame there for its shadow. On Windows 10 setup now turns that shadow off and
+  extends DWM's frame 1 px into the window, which keeps the shadow and loses the line, and
+  the page draws an even hairline in the theme's colours (`--window-edge`), none while
+  maximized.
+- The top edge couldn't resize: Tauri attaches its resize borders only without its
+  `unstable` feature, which tauri-plugin-mcp turns on in every build. The page now has its
+  own resize borders (`ResizeEdges`, through `startResizeDragging`).
+- The page's scrollbar ran up beside the caption buttons, its arrow inside the close
+  button; it now starts below the title area as a slim thumb.
+- WebView2's browser menu (Back, Refresh, Print…) opened on any right click; it now only
+  opens on text fields and selected text, and the title area opens the window menu.
+- The tray icon is now drawn at the taskbar's small-icon size: Windows shrinks the 32 px
+  image by sampling pixels, which frayed the mark and the rounded corners. The tray icon
+  sits in the taskbar's hidden-icons flyout on this PC, and the Notification Area Icons
+  panel didn't take a choice made through UI Automation, so the coral icon and Privacy
+  mode's green dot were checked as `DrawIconEx` draws Shrimp's own icon onto the dark and
+  light taskbar colours (both clear, before and after), not on the live taskbar.
+- `a11y.test.tsx` outlasted Vitest's 5 s limit beside the other test files on this PC; its
+  suite now allows 30 s.
+
+Rests on code review and unit tests only (no Windows 11 PC): Mica and its detection
+(`windows_11_starts_at_build_22000`), Windows 11's rounded frame and outline, and resizing
+there from outside the window on three sides with the page's own top border. Snap Layouts
+don't open from the maximize button, which is web content. Other display scales rest on
+`small_icon_size` and Tauri's DPI handling.
+
 ## Parity audit (AUD-01)
 
 On 2026-10-13, phase 6 re-read Wispr's what's-new page (entries up to 9 October 2026),

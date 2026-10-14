@@ -1,4 +1,5 @@
 import { useState, type ReactNode } from "react";
+import { ResizeEdges } from "@/components/resize-edges";
 import { WindowControls } from "@/components/window-controls";
 import { useInterfaceLanguage } from "../i18n";
 import { EVENTS } from "../lib/ipc";
@@ -36,12 +37,16 @@ export function App() {
   return IS_WINDOWS ? <WindowChrome>{screen}</WindowChrome> : screen;
 }
 
-/** Windows draws no title bar for the main window, so every screen gets its caption buttons. */
+/**
+ * Windows draws no title bar for the main window, so every screen gets its
+ * caption buttons and resize borders.
+ */
 function WindowChrome({ children }: { children: ReactNode }) {
   return (
     <>
       {children}
       <WindowControls />
+      <ResizeEdges />
     </>
   );
 }

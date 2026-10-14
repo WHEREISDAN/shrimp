@@ -25,6 +25,7 @@ pub const NAMES: &[&str] = &[
     "app_info",
     "own_field_focused",
     "window_material",
+    "show_window_menu",
     "get_dictation_state",
     "flow_bar_control",
     "flow_bar_ready",

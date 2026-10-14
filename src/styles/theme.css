@@ -141,6 +141,7 @@
   --sidebar-foreground: #18181b;
   --sidebar-accent: rgb(0 0 0 / 0.07);
   --sidebar-border: rgb(0 0 0 / 0.09);
+  --window-edge: rgb(0 0 0 / 0.2);
 
   --sidebar-w: clamp(184px, 24vw, 224px);
   --toolbar-h: 52px;
@@ -181,6 +182,7 @@
     --sidebar-foreground: #f4f4f5;
     --sidebar-accent: rgb(255 255 255 / 0.08);
     --sidebar-border: rgb(0 0 0 / 0.55);
+    --window-edge: rgb(255 255 255 / 0.12);
   }
 }
 

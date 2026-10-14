@@ -13,8 +13,9 @@ use windows::Win32::Globalization::{
 use windows::Win32::Security::Authentication::Identity::{GetUserNameExW, NameDisplay};
 use windows::Win32::Storage::FileSystem::GetDiskFreeSpaceExW;
 use windows::Win32::System::Registry::{HKEY_LOCAL_MACHINE, RRF_RT_REG_SZ, RegGetValueW};
+use windows::Win32::UI::HiDpi::{GetDpiForSystem, GetSystemMetricsForDpi};
 use windows::Win32::UI::Shell::ShellExecuteW;
-use windows::Win32::UI::WindowsAndMessaging::SW_SHOWNORMAL;
+use windows::Win32::UI::WindowsAndMessaging::{SM_CXSMICON, SW_SHOWNORMAL};
 use windows::core::{HSTRING, PCSTR, PWSTR, w};
 
 use crate::platform::{Launcher, PlatformError, RELAUNCH_ARG};
@@ -56,6 +57,13 @@ impl Launcher for WinLauncher {
     }
 }
 
+/// The size of small icons, such as the taskbar's notification icons, at the
+/// display scale Windows started Shrimp with: 16 px at 100 %.
+pub fn small_icon_size() -> Option<u32> {
+    let size = unsafe { GetSystemMetricsForDpi(SM_CXSMICON, GetDpiForSystem()) };
+    u32::try_from(size).ok().filter(|size| *size > 0)
+}
+
 /// Windows 11 (build 22000 or later), the first with Mica.
 pub fn is_windows_11() -> bool {
     let mut buffer = [0u16; 16];
@@ -75,7 +83,12 @@ pub fn is_windows_11() -> bool {
         return false;
     }
     let units = (size as usize / 2).min(buffer.len());
-    String::from_utf16_lossy(&buffer[..units])
+    is_windows_11_build(&String::from_utf16_lossy(&buffer[..units]))
+}
+
+/// `CurrentBuildNumber` as the registry holds it, with its terminating zero.
+fn is_windows_11_build(build: &str) -> bool {
+    build
         .trim_end_matches('\0')
         .parse::<u32>()
         .is_ok_and(|build| build >= 22_000)
@@ -259,6 +272,22 @@ mod tests {
         assert_eq!(language_name("fr", "de").as_deref(), Some("Französisch"));
         assert_eq!(language_name("es", "it").as_deref(), Some("Spagnolo"));
         assert_eq!(language_name("de", "en").as_deref(), Some("German"));
+    }
+
+    #[test]
+    fn small_icons_follow_the_display_scale() {
+        let size = small_icon_size().unwrap();
+        assert!((16..=64).contains(&size), "{size}");
+    }
+
+    #[test]
+    fn windows_11_starts_at_build_22000() {
+        assert!(is_windows_11_build("22000\0"));
+        assert!(is_windows_11_build("26100"));
+        assert!(!is_windows_11_build("19044\0"));
+        assert!(!is_windows_11_build("21999"));
+        assert!(!is_windows_11_build(""));
+        assert!(!is_windows_11_build("unknown"));
     }
 
     #[test]

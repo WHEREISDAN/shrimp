@@ -293,9 +293,19 @@ themed to read as a first-party Apple app:
   and close in Segoe Fluent Icons/MDL2 glyphs at the top right of every screen; close
   hides to the tray like the native button. Setup applies Mica on Windows 11 (build
   22000+, read from the registry), and `window_material` tells the page whether to leave
-  the sidebar clear for it; Windows 10 gets an opaque sidebar. The capabilities
-  `main-window` (dragging) and `caption-buttons` (Windows only) grant just those window
-  commands.
+  the sidebar clear for it; Windows 10 gets an opaque sidebar. On Windows 10 tao's shadow
+  keeps a frame on three sides, where the system draws a translucent 1 px line that turns
+  white over light windows behind, so setup turns that shadow off and extends DWM's frame
+  1 px into the window instead (`platform::main_window`): the shadow stays, the line goes,
+  and the page draws a hairline in the theme's colours (`--window-edge`) while the window
+  isn't maximized. `ResizeEdges` puts resize borders just inside the window's edges (only
+  the top on Windows 11, whose frame resizes the other sides from outside) and starts the
+  system's resize through `startResizeDragging`: Tauri skips its own borders when its
+  `unstable` feature is on, which tauri-plugin-mcp turns on in every build. A right click
+  on the title area opens the window menu (`show_window_menu`); elsewhere WebView2's
+  browser menu (Back, Refresh, Print…) only opens on text fields and selected text. The
+  capabilities `main-window` (dragging) and `caption-buttons` (Windows only: caption
+  buttons and resizing) grant just those window commands.
 
 IPC conventions:
 
@@ -315,7 +325,7 @@ Built so far:
 | Phase 4b | `get_app_health`, `dismiss_crash`, `check_storage`, `open_storage_settings`, `repair_data`, `reset_app` (both restart the app); `get_insights`, `get_voice_profile`, `generate_voice_profile` (rejects with `{kind}`), `copy_image` and `save_image` (a raw PNG request body; the file name in an `x-file-name` header); `list_history`, `copy_history`, `set_history_raw` (Undo/Redo AI edit), `retry_history`, `history_audio` (raw WAV bytes), `extract_history_audio`, `delete_history`, `set_history_storage` ("never" needs "delete all") |
 | Phase 6  | `delete_all_history` (Delete all transcripts); `move_to_applications`, `quit_app` (the Move to Applications screen); `get_format_apps` (the apps Style › Formatting per app offers: the app in front before Shrimp's window opened, then the apps dictated into, most words first); `share_image` (X or LinkedIn: a raw PNG request body, the network in an `x-share-network` header)                                                                                                                                                           |
 | Phase 2  | `get_settings`, `update_settings`, `get_ai_options`, `get_api_keys`, `set_api_key`, `delete_api_key`, `list_ollama_models`, `test_ai_provider`; dictionary and snippet CRUD and imports (`list_dictionary`, `add_dictionary_entry`, `update_dictionary_entry`, `set_dictionary_pinned`, `delete_dictionary_entries`, `preview_dictionary_import`, `import_dictionary`, `list_snippets`, `add_snippet`, `update_snippet`, `delete_snippets`, `preview_snippet_import`, `import_snippets`)                                                        |
-| Redesign | `window_material` (the native material behind the main window's sidebar: `vibrancy`, `mica` or `none`)                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| Redesign | `window_material` (the native material behind the main window's sidebar: `vibrancy`, `mica` or `none`), `show_window_menu` (Windows: the window menu at the pointer, for a right click on the title area)                                                                                                                                                                                                                                                                                                                                       |
 | Dev only | `dev_get_audio_source`, `dev_set_audio_source`, `dev_set_app_category`, `dev_edit_text`, `dev_read_context`, `dev_set_microphones`, `dev_set_permissions`, `dev_set_theme` (debug builds; see DEVELOPMENT.md)                                                                                                                                                                                                                                                                                                                                   |
 | Events   | `dictation://state`, `dictation://level` (Flow Bar only), `notify://notice`, `command://answer` and `transform://changes` (Flow Bar only), `models://status`, `app://navigate`, `settings://changed`, `shortcuts://recording`, `notify://dismiss` (a notice whose cause went away), `mic://devices`, `mic://level`, `flow-bar://hover` (Flow Bar only), `app://main-visible` (main window shown or closed to the tray)                                                                                                                          |
 

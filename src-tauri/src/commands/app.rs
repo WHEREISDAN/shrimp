@@ -1,6 +1,7 @@
 use serde::Serialize;
 use tauri::{AppHandle, PackageInfo, State};
 
+use super::CommandError;
 use crate::app::window::WindowMaterial;
 
 /// The user's first name, read once at startup.
@@ -39,6 +40,14 @@ pub fn app_info(app: AppHandle, user: State<'_, UserName>) -> AppInfo {
 #[tauri::command]
 pub fn window_material() -> WindowMaterial {
     crate::app::window::material()
+}
+
+/// Windows: the window menu at the pointer, for a right click on the main
+/// window's title area.
+#[tauri::command]
+pub fn show_window_menu(window: tauri::WebviewWindow) -> Result<(), CommandError> {
+    crate::app::window::show_window_menu(&window)
+        .map_err(|err| CommandError::new("windowMenu", err))
 }
 
 /// The main window says whether one of its text fields has focus, so a

@@ -15,6 +15,7 @@ mod input;
 mod insert;
 mod keycode;
 mod login;
+pub mod main_window;
 mod media;
 mod mice;
 mod permissions;
@@ -54,4 +55,5 @@ pub use focus::set_own_field_focused;
 pub use system::{
     free_bytes, is_windows_11, language_name, move_to_applications, open_keyboard_settings,
     open_sound_settings, open_storage_settings, outside_applications, relaunch_after_exit,
+    small_icon_size,
 };
