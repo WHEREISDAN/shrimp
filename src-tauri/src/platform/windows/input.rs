@@ -19,6 +19,8 @@ use crate::platform::PlatformError;
 
 /// Marks input Shrimp sends ("SHRP"), so its hooks tell it from the user's.
 pub const SHRIMP_TAG: usize = 0x5348_5250;
+/// How long Windows takes to pass sent keys through the hooks.
+const RESTORE_DELAY: std::time::Duration = std::time::Duration::from_millis(20);
 
 /// Keys whose scancode has the E0 prefix.
 fn extended(vk: u16) -> bool {
@@ -117,9 +119,12 @@ fn left_sides(modifiers: Modifiers) -> Modifiers {
 }
 
 /// The events that press `vk` with exactly `modifiers` held, given that the
-/// user holds `held`: lift the extra ones, press the missing ones, the key,
-/// then put everything back as it was.
-fn shortcut(held: Modifiers, modifiers: Modifiers, vk: u16) -> Vec<INPUT> {
+/// user holds `held`: lift the extra ones, press the wanted ones, the key,
+/// and release those again. A wanted modifier the user holds is pressed
+/// again too, as the user may let go of it before the key arrives. Returns
+/// the events with the modifiers taken from the user, which go back down
+/// afterwards if the user still holds them.
+fn shortcut(held: Modifiers, modifiers: Modifiers, vk: u16) -> (Vec<INPUT>, Modifiers) {
     let wanted_groups = [
         Modifiers::CTRL,
         Modifiers::SHIFT,
@@ -130,7 +135,8 @@ fn shortcut(held: Modifiers, modifiers: Modifiers, vk: u16) -> Vec<INPUT> {
     .filter(|group| modifiers.intersects(*group))
     .fold(Modifiers::empty(), |acc, group| acc | group);
     let lift = held & !wanted_groups;
-    let press = left_sides(modifiers & !held_groups(held));
+    let renew = held & wanted_groups;
+    let press = left_sides(modifiers & !held_groups(held)) | renew;
     let mut inputs = Vec::new();
     if lift.intersects(Modifiers::CMD | Modifiers::OPT) {
         inputs.extend([key(VK_MENU_MASK, true), key(VK_MENU_MASK, false)]);
@@ -139,7 +145,20 @@ fn shortcut(held: Modifiers, modifiers: Modifiers, vk: u16) -> Vec<INPUT> {
     inputs.extend(modifier_keys(press).into_iter().map(|vk| key(vk, true)));
     inputs.extend([key(vk, true), key(vk, false)]);
     inputs.extend(modifier_keys(press).into_iter().map(|vk| key(vk, false)));
-    inputs.extend(modifier_keys(lift).into_iter().map(|vk| key(vk, true)));
+    (inputs, lift | renew)
+}
+
+/// Presses the modifiers taken from the user again. After Win or Alt comes the
+/// inert key: the user's release that follows would otherwise read as Win or
+/// Alt pressed alone and open Start or the window's menu.
+fn restore(lifted: Modifiers) -> Vec<INPUT> {
+    let mut inputs: Vec<INPUT> = modifier_keys(lifted)
+        .into_iter()
+        .map(|vk| key(vk, true))
+        .collect();
+    if lifted.intersects(Modifiers::CMD | Modifiers::OPT) {
+        inputs.extend([key(VK_MENU_MASK, true), key(VK_MENU_MASK, false)]);
+    }
     inputs
 }
 
@@ -155,13 +174,25 @@ fn held_groups(held: Modifiers) -> Modifiers {
     .fold(Modifiers::empty(), |acc, group| acc | group)
 }
 
-/// Presses `vk` with exactly `modifiers`, whatever the user holds.
+/// Presses `vk` with exactly `modifiers`, whatever the user holds. A modifier
+/// taken from the user goes back down only if the user still holds it once the
+/// keys went through: one released meanwhile would otherwise stay down in
+/// Windows, and the user's next keys would become shortcuts.
 pub fn press(modifiers: Modifiers, vk: u16) -> Result<(), PlatformError> {
-    send(&shortcut(hook::held_modifiers(), modifiers, vk))
+    let (inputs, lifted) = shortcut(hook::modifiers_windows_holds(), modifiers, vk);
+    send(&inputs)?;
+    if lifted.is_empty() {
+        return Ok(());
+    }
+    // The hooks see a release that came before these keys once Windows has
+    // handled them.
+    std::thread::sleep(RESTORE_DELAY);
+    send(&restore(lifted & hook::modifiers_windows_holds()))
 }
 
 #[cfg(test)]
 mod tests {
+    use super::super::keycode::VK_RETURN;
     use super::*;
 
     fn keys(inputs: &[INPUT]) -> Vec<(u16, bool)> {
@@ -174,10 +205,18 @@ mod tests {
             .collect()
     }
 
+    /// Every event of a shortcut sent while the user keeps holding `held`.
+    fn all(held: Modifiers, modifiers: Modifiers, vk: u16) -> Vec<(u16, bool)> {
+        let (inputs, lifted) = shortcut(held, modifiers, vk);
+        let mut events = keys(&inputs);
+        events.extend(keys(&restore(lifted & held)));
+        events
+    }
+
     #[test]
     fn plain_ctrl_v() {
         assert_eq!(
-            keys(&shortcut(Modifiers::empty(), Modifiers::CTRL, 0x56)),
+            all(Modifiers::empty(), Modifiers::CTRL, 0x56),
             [
                 (VK_LCONTROL, true),
                 (0x56, true),
@@ -188,17 +227,25 @@ mod tests {
     }
 
     #[test]
-    fn a_held_ctrl_is_reused_and_win_alt_are_lifted() {
+    fn a_held_ctrl_is_pressed_again_and_win_alt_are_lifted() {
+        // Held Ctrl is pressed again, so the copy doesn't hang on the user's
+        // finger, and goes back down afterwards.
         assert_eq!(
-            keys(&shortcut(Modifiers::CTRL_LEFT, Modifiers::CTRL, 0x43)),
-            [(0x43, true), (0x43, false)]
+            all(Modifiers::CTRL_LEFT, Modifiers::CTRL, 0x43),
+            [
+                (VK_LCONTROL, true),
+                (0x43, true),
+                (0x43, false),
+                (VK_LCONTROL, false),
+                (VK_LCONTROL, true),
+            ]
         );
         assert_eq!(
-            keys(&shortcut(
+            all(
                 Modifiers::CMD_LEFT | Modifiers::OPT_LEFT,
                 Modifiers::CTRL,
                 0x43
-            )),
+            ),
             [
                 (VK_MENU_MASK, true),
                 (VK_MENU_MASK, false),
@@ -210,13 +257,83 @@ mod tests {
                 (VK_LCONTROL, false),
                 (VK_LMENU, true),
                 (VK_LWIN, true),
+                (VK_MENU_MASK, true),
+                (VK_MENU_MASK, false),
+            ]
+        );
+    }
+
+    #[test]
+    fn a_swallowed_win_is_neither_lifted_nor_pressed_again() {
+        // Ctrl+Win held for push to talk: the hooks swallowed Win, so Windows
+        // holds only Ctrl. Win is never sent; Ctrl is pressed for the paste and
+        // lifted for Enter, then put back.
+        let windows_holds = Modifiers::CTRL_LEFT;
+        assert_eq!(
+            all(windows_holds, Modifiers::CTRL, 0x56),
+            [
+                (VK_LCONTROL, true),
+                (0x56, true),
+                (0x56, false),
+                (VK_LCONTROL, false),
+                (VK_LCONTROL, true),
+            ]
+        );
+        assert_eq!(
+            all(windows_holds, Modifiers::empty(), VK_RETURN),
+            [
+                (VK_LCONTROL, false),
+                (VK_RETURN, true),
+                (VK_RETURN, false),
+                (VK_LCONTROL, true),
+            ]
+        );
+    }
+
+    #[test]
+    fn a_ctrl_released_before_the_paste_still_makes_it_ctrl_v() {
+        let (inputs, taken) = shortcut(Modifiers::CTRL_LEFT, Modifiers::CTRL, 0x56);
+        assert_eq!(
+            keys(&inputs),
+            [
+                (VK_LCONTROL, true),
+                (0x56, true),
+                (0x56, false),
+                (VK_LCONTROL, false),
+            ]
+        );
+        assert!(restore(taken & Modifiers::empty()).is_empty());
+    }
+    #[test]
+    fn a_modifier_released_meanwhile_stays_up() {
+        // Alt+Enter for Press Enter, with Alt let go while Enter went out.
+        let (inputs, lifted) = shortcut(Modifiers::OPT_LEFT, Modifiers::empty(), VK_RETURN);
+        assert_eq!(
+            keys(&inputs),
+            [
+                (VK_MENU_MASK, true),
+                (VK_MENU_MASK, false),
+                (VK_LMENU, false),
+                (VK_RETURN, true),
+                (VK_RETURN, false),
+            ]
+        );
+        assert!(restore(lifted & Modifiers::empty()).is_empty());
+        // Still held: Alt goes back down, and its release won't open the menu.
+        assert_eq!(
+            keys(&restore(lifted)),
+            [
+                (VK_LMENU, true),
+                (VK_MENU_MASK, true),
+                (VK_MENU_MASK, false)
             ]
         );
     }
 
     #[test]
     fn every_event_is_tagged() {
-        for input in shortcut(Modifiers::SHIFT_LEFT, Modifiers::SHIFT, VK_INSERT) {
+        let (inputs, lifted) = shortcut(Modifiers::SHIFT_LEFT, Modifiers::SHIFT, VK_INSERT);
+        for input in inputs.into_iter().chain(restore(lifted)) {
             let ki = unsafe { input.Anonymous.ki };
             assert_eq!(ki.dwExtraInfo, SHRIMP_TAG);
             if ki.wVk.0 == VK_INSERT {

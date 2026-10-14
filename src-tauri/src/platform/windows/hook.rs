@@ -76,6 +76,8 @@ impl Filter {
 /// The modifiers the user holds as the hooks track them, for keys Shrimp
 /// sends while a shortcut is held.
 static HELD: AtomicU32 = AtomicU32::new(0);
+/// The held modifiers whose press the hooks swallowed, so Windows never saw it.
+static SWALLOWED: AtomicU32 = AtomicU32::new(0);
 /// When Shrimp last sent keys, in milliseconds since `EPOCH`.
 static SENT_AT: AtomicU64 = AtomicU64::new(0);
 static EPOCH: std::sync::OnceLock<Instant> = std::sync::OnceLock::new();
@@ -86,6 +88,14 @@ fn now_millis() -> u64 {
 
 pub fn held_modifiers() -> Modifiers {
     Modifiers::from_bits_truncate(HELD.load(Ordering::Relaxed))
+}
+
+/// The held modifiers Windows counts as pressed. Keys Shrimp sends lift and
+/// put back only these: pressing a swallowed one (Win of Ctrl+Win) again
+/// would leave it down in Windows once its release is swallowed too, and
+/// the next key would become a Win shortcut.
+pub fn modifiers_windows_holds() -> Modifiers {
+    held_modifiers() & !Modifiers::from_bits_truncate(SWALLOWED.load(Ordering::Relaxed))
 }
 
 /// Called before Shrimp sends keys.
@@ -377,6 +387,7 @@ fn on_key(state: &mut State, vk: u16, scan_code: u32, extended: bool, down: bool
         } else {
             false
         };
+        SWALLOWED.store(state.swallowed_modifiers.bits(), Ordering::Relaxed);
         if state.modifiers != before {
             let _ = state.events.send(RawInput::Key(KeyEvent {
                 modifiers: state.modifiers,
@@ -567,6 +578,11 @@ mod tests {
             on_key(&mut state, keycode::VK_LWIN, 0x5B, true, true),
             (true, true),
             "Win is swallowed and Start disarmed"
+        );
+        assert_eq!(
+            state.modifiers & !state.swallowed_modifiers,
+            Modifiers::CTRL_LEFT,
+            "Windows holds only Ctrl, so sent keys leave Win alone"
         );
         assert_eq!(
             on_key(&mut state, keycode::VK_LWIN, 0x5B, true, true),
