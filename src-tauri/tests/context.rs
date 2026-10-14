@@ -6,7 +6,7 @@ mod support;
 
 use std::time::{Duration, Instant};
 
-use shrimp_lib::platform::{Editable, TextRange};
+use shrimp_lib::platform::{Editable, PasteKey, TextRange};
 use support::*;
 
 fn field(before: &str, screen: &[&str]) -> FieldContext {
@@ -132,6 +132,49 @@ fn terminals_paste_in_parts_without_a_field_check() {
     assert!(!options.require_field);
     let split = options.split.expect("terminal pastes are split");
     assert!(split.max_chars < 800 && split.max_breaks <= 2);
+}
+
+#[test]
+fn windows_editors_and_terminals_paste_with_shift_insert() {
+    for (exe, name, key) in [
+        ("Code.exe", "Visual Studio Code", PasteKey::ShiftInsert),
+        (
+            "WindowsTerminal.exe",
+            "Windows Terminal",
+            PasteKey::ShiftInsert,
+        ),
+        ("cmd.exe", "Command Prompt", PasteKey::ShiftInsert),
+        ("notepad.exe", "Notepad", PasteKey::Default),
+    ] {
+        let h = run(Setup {
+            app: Some(app(exe, name)),
+            field: Some(field("", &[])),
+            ..Setup::default()
+        });
+        wait_until("insertion", || !h.fakes.inserted().is_empty());
+        assert_eq!(
+            h.fakes.insert_options.lock().unwrap()[0].paste_key,
+            key,
+            "{exe}"
+        );
+    }
+}
+
+#[test]
+fn late_clipboard_readers_hold_the_clipboard_for_three_seconds() {
+    for exe in ["OUTLOOK.EXE", "WINWORD.EXE", "WhatsApp.Root.exe"] {
+        let h = run(Setup {
+            app: Some(app(exe, exe)),
+            field: Some(field("", &[])),
+            ..Setup::default()
+        });
+        wait_until("insertion", || !h.fakes.inserted().is_empty());
+        assert_eq!(
+            h.fakes.insert_options.lock().unwrap()[0].hold,
+            Duration::from_secs(3),
+            "{exe}"
+        );
+    }
 }
 
 #[test]

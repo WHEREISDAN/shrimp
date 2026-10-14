@@ -120,8 +120,9 @@ pub enum PasteKey {
     /// Cmd+V on macOS, Ctrl+V on Windows.
     #[default]
     Default,
-    /// Shift+Insert, which code editors and their terminals on Windows
-    /// treat as a plain paste (WIN-04).
+    /// Shift+Insert, which Windows code editors, their terminals and terminal
+    /// apps treat as a plain paste, where Ctrl+V can mean something else (Vim
+    /// keys, mintty, PuTTY, the legacy console) (WIN-04). macOS ignores it.
     ShiftInsert,
 }
 

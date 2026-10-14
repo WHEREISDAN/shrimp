@@ -345,14 +345,15 @@ impl Pipeline {
     }
 
     /// Terminals paste without a field check and in parts; remote desktops
-    /// hold the clipboard longer (INS-09..11). On Windows, code editors take
-    /// Shift+Insert and a few apps read the clipboard late (WIN-04).
+    /// hold the clipboard longer (INS-09..11). On Windows, code editors and
+    /// terminals take Shift+Insert and a few apps read the clipboard late
+    /// (WIN-04).
     pub fn insert_options(&self, context: &DictationContext) -> InsertOptions {
         let mut options = InsertOptions::new(self.clipboard_hold);
         if apps::reads_clipboard_late(context.app.as_ref()) {
             options.hold = options.hold.max(LATE_READER_HOLD);
         }
-        if context.app_kind() == AppKind::CodeEditor {
+        if matches!(context.app_kind(), AppKind::CodeEditor | AppKind::Terminal) {
             options.paste_key = PasteKey::ShiftInsert;
         }
         match context.app_kind() {
