@@ -1,3 +1,4 @@
+import { X } from "lucide-react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { runNoticeAction, type Answer } from "../lib/ipc";
@@ -21,7 +22,7 @@ export function AnswerCard({ answer, onDismiss }: AnswerCardProps) {
           aria-label={t("answer.dismiss")}
           onClick={onDismiss}
         >
-          ×
+          <X aria-hidden="true" strokeWidth={2} />
         </button>
       </header>
       <div className="answer-text">{answer.text}</div>

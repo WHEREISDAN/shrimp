@@ -1,3 +1,4 @@
+import { X } from "lucide-react";
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { diffWords } from "../lib/diff";
@@ -36,7 +37,7 @@ export function ChangesCard({ view, onClose }: ChangesCardProps) {
           aria-label={t("common.close")}
           onClick={onClose}
         >
-          ×
+          <X aria-hidden="true" strokeWidth={2} />
         </button>
       </header>
       <div className="answer-text diff">

@@ -1,7 +1,30 @@
+@import "tailwindcss/theme.css" layer(theme);
+@import "../styles/theme.css";
+
+/*
+ * The Flow Bar: a dark capsule in the manner of Apple's HUDs, in both appearances.
+ * Its window is transparent and follows the content box, so nothing here may
+ * spill outside .flow-bar (shadows stay within its 4 px padding).
+ */
+
 :root {
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
-  -webkit-font-smoothing: antialiased;
   color-scheme: dark;
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  --hud: rgb(24 24 27 / 0.94);
+  --hud-rest: rgb(24 24 27 / 0.74);
+  --hud-card: rgb(28 28 31 / 0.98);
+  --hud-line: rgb(255 255 255 / 0.13);
+  --hud-text: #f4f4f5;
+  --hud-muted: rgb(244 244 245 / 0.62);
+  --hud-fill: rgb(255 255 255 / 0.12);
+  --hud-fill-hover: rgb(255 255 255 / 0.2);
+  --hud-red: #ff453a;
+  --hud-yellow: #ffd60a;
+  --hud-green: #30d158;
+  /* Command Mode and AI edits keep their own hue, so they can't pass for dictation. */
+  --hud-ai: #bf5af2;
+  --hud-highlight: inset 0 1px 0 rgb(255 255 255 / 0.07);
 }
 
 html,
@@ -12,6 +35,16 @@ body {
   user-select: none;
   -webkit-user-select: none;
   cursor: default;
+}
+
+button {
+  font: inherit;
+  cursor: default;
+}
+
+button:focus-visible {
+  outline: 2px solid color-mix(in oklab, var(--brand) 80%, white);
+  outline-offset: 1px;
 }
 
 /* Sized by its content, not the window: the window follows this box. */
@@ -27,44 +60,82 @@ body {
   padding: 4px;
 }
 
+.flow-bar:empty {
+  padding: 0;
+}
+
+.flow-bar.edge-left {
+  align-items: flex-start;
+}
+
+.flow-bar.edge-right {
+  align-items: flex-end;
+}
+
+/* The pill. */
+
 .pill {
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
-  border: 1px solid rgb(255 255 255 / 0.18);
-  border-radius: 999px;
-  background: rgb(18 18 20 / 0.92);
-  color: #fff;
   box-sizing: border-box;
+  border: 1px solid var(--hud-line);
+  border-radius: 999px;
+  background: var(--hud);
+  box-shadow: var(--hud-highlight);
+  color: var(--hud-text);
 }
 
 .pill-idle {
   width: 48px;
   height: 12px;
   padding: 0;
-  cursor: pointer;
-  background: rgb(18 18 20 / 0.72);
-  transition: background-color 150ms ease;
+  background: var(--hud-rest);
+  transition:
+    background-color 160ms ease-out,
+    transform 260ms var(--ease-spring);
 }
 
 .pill-idle:hover {
-  background: rgb(18 18 20 / 0.92);
+  background: var(--hud);
+  transform: scale(1.06);
 }
 
 .pill-error {
-  border-color: rgb(255 95 87 / 0.9);
+  border-color: rgb(255 69 58 / 0.85);
 }
 
 .pill-recording {
   gap: 6px;
   height: 34px;
   padding: 0 5px;
+  animation: pill-in 280ms var(--ease-spring);
 }
 
 .pill-processing {
   gap: 5px;
   width: 64px;
   height: 22px;
+}
+
+@keyframes pill-in {
+  from {
+    transform: scale(0.86);
+    opacity: 0.6;
+  }
+}
+
+/* Command Mode listens in its own hue. */
+.pill-command {
+  border-color: rgb(191 90 242 / 0.9);
+  box-shadow:
+    var(--hud-highlight),
+    0 0 0 1px rgb(191 90 242 / 0.3);
+}
+
+.pill-command .bar {
+  background: rgb(220 170 255);
 }
 
 .control {
@@ -75,13 +146,13 @@ body {
   padding: 0;
   border: none;
   border-radius: 50%;
-  background: rgb(255 255 255 / 0.12);
-  color: #fff;
-  cursor: pointer;
+  background: var(--hud-fill);
+  color: var(--hud-text);
+  transition: background-color 120ms ease-out;
 }
 
 .control:hover {
-  background: rgb(255 255 255 / 0.24);
+  background: var(--hud-fill-hover);
 }
 
 .control svg {
@@ -95,11 +166,11 @@ body {
 }
 
 .control-stop {
-  background: rgb(255 95 87 / 0.9);
+  background: var(--hud-red);
 }
 
 .control-stop:hover {
-  background: rgb(255 95 87);
+  background: color-mix(in oklab, var(--hud-red) 86%, white);
 }
 
 .control-stop svg {
@@ -152,100 +223,151 @@ body {
   }
 }
 
+/* Privacy mode (PRIV-03): a green dot at the pill's start. */
+.privacy-dot {
+  position: absolute;
+  top: 50%;
+  left: -3px;
+  width: 7px;
+  height: 7px;
+  border: 1.5px solid rgb(24 24 27);
+  border-radius: 50%;
+  background: var(--hud-green);
+  transform: translateY(-50%);
+}
+
+/* Cards: notices, answers and the changes view. */
+
+.notice,
+.answer {
+  box-sizing: border-box;
+  border: 1px solid var(--hud-line);
+  border-radius: 14px;
+  background: var(--hud-card);
+  box-shadow: var(--hud-highlight);
+  color: var(--hud-text);
+  font-size: 12.5px;
+  line-height: 1.4;
+  animation: card-in 240ms var(--ease-spring);
+}
+
+@keyframes card-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px) scale(0.97);
+  }
+}
+
+/* Message beside a status dot and the close button; actions on a line below it. */
 .notice {
-  display: flex;
-  align-items: flex-start;
+  display: grid;
+  grid-template-columns: 6px minmax(0, 1fr) 20px;
+  align-items: start;
   gap: 8px;
   max-width: 300px;
-  padding: 9px 10px 9px 12px;
-  border: 1px solid rgb(255 255 255 / 0.14);
-  border-radius: 12px;
-  background: rgb(28 28 30);
-  color: #f5f5f7;
-  font-size: 12.5px;
-  line-height: 1.35;
+  padding: 9px 9px 9px 12px;
+}
+
+.notice::before {
+  content: "";
+  grid-column: 1;
+  grid-row: 1;
+  width: 6px;
+  height: 6px;
+  margin-top: 6px;
+  border-radius: 50%;
+  background: rgb(255 255 255 / 0.45);
+}
+
+.notice-actions {
+  display: flex;
+  flex-wrap: wrap;
+  grid-column: 2;
+  grid-row: 2;
+  gap: 6px;
 }
 
 .notice-warning {
-  border-color: rgb(255 189 46 / 0.6);
+  border-color: rgb(255 214 10 / 0.38);
+}
+
+.notice-warning::before {
+  background: var(--hud-yellow);
 }
 
 .notice-error {
-  border-color: rgb(255 95 87 / 0.75);
+  border-color: rgb(255 69 58 / 0.5);
+}
+
+.notice-error::before {
+  background: var(--hud-red);
 }
 
 .notice-message {
-  flex: 1;
+  grid-column: 2;
+  grid-row: 1;
   margin: 1px 0 0;
 }
 
 .notice-action {
   flex: none;
-  padding: 3px 9px;
+  min-height: 22px;
+  padding: 2px 10px;
   border: none;
-  border-radius: 6px;
-  background: rgb(255 255 255 / 0.16);
+  border-radius: 7px;
+  background: var(--hud-fill);
   color: #fff;
-  font: inherit;
   font-weight: 600;
-  cursor: pointer;
+  transition: background-color 120ms ease-out;
 }
 
-.notice-action:hover {
-  background: rgb(255 255 255 / 0.26);
+.notice-action:hover:not(:disabled) {
+  background: var(--hud-fill-hover);
+}
+
+.notice-action.primary {
+  background: rgb(191 90 242 / 0.85);
+}
+
+.notice-action.primary:hover {
+  background: rgb(191 90 242);
+}
+
+.notice .notice-close {
+  grid-column: 3;
+  grid-row: 1;
 }
 
 .notice-close {
+  display: grid;
   flex: none;
-  width: 18px;
-  height: 18px;
+  place-items: center;
+  width: 20px;
+  height: 20px;
   padding: 0;
   border: none;
+  border-radius: 6px;
   background: none;
-  color: rgb(255 255 255 / 0.6);
-  font-size: 15px;
-  line-height: 1;
-  cursor: pointer;
+  color: var(--hud-muted);
 }
 
 .notice-close:hover {
+  background: var(--hud-fill);
   color: #fff;
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .bar,
-  .pill-idle {
-    transition: none;
-  }
-
-  .dot {
-    animation: none;
-    opacity: 0.8;
-  }
-}
-
-/* Command Mode listens in the accent colour, so it can't pass for dictation. */
-.pill-command {
-  border-color: rgb(191 90 242 / 0.95);
-  box-shadow: 0 0 0 1px rgb(191 90 242 / 0.35);
-}
-
-.pill-command .bar {
-  background: rgb(214 160 255);
+.notice-close svg {
+  width: 12px;
+  height: 12px;
 }
 
 .answer {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 8px;
   width: 340px;
-  padding: 10px 12px;
-  border: 1px solid rgb(191 90 242 / 0.6);
-  border-radius: 12px;
-  background: rgb(28 28 30);
-  color: #f5f5f7;
-  font-size: 12.5px;
-  line-height: 1.4;
+  padding: 10px 10px 10px 12px;
+  border-color: rgb(191 90 242 / 0.45);
 }
 
 .answer-head {
@@ -257,7 +379,7 @@ body {
 .answer-question {
   flex: 1;
   margin: 1px 0 0;
-  color: rgb(235 235 245 / 0.6);
+  color: var(--hud-muted);
 }
 
 .answer-text {
@@ -271,6 +393,7 @@ body {
 .answer-actions {
   display: flex;
   justify-content: flex-end;
+  gap: 6px;
 }
 
 .changes {
@@ -278,22 +401,16 @@ body {
 }
 
 .diff ins {
-  background: rgb(48 209 88 / 0.25);
-  color: #d8ffe0;
+  border-radius: 3px;
+  background: rgb(48 209 88 / 0.22);
+  color: #d4ffdc;
   text-decoration: none;
 }
 
 .diff del {
-  background: rgb(255 69 58 / 0.22);
-  color: rgb(255 200 196 / 0.85);
-}
-
-.answer-actions {
-  gap: 6px;
-}
-
-.notice-action.primary {
-  background: rgb(191 90 242 / 0.85);
+  border-radius: 3px;
+  background: rgb(255 69 58 / 0.2);
+  color: rgb(255 205 200 / 0.85);
 }
 
 .diff del + ins,
@@ -308,26 +425,29 @@ body {
 }
 
 .quick-transform {
-  padding: 2px 8px;
-  border: 1px solid rgb(255 255 255 / 0.18);
+  height: 22px;
+  padding: 0 9px;
+  border: 1px solid var(--hud-line);
   border-radius: 999px;
   background: transparent;
-  color: rgb(255 255 255 / 0.85);
-  font: inherit;
+  color: rgb(255 255 255 / 0.86);
   font-size: 11.5px;
-  cursor: pointer;
+  transition: background-color 120ms ease-out;
 }
 
 .quick-transform:hover {
-  background: rgb(255 255 255 / 0.12);
+  background: var(--hud-fill);
 }
+
+/* The language switch shown on hover. */
 
 .language-switch {
   display: flex;
-  gap: 4px;
+  gap: 2px;
   padding: 3px;
+  border: 1px solid var(--hud-line);
   border-radius: 999px;
-  background: rgb(20 20 20 / 0.92);
+  background: var(--hud);
 }
 
 .language-chip {
@@ -335,61 +455,58 @@ body {
   border: none;
   border-radius: 999px;
   background: transparent;
-  color: rgb(255 255 255 / 0.75);
-  font:
-    600 10px/1.4 -apple-system,
-    BlinkMacSystemFont,
-    sans-serif;
-  cursor: pointer;
+  color: rgb(255 255 255 / 0.72);
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 1.4;
+  transition:
+    background-color 120ms ease-out,
+    color 120ms ease-out;
+}
+
+.language-chip:hover {
+  color: #fff;
 }
 
 .language-chip[aria-pressed="true"] {
-  background: rgb(255 255 255 / 0.9);
-  color: #111;
+  background: rgb(255 255 255 / 0.92);
+  color: #18181b;
 }
 
-.flow-bar:empty {
-  padding: 0;
-}
-
-.flow-bar.edge-left {
-  align-items: flex-start;
-}
-
-.flow-bar.edge-right {
-  align-items: flex-end;
-}
+/* Menus: the right-click menu and the wand's list of transforms. */
 
 .bar-menu {
   display: flex;
   flex-direction: column;
-  min-width: 180px;
+  min-width: 184px;
   padding: 4px;
-  border-radius: 10px;
-  background: rgb(28 28 30 / 0.96);
-  box-shadow: 0 6px 20px rgb(0 0 0 / 0.35);
+  border: 1px solid var(--hud-line);
+  border-radius: 11px;
+  background: rgb(30 30 33 / 0.98);
+  box-shadow: var(--hud-highlight);
+  animation: card-in 200ms var(--ease-out-quint);
 }
 
 .bar-menu button {
-  padding: 5px 10px;
+  display: flex;
+  align-items: center;
+  min-height: 24px;
+  padding: 3px 10px;
   border: none;
   border-radius: 6px;
   background: transparent;
-  color: #f5f5f7;
-  font:
-    13px/1.3 -apple-system,
-    BlinkMacSystemFont,
-    sans-serif;
+  color: var(--hud-text);
+  font-size: 13px;
+  line-height: 1.3;
   text-align: left;
-  cursor: pointer;
 }
 
 .bar-menu button:hover:not(:disabled) {
-  background: rgb(255 255 255 / 0.12);
+  background: var(--hud-fill-hover);
 }
 
 .bar-menu button:disabled {
-  color: rgb(255 255 255 / 0.4);
+  color: rgb(255 255 255 / 0.38);
 }
 
 .bar-submenu {
@@ -398,8 +515,24 @@ body {
   padding-left: 10px;
 }
 
-.bar-submenu button[aria-checked="true"]::before {
-  content: "✓ ";
+.bar-submenu button[aria-checked="true"]::before,
+.wand-menu button[aria-checked="true"]::before {
+  content: "";
+  flex: none;
+  width: 10px;
+  height: 10px;
+  margin-right: 6px;
+  background: currentColor;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 10'%3E%3Cpath d='M1.8 5.3 4 7.4l4.2-4.8' fill='none' stroke='%23000' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")
+    center / contain no-repeat;
+}
+
+.bar-menu-separator {
+  width: calc(100% - 12px);
+  height: 1px;
+  margin: 4px 6px;
+  border: none;
+  background: var(--hud-line);
 }
 
 /* The wand (TRF-07) sits beside the resting pill without moving it: the row
@@ -436,15 +569,14 @@ body {
   place-items: center;
   height: 20px;
   padding: 0;
-  border: 1px solid rgb(255 255 255 / 0.18);
-  background: rgb(18 18 20 / 0.92);
+  border: 1px solid var(--hud-line);
+  background: var(--hud);
   color: #fff;
-  cursor: pointer;
-  transition: background-color 150ms ease;
+  transition: background-color 150ms ease-out;
 }
 
 .wand button:hover {
-  background: rgb(70 70 76 / 0.95);
+  background: rgb(63 63 70 / 0.96);
 }
 
 .wand-run {
@@ -476,37 +608,21 @@ body {
   background: rgb(191 90 242 / 0.85);
 }
 
-.wand-menu button[aria-checked="true"]::before {
-  content: "✓ ";
-}
-
-.bar-menu-separator {
-  width: calc(100% - 12px);
-  height: 1px;
-  margin: 4px 6px;
-  border: none;
-  background: rgb(255 255 255 / 0.14);
-}
-
 @media (prefers-reduced-motion: reduce) {
-  .wand button {
-    transition: none;
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
   }
-}
 
-/* Privacy mode (PRIV-03): a green dot at the pill's start. */
-.pill {
-  position: relative;
-}
+  .pill-idle:hover {
+    transform: none;
+  }
 
-.privacy-dot {
-  position: absolute;
-  top: 50%;
-  left: -3px;
-  width: 7px;
-  height: 7px;
-  border: 1.5px solid rgb(18 18 20 / 0.92);
-  border-radius: 50%;
-  background: #34c759;
-  transform: translateY(-50%);
+  .dot {
+    animation: none;
+    opacity: 0.8;
+  }
 }
