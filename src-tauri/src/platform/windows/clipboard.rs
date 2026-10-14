@@ -6,13 +6,16 @@
 
 use std::time::Duration;
 
-use windows::Win32::Foundation::{GlobalFree, HANDLE, HGLOBAL};
+use windows::Win32::Foundation::{GlobalFree, HANDLE, HGLOBAL, HWND};
 use windows::Win32::System::DataExchange::{
     CloseClipboard, EmptyClipboard, EnumClipboardFormats, GetClipboardData,
     GetClipboardSequenceNumber, OpenClipboard, RegisterClipboardFormatW, SetClipboardData,
 };
 use windows::Win32::System::Memory::{
     GMEM_MOVEABLE, GlobalAlloc, GlobalLock, GlobalSize, GlobalUnlock,
+};
+use windows::Win32::UI::WindowsAndMessaging::{
+    CreateWindowExW, DestroyWindow, HWND_MESSAGE, WINDOW_EX_STYLE, WINDOW_STYLE,
 };
 use windows::core::{PCWSTR, w};
 
@@ -33,18 +36,43 @@ pub struct Snapshot {
     formats: Vec<(u32, Vec<u8>)>,
 }
 
-/// The clipboard, open until dropped.
-struct Open;
+/// The clipboard, open until dropped, in the name of a message-only window
+/// of this thread. Opened without a window, the clipboard is anyone's: another
+/// app's OpenClipboard and CloseClipboard in between would close it under
+/// Shrimp's writes ("Thread does not have a clipboard open").
+struct Open {
+    window: HWND,
+}
 
 impl Open {
     fn new() -> Result<Self, PlatformError> {
+        let window = unsafe {
+            CreateWindowExW(
+                WINDOW_EX_STYLE::default(),
+                w!("STATIC"),
+                None,
+                WINDOW_STYLE::default(),
+                0,
+                0,
+                0,
+                0,
+                Some(HWND_MESSAGE),
+                None,
+                None,
+                None,
+            )
+        }
+        .map_err(|err| PlatformError::Failed(format!("clipboard window: {err}")))?;
         for attempt in 0..OPEN_ATTEMPTS {
-            if unsafe { OpenClipboard(None) }.is_ok() {
-                return Ok(Self);
+            if unsafe { OpenClipboard(Some(window)) }.is_ok() {
+                return Ok(Self { window });
             }
             if attempt + 1 < OPEN_ATTEMPTS {
                 std::thread::sleep(OPEN_RETRY);
             }
+        }
+        unsafe {
+            let _ = DestroyWindow(window);
         }
         Err(PlatformError::Failed(
             "another app is holding the clipboard".into(),
@@ -56,6 +84,7 @@ impl Drop for Open {
     fn drop(&mut self) {
         unsafe {
             let _ = CloseClipboard();
+            let _ = DestroyWindow(self.window);
         }
     }
 }
@@ -361,6 +390,46 @@ mod tests {
         restore(&before).unwrap();
     }
 
+    /// The clipboard of the test's own window station, never the desktop's.
+    #[test]
+    fn another_opener_cannot_close_the_clipboard_under_a_write() {
+        let Ok(open) = Open::new() else {
+            return;
+        };
+        let other = std::thread::spawn(|| unsafe { OpenClipboard(None) }.is_ok())
+            .join()
+            .unwrap();
+        drop(open);
+        assert!(!other, "the clipboard was open to anyone");
+    }
+    /// The clipboard of the test's own window station, never the desktop's.
+    #[test]
+    fn a_share_card_goes_on_the_clipboard_with_a_bitmap() {
+        let Ok(before) = snapshot() else {
+            return;
+        };
+        let (width, height) = (1200, 630);
+        let mut png = Vec::new();
+        {
+            let mut encoder = png::Encoder::new(&mut png, width, height);
+            encoder.set_color(png::ColorType::Rgba);
+            encoder.set_depth(png::BitDepth::Eight);
+            let mut writer = encoder.write_header().unwrap();
+            writer
+                .write_image_data(&vec![200; (width * height * 4) as usize])
+                .unwrap();
+        }
+        write_png(&png).unwrap();
+        let formats: Vec<u32> = snapshot()
+            .unwrap()
+            .formats
+            .iter()
+            .map(|(format, _)| *format)
+            .collect();
+        assert!(formats.contains(&register(w!("PNG"))));
+        assert!(formats.contains(&CF_DIBV5) || formats.contains(&CF_DIB));
+        restore(&before).unwrap();
+    }
     #[test]
     fn a_png_becomes_a_bitmap() {
         let mut png = Vec::new();
