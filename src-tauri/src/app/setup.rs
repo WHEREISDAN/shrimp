@@ -15,7 +15,7 @@ use crate::audio::{AudioSourceSpec, DeviceProvider};
 use crate::commands::ai::HttpClient;
 use crate::commands::app::UserName;
 use crate::commands::history::Clipboard;
-use crate::commands::insights::AppLlm;
+use crate::commands::insights::{AppLlm, Browser};
 use crate::commands::permissions::AppPermissions;
 use crate::commands::shortcuts::DefaultBindings;
 use crate::dictation::{self, ControllerInput, DictationUi, MutedNotices, Services, Timing};
@@ -127,6 +127,7 @@ pub fn setup(app: &mut App) -> Result<(), Box<dyn std::error::Error>> {
     );
     Arc::clone(&microphones).watch();
     app.manage(Clipboard(Arc::clone(&platform.inserter)));
+    app.manage(Browser(Arc::clone(&platform.launcher)));
     app.manage(UserName(platform.user_name.clone()));
     app.manage(DefaultBindings {
         bindings: platform.default_bindings.clone(),

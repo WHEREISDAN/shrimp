@@ -108,6 +108,7 @@ pub fn run() {
                 commands::insights::generate_voice_profile,
                 commands::insights::copy_image,
                 commands::insights::save_image,
+                commands::insights::share_image,
                 commands::system::get_app_health,
                 commands::system::dismiss_crash,
                 commands::system::check_storage,

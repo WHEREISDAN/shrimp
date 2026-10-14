@@ -29,6 +29,20 @@ function backend(handlers: Record<string, (args: Record<string, unknown>) => unk
   });
 }
 
+/** A canvas that draws nothing and gives a PNG signature. */
+function stubCanvas() {
+  const context = new Proxy(
+    { measureText: () => ({ width: 10 }) },
+    { get: (target, key) => (key in target ? target[key as "measureText"] : () => undefined) },
+  );
+  vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue(
+    context as unknown as CanvasRenderingContext2D,
+  );
+  vi.spyOn(HTMLCanvasElement.prototype, "toBlob").mockImplementation((callback) =>
+    callback(new Blob([new Uint8Array([0x89, 0x50, 0x4e, 0x47])], { type: "image/png" })),
+  );
+}
+
 describe("InsightsPage", () => {
   it("shows speed, totals, fixes, streaks, activity and apps", async () => {
     backend();
@@ -105,16 +119,7 @@ describe("InsightsPage", () => {
   });
 
   it("copies and downloads the share card", async () => {
-    const context = new Proxy(
-      { measureText: () => ({ width: 10 }) },
-      { get: (target, key) => (key in target ? target[key as "measureText"] : () => undefined) },
-    );
-    vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue(
-      context as unknown as CanvasRenderingContext2D,
-    );
-    vi.spyOn(HTMLCanvasElement.prototype, "toBlob").mockImplementation((callback) =>
-      callback(new Blob([new Uint8Array([0x89, 0x50, 0x4e, 0x47])], { type: "image/png" })),
-    );
+    stubCanvas();
     const { calls } = backend({
       copy_image: () => null,
       save_image: () => "/Users/me/Downloads/My Shrimp activity 2026-10-13.png",
@@ -129,5 +134,38 @@ describe("InsightsPage", () => {
     fireEvent.click(within(dialog).getByRole("button", { name: "Download" }));
     expect(await within(dialog).findByText(/Saved to .*Downloads/)).toBeInTheDocument();
     expect(calls.map((call) => call.cmd)).toContain("save_image");
+  });
+
+  it("shares the card to X and LinkedIn", async () => {
+    stubCanvas();
+    const { calls } = backend({ share_image: () => null });
+    render(<InsightsPage />);
+    fireEvent.click(await screen.findByRole("button", { name: "Share" }));
+    const dialog = screen.getByRole("dialog", { name: "Share your stats" });
+    const x = within(dialog).getByRole("button", { name: "Share on X" });
+    await waitFor(() => expect(x).toBeEnabled());
+    expect(x).toHaveTextContent("X");
+    fireEvent.click(x);
+    expect(
+      await within(dialog).findByText("Image copied. Paste it into your post."),
+    ).toBeInTheDocument();
+    fireEvent.click(within(dialog).getByRole("button", { name: "Share on LinkedIn" }));
+    await waitFor(() => expect(calls.filter((call) => call.cmd === "share_image")).toHaveLength(2));
+  });
+
+  it("says why sharing failed", async () => {
+    stubCanvas();
+    backend({
+      share_image: () => {
+        throw { code: "platform", message: "The clipboard is busy." };
+      },
+    });
+    render(<InsightsPage />);
+    fireEvent.click(await screen.findByRole("button", { name: "Share" }));
+    const dialog = screen.getByRole("dialog", { name: "Share your stats" });
+    const linkedIn = within(dialog).getByRole("button", { name: "Share on LinkedIn" });
+    await waitFor(() => expect(linkedIn).toBeEnabled());
+    fireEvent.click(linkedIn);
+    expect(await within(dialog).findByText("The clipboard is busy.")).toBeInTheDocument();
   });
 });

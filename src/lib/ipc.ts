@@ -562,6 +562,9 @@ export interface UsageActivity {
   level: UsageLevel;
 }
 
+/** Mirrors `insights::share::ShareNetwork`. */
+export type ShareNetwork = "x" | "linkedIn";
+
 /** Mirrors `insights::profile::VoiceProfile` (STA-04). */
 export interface VoiceProfile {
   archetype: string;
@@ -801,6 +804,10 @@ export const copyImage = (png: Uint8Array): Promise<void> => invoke("copy_image"
 /** Saves a PNG to Downloads as "<name> <date>.png" and returns its path. */
 export const saveImage = (png: Uint8Array, name: string): Promise<string> =>
   invoke<string>("save_image", png, { headers: { "x-file-name": encodeURIComponent(name) } });
+
+/** Copies the card, then opens the network's compose page with a line of text (STA-03). */
+export const shareImage = (png: Uint8Array, network: ShareNetwork): Promise<void> =>
+  invoke("share_image", png, { headers: { "x-share-network": network } });
 
 export const getAppHealth = (): Promise<AppHealth> => invoke<AppHealth>("get_app_health");
 

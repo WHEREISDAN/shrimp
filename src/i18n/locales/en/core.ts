@@ -353,6 +353,8 @@ export const core = {
     streak: "longest streak",
     topApp: "top app",
     footer: "Dictated with Shrimp",
+    shareOn: "Share on {{network}}",
+    pasteIntoPost: "Image copied. Paste it into your post.",
   },
   history: {
     title: "Recent activity",

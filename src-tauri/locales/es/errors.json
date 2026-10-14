@@ -68,6 +68,7 @@
   "error.history.notFound": "Esa transcripción ya no existe.",
   "error.history.typeToConfirm": "Escribe “{phrase}” para confirmar.",
   "error.insights.notPng": "Se esperaba una imagen PNG.",
+  "error.insights.unknownNetwork": "Destino para compartir desconocido.",
   "error.relaunch.noExecutable": "no se encuentra la app: {details}",
   "error.relaunch.notBundled": "Shrimp no se está ejecutando desde un paquete de app",
   "error.relaunch.failed": "no se puede reiniciar: {details}",

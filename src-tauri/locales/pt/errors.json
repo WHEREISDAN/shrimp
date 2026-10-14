@@ -68,6 +68,7 @@
   "error.history.notFound": "Essa transcrição não existe mais.",
   "error.history.typeToConfirm": "Digite “{phrase}” para confirmar.",
   "error.insights.notPng": "Era esperada uma imagem PNG.",
+  "error.insights.unknownNetwork": "Destino de compartilhamento desconhecido.",
   "error.relaunch.noExecutable": "não foi possível encontrar o app: {details}",
   "error.relaunch.notBundled": "O Shrimp não está sendo executado a partir de um pacote de app",
   "error.relaunch.failed": "não foi possível reiniciar: {details}",

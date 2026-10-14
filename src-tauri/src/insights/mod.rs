@@ -1,9 +1,10 @@
 //! Insights (STA-01..06): speed, totals, streaks, the activity heatmap, apps
 //! and usage categories (`usage`), read from the stats tables that outlive
-//! history; word-count and voice-profile milestones; and the voice profile
-//! itself (`profile`).
+//! history; word-count and voice-profile milestones; the voice profile
+//! itself (`profile`); and sharing the stats card (`share`).
 
 pub mod profile;
+pub mod share;
 pub mod usage;
 
 use chrono::{Datelike, Days, Months, NaiveDate};

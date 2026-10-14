@@ -1,15 +1,28 @@
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { copyImage, errorMessage, saveImage, type Insights } from "../lib/ipc";
+import {
+  copyImage,
+  errorMessage,
+  saveImage,
+  shareImage,
+  type Insights,
+  type ShareNetwork,
+} from "../lib/ipc";
 import { Dialog } from "./Dialog";
 import { CARD_HEIGHT, CARD_WIDTH, drawShareCard, pngBytes } from "./shareCard";
+
+/** The networks' own names, which aren't translated. */
+const NETWORKS: [ShareNetwork, string][] = [
+  ["x", "X"],
+  ["linkedIn", "LinkedIn"],
+];
 
 interface ShareDialogProps {
   insights: Insights;
   onClose: () => void;
 }
 
-/** Copy image or Download the stats card (STA-03). */
+/** Copy image, Download, or share the stats card to X or LinkedIn (STA-03). */
 export function ShareDialog({ insights, onClose }: ShareDialogProps) {
   const { t, i18n } = useTranslation();
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -56,6 +69,19 @@ export function ShareDialog({ insights, onClose }: ShareDialogProps) {
         <button type="button" onClick={onClose}>
           {t("common.close")}
         </button>
+        {NETWORKS.map(([network, name]) => (
+          <button
+            key={network}
+            type="button"
+            disabled={!drawn}
+            aria-label={t("share.shareOn", { network: name })}
+            onClick={() =>
+              run((png) => shareImage(png, network).then(() => t("share.pasteIntoPost")))
+            }
+          >
+            {name}
+          </button>
+        ))}
         <button
           type="button"
           disabled={!drawn}

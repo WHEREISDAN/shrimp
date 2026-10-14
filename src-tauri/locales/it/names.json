@@ -40,5 +40,7 @@
   "tray.downloadingUpdate": "Download dell'aggiornamento…",
   "tray.restartToUpdate": "Riavvia per aggiornare",
   "tray.restartingToUpdate": "Riavvio per l'aggiornamento…",
-  "tray.updatesNotConfigured": "Aggiornamenti non configurati"
+  "tray.updatesNotConfigured": "Aggiornamenti non configurati",
+  "share.post.one": "Ho dettato {count} parola con Shrimp.",
+  "share.post.other": "Ho dettato {count} parole con Shrimp."
 }

@@ -40,5 +40,7 @@
   "tray.downloadingUpdate": "Update wird geladen …",
   "tray.restartToUpdate": "Neu starten und aktualisieren",
   "tray.restartingToUpdate": "Neustart für das Update …",
-  "tray.updatesNotConfigured": "Updates sind nicht eingerichtet"
+  "tray.updatesNotConfigured": "Updates sind nicht eingerichtet",
+  "share.post.one": "Ich habe {count} Wort mit Shrimp diktiert.",
+  "share.post.other": "Ich habe {count} Wörter mit Shrimp diktiert."
 }

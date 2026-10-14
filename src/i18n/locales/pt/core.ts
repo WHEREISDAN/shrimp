@@ -364,6 +364,8 @@ export const core: CoreCatalog = {
     streak: "maior sequência",
     topApp: "app mais usado",
     footer: "Ditado com o Shrimp",
+    shareOn: "Compartilhar no {{network}}",
+    pasteIntoPost: "Imagem copiada. Cole-a na sua publicação.",
   },
   history: {
     title: "Atividade recente",

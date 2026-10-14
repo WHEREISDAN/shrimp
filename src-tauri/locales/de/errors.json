@@ -68,6 +68,7 @@
   "error.history.notFound": "Dieses Transkript existiert nicht mehr.",
   "error.history.typeToConfirm": "Gib zur Bestätigung „{phrase}“ ein.",
   "error.insights.notPng": "Ein PNG-Bild wurde erwartet.",
+  "error.insights.unknownNetwork": "Unbekanntes Ziel zum Teilen.",
   "error.relaunch.noExecutable": "App nicht gefunden: {details}",
   "error.relaunch.notBundled": "Shrimp läuft nicht aus einem App-Bundle",
   "error.relaunch.failed": "Neustart nicht möglich: {details}",

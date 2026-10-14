@@ -68,6 +68,7 @@
   "error.history.notFound": "That transcript no longer exists.",
   "error.history.typeToConfirm": "Type \"{phrase}\" to confirm.",
   "error.insights.notPng": "Expected a PNG image.",
+  "error.insights.unknownNetwork": "Unknown place to share to.",
   "error.relaunch.noExecutable": "can't find the app: {details}",
   "error.relaunch.notBundled": "Shrimp isn't running from an app bundle",
   "error.relaunch.failed": "can't restart: {details}",
