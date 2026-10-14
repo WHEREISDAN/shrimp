@@ -20,14 +20,7 @@ use crate::stt::EngineSlot;
 
 pub fn on_run_event<R: Runtime>(app: &AppHandle<R>, event: RunEvent) {
     if let RunEvent::Exit = event {
-        // Unload the Whisper model before static destructors run (see EngineSlot::clear).
-        if let Some(slot) = app.try_state::<Arc<EngineSlot>>() {
-            slot.clear();
-        }
-        // A quit, not a crash (APP-09).
-        if let Some(health) = app.try_state::<Arc<Health>>() {
-            health.clean_exit();
-        }
+        before_exit(app);
     }
     // macOS: clicking the Dock icon while every window is hidden.
     #[cfg(target_os = "macos")]
@@ -37,5 +30,18 @@ pub fn on_run_event<R: Runtime>(app: &AppHandle<R>, event: RunEvent) {
     } = event
     {
         window::show_main(app);
+    }
+}
+
+/// What a normal quit does last. Also run when the Windows updater ends the
+/// process itself (`updates.rs`), which skips `RunEvent::Exit`.
+pub fn before_exit<R: Runtime>(app: &AppHandle<R>) {
+    // Unload the Whisper model before static destructors run (see EngineSlot::clear).
+    if let Some(slot) = app.try_state::<Arc<EngineSlot>>() {
+        slot.clear();
+    }
+    // A quit, not a crash (APP-09).
+    if let Some(health) = app.try_state::<Arc<Health>>() {
+        health.clean_exit();
     }
 }

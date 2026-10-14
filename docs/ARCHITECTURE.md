@@ -1293,9 +1293,9 @@ alone.
 ## Updates (PKG-03, PKG-04)
 
 `app/updates.rs`, on tauri-plugin-updater. Releases are built by `scripts/macos/release.sh`
-([RELEASING.md](RELEASING.md)).
+and `scripts/windows/release.ps1` ([RELEASING.md](RELEASING.md)).
 
-- **Feed.** `tauri.conf.json` holds only the updater's public key. The release script adds
+- **Feed.** `tauri.conf.json` holds only the updater's public key. The release scripts add
   `plugins.updater.endpoints` at build time from `SHRIMP_UPDATE_FEED`. Without a feed the
   tray item reads "Updates aren't configured" (disabled) and nothing is checked.
 - **Checks.** The tray's "Check for updates…" says when Shrimp is up to date or the check
@@ -1307,8 +1307,12 @@ alone.
 - **Install (PKG-04).** Restart waits until the dictation controller is idle and has stayed
   idle for 1 s, or 6 s when a dictation ran while it waited (longer than the remote desktop
   clipboard hold, INS-10). It then installs (on macOS the new bundle is swapped in place of
-  the running one), quits normally and opens the bundle again (`relaunch_after_exit`). A
-  failed install keeps the current version and shows an error notice.
+  the running one), quits normally and opens the bundle again (`relaunch_after_exit`). On
+  Windows the update is the NSIS installer: the plugin starts it in passive mode (a
+  progress window) and ends Shrimp with `process::exit`, which skips `RunEvent::Exit`, so
+  `updates.rs` hands it `app::before_exit` (unload Whisper, clear the crash marker) as
+  `on_before_exit`; the installer starts the new version with the old arguments. A failed
+  install keeps the current version and shows an error notice.
 - **After.** The first launch of a new version (`onboarding.version` differs) opens the
   main window, even from a background launch, and re-checks the privacy grants (ONB-08).
   Grants survive because the release's designated requirement stays the same

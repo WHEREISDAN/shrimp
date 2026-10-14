@@ -11,7 +11,7 @@ use std::time::{Duration, Instant};
 
 use tauri::menu::MenuItem;
 use tauri::{AppHandle, Manager, Runtime};
-use tauri_plugin_updater::{Update, UpdaterExt};
+use tauri_plugin_updater::{Update, Updater, UpdaterExt};
 
 use super::tray;
 use crate::dictation::{ControllerHandle, DictationState};
@@ -168,7 +168,7 @@ pub fn check<R: Runtime>(app: &AppHandle<R>, manual: bool) {
     refresh_tray(app);
     let app = app.clone();
     tauri::async_runtime::spawn(async move {
-        let found = match app.updater() {
+        let found = match updater(&app) {
             Ok(updater) => updater.check().await,
             Err(error) => Err(error),
         };
@@ -198,6 +198,19 @@ pub fn check<R: Runtime>(app: &AppHandle<R>, manual: bool) {
         }
         refresh_tray(&app);
     });
+}
+
+/// On Windows, installing starts the NSIS installer and the plugin ends the
+/// process itself (`std::process::exit`), so `RunEvent::Exit` never runs and
+/// its work happens here instead. The installer then starts the new version.
+fn updater<R: Runtime>(app: &AppHandle<R>) -> tauri_plugin_updater::Result<Updater> {
+    let handle = app.clone();
+    app.updater_builder()
+        .on_before_exit(move || {
+            handle.cleanup_before_exit();
+            super::before_exit(&handle);
+        })
+        .build()
 }
 
 async fn download<R: Runtime>(app: &AppHandle<R>, updates: &Updates, update: Update, manual: bool) {
