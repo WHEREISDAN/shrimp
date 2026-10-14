@@ -1,6 +1,6 @@
 import { emit } from "@tauri-apps/api/event";
 import { mockIPC } from "@tauri-apps/api/mocks";
-import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import {
   EVENTS,
@@ -22,7 +22,11 @@ const LANGUAGES: Languages = {
   chosen: { autoDetect: false, selected: ["en-GB", "fr"], active: null },
 };
 
-function backend(languages: Languages = LANGUAGES, flowBar: Partial<Settings["flowBar"]> = {}) {
+function backend(
+  languages: Languages = LANGUAGES,
+  flowBar: Partial<Settings["flowBar"]> = {},
+  transforms: Partial<Settings["transforms"]> = {},
+) {
   const calls: { cmd: string; args: unknown }[] = [];
   mockIPC(
     (cmd, args) => {
@@ -34,7 +38,11 @@ function backend(languages: Languages = LANGUAGES, flowBar: Partial<Settings["fl
         return languages;
       }
       if (cmd === "get_settings") {
-        return { ...SETTINGS, flowBar: { ...SETTINGS.flowBar, ...flowBar } };
+        return {
+          ...SETTINGS,
+          flowBar: { ...SETTINGS.flowBar, ...flowBar },
+          transforms: { ...SETTINGS.transforms, ...transforms },
+        };
       }
       if (cmd === "get_microphones") {
         return MICROPHONES;
@@ -120,6 +128,24 @@ describe("FlowBar", () => {
     // The button confirms with a ✓, then the notice goes (NOT-02).
     expect(screen.getByRole("button", { name: "Done" })).toHaveTextContent("✓");
     await waitFor(() => expect(screen.queryByText(/No text field/)).not.toBeInTheDocument());
+  });
+
+  it("reveals an auto-applied edit from its notice", async () => {
+    const calls = backend();
+    render(<FlowBar />);
+    await screen.findByRole("button", { name: "Start dictation" });
+    const notice: Notice = {
+      id: 11,
+      level: "info",
+      message: "We polished your dictation",
+      actions: ["revealEdit"],
+      category: "status",
+    };
+    await act(async () => emit(EVENTS.notice, notice));
+    fireEvent.click(screen.getByRole("button", { name: "Reveal edit" }));
+    await waitFor(() =>
+      expect(calls).toContainEqual({ cmd: "run_notice_action", args: { action: "revealEdit" } }),
+    );
   });
 
   it("queues notices, and an error interrupts", async () => {
@@ -220,6 +246,30 @@ describe("FlowBar", () => {
     expect(screen.queryByRole("region", { name: "Polish changes" })).toBeNull();
   });
 
+  it("re-transforms the original from the changes view and keeps it open", async () => {
+    const calls = backend();
+    render(<FlowBar />);
+    await screen.findByRole("button", { name: "Start dictation" });
+    const view: TransformView = { id: 2, name: "Polish", original: "a b", result: "A, b." };
+    await act(async () => emit(EVENTS.changes, view));
+    const quick = screen.getByRole("group", { name: "Transform again" });
+    for (const name of ["Prompt Engineer", "Turn to list", "Translate to English", "Empathize"]) {
+      fireEvent.click(within(quick).getByRole("button", { name }));
+    }
+    await waitFor(() => {
+      const actions = calls
+        .filter((call) => call.cmd === "transform_action")
+        .map((call) => (call.args as { action: unknown }).action);
+      expect(actions).toEqual([
+        { retransform: "promptEngineer" },
+        { retransform: "turnToList" },
+        { retransform: "translateToEnglish" },
+        { retransform: "empathize" },
+      ]);
+    });
+    expect(screen.getByRole("region", { name: "Polish changes" })).toBeInTheDocument();
+  });
+
   it("offers one-click language switching on hover when there are several languages", async () => {
     const calls = backend();
     render(<FlowBar />);
@@ -235,6 +285,84 @@ describe("FlowBar", () => {
     await waitFor(() => expect(french).toHaveAttribute("aria-pressed", "true"));
     await act(async () => emit(EVENTS.flowBarHover, false));
     expect(screen.queryByRole("group", { name: "Dictation language" })).toBeNull();
+  });
+
+  it("shows the wand on hover while Transforms are on, and its menu", async () => {
+    const pirate = { id: "pirate", name: "Pirate", prompt: "Talk like a pirate.", samples: [] };
+    const draft = { id: "draft", name: "", prompt: "", samples: [] };
+    const calls = backend(LANGUAGES, {}, { enabled: true, custom: [pirate, draft] });
+    render(<FlowBar />);
+    await screen.findByRole("button", { name: "Start dictation" });
+    expect(screen.queryByRole("group", { name: "Transform wand" })).toBeNull();
+    await act(async () => emit(EVENTS.flowBarHover, true));
+    const wand = await screen.findByRole("group", { name: "Transform wand" });
+    fireEvent.click(within(wand).getByRole("button", { name: "Run Polish on the selection" }));
+
+    const expander = within(wand).getByRole("button", { name: "Choose a transform" });
+    expect(expander).toHaveAttribute("aria-expanded", "false");
+    fireEvent.click(expander);
+    const menu = screen.getByRole("menu", { name: "Transform wand menu" });
+    const options = within(menu).getAllByRole("menuitemradio");
+    expect(options.map((option) => option.textContent)).toEqual([
+      "Polish",
+      "Prompt Engineer",
+      "Pirate",
+    ]);
+    expect(options[0]).toHaveAttribute("aria-checked", "true");
+    fireEvent.click(within(menu).getByRole("menuitemradio", { name: "Pirate" }));
+    expect(screen.queryByRole("menu", { name: "Transform wand menu" })).toBeNull();
+
+    fireEvent.click(expander);
+    const autoApply = screen.getByRole("menuitemcheckbox", { name: "Auto Apply after dictation" });
+    expect(autoApply).toHaveAttribute("aria-checked", "false");
+    fireEvent.click(autoApply);
+    fireEvent.click(expander);
+    fireEvent.click(screen.getByRole("menuitem", { name: "Configure transforms" }));
+
+    await waitFor(() =>
+      expect(calls.filter((call) => call.cmd === "flow_bar_wand").map((call) => call.args)).toEqual(
+        [
+          { action: "run" },
+          { action: { choose: "pirate" } },
+          { action: { autoApply: true } },
+          { action: "configure" },
+        ],
+      ),
+    );
+    fireEvent.click(expander);
+    await act(async () => emit(EVENTS.flowBarHover, false));
+    expect(screen.queryByRole("group", { name: "Transform wand" })).toBeNull();
+    expect(screen.queryByRole("menu", { name: "Transform wand menu" })).toBeNull();
+  });
+
+  it("names the chosen transform and shows Auto Apply on", async () => {
+    backend(LANGUAGES, {}, { enabled: true, wand: "promptEngineer", autoApply: "promptEngineer" });
+    render(<FlowBar />);
+    await screen.findByRole("button", { name: "Start dictation" });
+    await act(async () => emit(EVENTS.flowBarHover, true));
+    fireEvent.click(await screen.findByRole("button", { name: "Choose a transform" }));
+    expect(
+      screen.getByRole("button", { name: "Run Prompt Engineer on the selection" }),
+    ).toBeVisible();
+    expect(
+      screen.getByRole("menuitemcheckbox", { name: "Auto Apply after dictation" }),
+    ).toHaveAttribute("aria-checked", "true");
+  });
+
+  it("shows no wand while Transforms are off or while dictating", async () => {
+    backend();
+    render(<FlowBar />);
+    await screen.findByRole("button", { name: "Start dictation" });
+    await act(async () => emit(EVENTS.flowBarHover, true));
+    await screen.findByRole("group", { name: "Dictation language" });
+    expect(screen.queryByRole("group", { name: "Transform wand" })).toBeNull();
+
+    await act(async () =>
+      emit(EVENTS.settings, { ...SETTINGS, transforms: { ...SETTINGS.transforms, enabled: true } }),
+    );
+    expect(screen.getByRole("group", { name: "Transform wand" })).toBeInTheDocument();
+    await setState({ phase: "recording", mode: "hold", command: false });
+    expect(screen.queryByRole("group", { name: "Transform wand" })).toBeNull();
   });
 
   it("shows no language switch with one language", async () => {

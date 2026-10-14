@@ -90,7 +90,7 @@ export const styleTransforms: StyleTransformsCatalog = {
     heading: "Reescreva qualquer texto com IA",
     toggle: "Transformações",
     toggleBody:
-      "Selecione um texto em qualquer lugar e pressione o atalho de uma transformação: o resultado substitui o texto, e “Ver alterações” mostra o que mudou. Seu texto é enviado ao seu provedor de IA.",
+      "Selecione um texto em qualquer lugar e pressione o atalho de uma transformação, ou passe o cursor pela Flow Bar e clique na varinha: o resultado substitui o texto, e “Ver alterações” mostra o que mudou. Seu texto é enviado ao seu provedor de IA.",
     newTransform: "Nova transformação",
     afterDictation: "Depois do ditado",
     autoApply: "Aplicar uma transformação após cada ditado",
@@ -111,6 +111,10 @@ export const styleTransforms: StyleTransformsCatalog = {
       structureBody: "Parágrafos curtos e listas para itens enumerados.",
       tone: "Manter seu tom",
       toneBody: "Mantém a sua voz como está.",
+      mainPoint: "Esclarecer a ideia principal",
+      mainPointBody: "Diz claramente do que o texto trata ou o que ele pede.",
+      impact: "Refinar a redação para causar mais impacto",
+      impactBody: "Prefere verbos fortes e palavras específicas, sem exagerar.",
       instructions: "Instruções personalizadas",
       remove: "Remover",
       removeInstruction: "Remover {{instruction}}",
@@ -121,7 +125,7 @@ export const styleTransforms: StyleTransformsCatalog = {
       tooLong_many: "Cada instrução deve ter menos de {{count, number}} palavras.",
       tooLong_other: "Cada instrução deve ter menos de {{count, number}} palavras.",
       tooLong_zero: "Cada instrução deve ter menos de {{count, number}} palavras.",
-      duplicate: "Essa instrução já está na lista.",
+      duplicate: "Já existe uma regra personalizada com este texto",
     },
     promptEngineer: {
       title: "Prompt Engineer",

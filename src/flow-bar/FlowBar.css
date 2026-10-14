@@ -301,6 +301,27 @@ body {
   margin-left: 3px;
 }
 
+.quick-transforms {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.quick-transform {
+  padding: 2px 8px;
+  border: 1px solid rgb(255 255 255 / 0.18);
+  border-radius: 999px;
+  background: transparent;
+  color: rgb(255 255 255 / 0.85);
+  font: inherit;
+  font-size: 11.5px;
+  cursor: pointer;
+}
+
+.quick-transform:hover {
+  background: rgb(255 255 255 / 0.12);
+}
+
 .language-switch {
   display: flex;
   gap: 4px;
@@ -379,6 +400,98 @@ body {
 
 .bar-submenu button[aria-checked="true"]::before {
   content: "✓ ";
+}
+
+/* The wand (TRF-07) sits beside the resting pill without moving it: the row
+   keeps the pill's height (the wand overflows into the bar's padding), the
+   balance mirrors it on the bottom edge, and on the side edges it grows away
+   from the edge. */
+.pill-row {
+  --wand-width: 38px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.edge-left .wand {
+  order: 1;
+}
+
+.wand,
+.wand-balance {
+  flex: none;
+  width: var(--wand-width);
+}
+
+.wand {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  height: 20px;
+  margin: -4px 0;
+}
+
+.wand button {
+  display: grid;
+  place-items: center;
+  height: 20px;
+  padding: 0;
+  border: 1px solid rgb(255 255 255 / 0.18);
+  background: rgb(18 18 20 / 0.92);
+  color: #fff;
+  cursor: pointer;
+  transition: background-color 150ms ease;
+}
+
+.wand button:hover {
+  background: rgb(70 70 76 / 0.95);
+}
+
+.wand-run {
+  width: 20px;
+  border-radius: 50%;
+}
+
+.wand-expand {
+  width: 16px;
+  border-radius: 8px;
+}
+
+.wand svg {
+  width: 12px;
+  height: 12px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.wand-expand svg {
+  width: 10px;
+  height: 10px;
+}
+
+.wand-expand[aria-expanded="true"] {
+  background: rgb(191 90 242 / 0.85);
+}
+
+.wand-menu button[aria-checked="true"]::before {
+  content: "✓ ";
+}
+
+.bar-menu-separator {
+  width: calc(100% - 12px);
+  height: 1px;
+  margin: 4px 6px;
+  border: none;
+  background: rgb(255 255 255 / 0.14);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wand button {
+    transition: none;
+  }
 }
 
 /* Privacy mode (PRIV-03): a green dot at the pill's start. */

@@ -99,10 +99,20 @@ export const controls = {
     recorder: "{{label}} shortcut: {{shortcut}}",
     removeOne: "Remove",
     removeOneLabel: "Remove {{label}} shortcut",
+    doubleTap: "Or double-tap {{keys}}",
+    doubleTapOnly: "Double-tap {{keys}}",
   },
   dialog: {
     done: "Done",
     save: "Save",
+  },
+  wand: {
+    label: "Transform wand",
+    run: "Run {{name}} on the selection",
+    choose: "Choose a transform",
+    menu: "Transform wand menu",
+    autoApply: "Auto Apply after dictation",
+    configure: "Configure transforms",
   },
   flowBarMenu: {
     label: "Flow Bar menu",
@@ -122,6 +132,13 @@ export const controls = {
     retry: "Retry",
     undo: "Undo",
     accept: "Accept edits",
+    quick: {
+      label: "Transform again",
+      promptEngineer: "Prompt Engineer",
+      turnToList: "Turn to list",
+      translateToEnglish: "Translate to English",
+      empathize: "Empathize",
+    },
   },
   languageSwitch: {
     label: "Dictation language",

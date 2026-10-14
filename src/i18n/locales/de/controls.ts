@@ -103,10 +103,20 @@ export const controls: ControlsCatalog = {
     recorder: "Kurzbefehl für {{label}}: {{shortcut}}",
     removeOne: "Entfernen",
     removeOneLabel: "Kurzbefehl für {{label}} entfernen",
+    doubleTap: "Oder zweimal {{keys}} drücken",
+    doubleTapOnly: "Zweimal {{keys}} drücken",
   },
   dialog: {
     done: "Fertig",
     save: "Speichern",
+  },
+  wand: {
+    label: "Transformations-Zauberstab",
+    run: "{{name}} auf die Auswahl anwenden",
+    choose: "Transformation auswählen",
+    menu: "Menü des Transformations-Zauberstabs",
+    autoApply: "Nach dem Diktat automatisch anwenden",
+    configure: "Transformationen einrichten",
   },
   flowBarMenu: {
     label: "Menü der Flow Bar",
@@ -126,6 +136,13 @@ export const controls: ControlsCatalog = {
     retry: "Wiederholen",
     undo: "Widerrufen",
     accept: "Änderungen übernehmen",
+    quick: {
+      label: "Erneut umwandeln",
+      promptEngineer: "Prompt Engineer",
+      turnToList: "In Liste umwandeln",
+      translateToEnglish: "Ins Englische übersetzen",
+      empathize: "Einfühlsamer formulieren",
+    },
   },
   languageSwitch: {
     label: "Diktiersprache",

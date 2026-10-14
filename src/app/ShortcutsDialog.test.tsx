@@ -44,6 +44,26 @@ describe("ShortcutsDialog", () => {
     ).toBeNull();
   });
 
+  it("hints at double-tapping push to talk on the Hands-free row, from the user's keys", async () => {
+    let list = SHORTCUTS;
+    mockBackend({ get_shortcuts: () => list });
+    const { dialog } = await open();
+    const handsFree = within(dialog).getByText("Hands-free mode").closest("li") as HTMLElement;
+    expect(within(handsFree).getByText("Or double-tap fn")).toBeVisible();
+
+    const rows = SHORTCUTS.rows.map((row) =>
+      row.action === "pushToTalk"
+        ? { ...row, shortcuts: ["fn", "Mouse 4"] }
+        : row.action === "handsFree"
+          ? { ...row, shortcuts: [] }
+          : row,
+    );
+    list = { ...SHORTCUTS, rows };
+    await act(async () => emit(EVENTS.settings, {}));
+    expect(await within(dialog).findByText("Double-tap fn or Mouse 4")).toBeVisible();
+    expect(within(dialog).getAllByText(/double-tap/i)).toHaveLength(1);
+  });
+
   it("records a replacement through the hooks and says when it is saved", async () => {
     const { argsOf } = backend();
     const { dialog } = await open();

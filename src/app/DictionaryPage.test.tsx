@@ -1,6 +1,6 @@
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
-import type { DictionaryEntry } from "../lib/ipc";
+import type { DictionaryEntry, Settings, SettingsPatch } from "../lib/ipc";
 import { DictionaryPage } from "./DictionaryPage";
 import { entry, mockDictionary, SETTINGS } from "./testBackend";
 
@@ -16,7 +16,7 @@ describe("DictionaryPage", () => {
     render(<DictionaryPage />);
 
     expect(await screen.findByText("Shrimp")).toBeInTheDocument();
-    expect(screen.getByText("Pinned")).toBeInTheDocument();
+    expect(screen.getByText("Starred")).toBeInTheDocument();
     expect(screen.getByText("Used 3 times")).toBeInTheDocument();
     expect(screen.getByText("Used 1 time")).toBeInTheDocument();
     expect(screen.getByText("cooper netties → Kubernetes")).toBeInTheDocument();
@@ -126,15 +126,15 @@ describe("DictionaryPage", () => {
     );
   });
 
-  it("pins and unpins an entry", async () => {
+  it("stars and unstars an entry", async () => {
     const { argsOf } = mockDictionary(WORDS);
     render(<DictionaryPage />);
     await screen.findByText("Tauri");
-    const pinned = screen.getByRole("button", { name: "Unpin" });
-    expect(pinned).toHaveAttribute("aria-pressed", "true");
-    fireEvent.click(pinned);
-    const [pin] = screen.getAllByRole("button", { name: "Pin" });
-    fireEvent.click(pin as HTMLElement);
+    const starred = screen.getByRole("button", { name: "Unstar" });
+    expect(starred).toHaveAttribute("aria-pressed", "true");
+    fireEvent.click(starred);
+    const [star] = screen.getAllByRole("button", { name: "Star" });
+    fireEvent.click(star as HTMLElement);
 
     await waitFor(() =>
       expect(argsOf("set_dictionary_pinned")).toEqual([
@@ -142,6 +142,35 @@ describe("DictionaryPage", () => {
         { id: 2, pinned: true },
       ]),
     );
+  });
+
+  it("sorts by the saved choice and saves a new one", async () => {
+    let settings: Settings = { ...SETTINGS, dictionary: { autoLearn: true, sort: "alphabetical" } };
+    const { argsOf } = mockDictionary(WORDS, {
+      get_settings: () => settings,
+      update_settings: (args) => {
+        const patch = args.patch as SettingsPatch;
+        settings = { ...settings, dictionary: { ...settings.dictionary, ...patch.dictionary } };
+        return settings;
+      },
+    });
+    render(<DictionaryPage />);
+    const titles = () =>
+      screen.getAllByRole("listitem").map((row) => row.querySelector(".list-title")?.textContent);
+    const sortBy = await screen.findByRole("combobox", { name: "Sort by" });
+    await waitFor(() => expect(sortBy).toHaveValue("alphabetical"));
+    expect(titles()).toEqual(["cooper netties → Kubernetes", "Shrimp", "Tauri"]);
+    expect(
+      within(sortBy)
+        .getAllByRole("option")
+        .map((option) => option.textContent),
+    ).toEqual(["Starred first", "Newest first", "Oldest first", "Alphabetical (A–Z)", "Most used"]);
+
+    fireEvent.change(sortBy, { target: { value: "mostUsed" } });
+    await waitFor(() =>
+      expect(titles()).toEqual(["Shrimp", "Tauri", "cooper netties → Kubernetes"]),
+    );
+    expect(argsOf("update_settings")).toEqual([{ patch: { dictionary: { sort: "mostUsed" } } }]);
   });
 
   it("asks before deleting one entry", async () => {

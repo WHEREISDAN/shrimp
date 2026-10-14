@@ -87,7 +87,7 @@ export const styleTransforms = {
     heading: "Rewrite any text with AI",
     toggle: "Transforms",
     toggleBody:
-      "Select text anywhere and press a transform's shortcut: the result replaces it, and “See changes” shows what changed. Your text is sent to your AI provider.",
+      "Select text anywhere and press a transform's shortcut, or hover the Flow Bar and click the wand: the result replaces it, and “See changes” shows what changed. Your text is sent to your AI provider.",
     newTransform: "New transform",
     afterDictation: "After dictation",
     autoApply: "Apply a transform after every dictation",
@@ -108,6 +108,10 @@ export const styleTransforms = {
       structureBody: "Short paragraphs, and lists for enumerated items.",
       tone: "Maintain your tone",
       toneBody: "Keeps your voice as it is.",
+      mainPoint: "Clarify main point",
+      mainPointBody: "States plainly what the text is about or asks for.",
+      impact: "Refine phrasing for impact",
+      impactBody: "Prefers strong verbs and specific words, without exaggerating.",
       instructions: "Custom instructions",
       remove: "Remove",
       removeInstruction: "Remove {{instruction}}",
@@ -118,7 +122,7 @@ export const styleTransforms = {
       tooLong_many: "Keep each instruction under {{count, number}} words.",
       tooLong_other: "Keep each instruction under {{count, number}} words.",
       tooLong_zero: "Keep each instruction under {{count, number}} words.",
-      duplicate: "That instruction is already in the list.",
+      duplicate: "A custom rule with this text already exists",
     },
     promptEngineer: {
       title: "Prompt Engineer",

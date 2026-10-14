@@ -105,10 +105,20 @@ export const controls: ControlsCatalog = {
     recorder: "Scorciatoia {{label}}: {{shortcut}}",
     removeOne: "Rimuovi",
     removeOneLabel: "Rimuovi scorciatoia {{label}}",
+    doubleTap: "Oppure premi due volte {{keys}}",
+    doubleTapOnly: "Premi due volte {{keys}}",
   },
   dialog: {
     done: "Fine",
     save: "Salva",
+  },
+  wand: {
+    label: "Bacchetta delle trasformazioni",
+    run: "Applica {{name}} alla selezione",
+    choose: "Scegli una trasformazione",
+    menu: "Menu della bacchetta delle trasformazioni",
+    autoApply: "Applica automaticamente dopo la dettatura",
+    configure: "Configura le trasformazioni",
   },
   flowBarMenu: {
     label: "Menu della Flow Bar",
@@ -128,6 +138,13 @@ export const controls: ControlsCatalog = {
     retry: "Riprova",
     undo: "Annulla",
     accept: "Accetta modifiche",
+    quick: {
+      label: "Trasforma di nuovo",
+      promptEngineer: "Prompt Engineer",
+      turnToList: "Trasforma in elenco",
+      translateToEnglish: "Traduci in inglese",
+      empathize: "Rendi più empatico",
+    },
   },
   languageSwitch: {
     label: "Lingua di dettatura",

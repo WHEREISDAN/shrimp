@@ -8,6 +8,7 @@ import {
   type Answer,
   type DictationState,
   type Notice,
+  type TransformSettings,
   type TransformView,
 } from "../lib/ipc";
 import { useTranslation } from "react-i18next";
@@ -21,6 +22,7 @@ import { NoticeCard } from "./NoticeCard";
 import { EMPTY_QUEUE, noticeQueue } from "./noticeQueue";
 import { Pill } from "./Pill";
 import { useContentSize } from "./useContentSize";
+import { Wand, WandMenu } from "./Wand";
 
 export const WAVE_BARS = 18;
 
@@ -45,6 +47,8 @@ export function FlowBar() {
   const [changes, setChanges] = useState<TransformView | null>(null);
   const [hovered, setHovered] = useState(false);
   const [menu, setMenu] = useState(false);
+  const [wandMenu, setWandMenu] = useState(false);
+  const [transforms, setTransforms] = useState<TransformSettings | null>(null);
   const [placement, setPlacement] = useState<Settings["flowBar"] | null>(null);
   const [privacy, setPrivacy] = useState(false);
   const [language, setLanguage] = useState<string | undefined>(undefined);
@@ -71,6 +75,7 @@ export function FlowBar() {
           setPlacement(settings.flowBar);
           setPrivacy(settings.privacy.privacyMode);
           setLanguage(settings.app.language);
+          setTransforms(settings.transforms);
         }
       })
       .catch(() => undefined);
@@ -82,6 +87,7 @@ export function FlowBar() {
     setPlacement(settings.flowBar);
     setPrivacy(settings.privacy.privacyMode);
     setLanguage(settings.app.language);
+    setTransforms(settings.transforms);
     setNow(Date.now() / 1000);
   });
 
@@ -102,6 +108,7 @@ export function FlowBar() {
         setLevels(silence());
         setAnswer(null);
         setChanges(null);
+        setWandMenu(false);
       }
       return next;
     });
@@ -122,6 +129,7 @@ export function FlowBar() {
     setHovered(inside);
     if (!inside) {
       setMenu(false);
+      setWandMenu(false);
     }
   };
   useTauriEvent<boolean>(EVENTS.flowBarHover, hover);
@@ -150,6 +158,9 @@ export function FlowBar() {
 
   const resting = (placement?.alwaysShow ?? true) && now >= hiddenUntil;
   const edge = placement?.edge ?? "bottom";
+  // Beside the resting pill on hover, while Transforms are on (TRF-07).
+  const wand =
+    hovered && resting && state.phase === "idle" && transforms?.enabled ? transforms : null;
   return (
     <section
       className={`flow-bar edge-${edge}`}
@@ -159,10 +170,12 @@ export function FlowBar() {
       onMouseLeave={() => hover(false)}
       onContextMenu={(event) => {
         event.preventDefault();
+        setWandMenu(false);
         setMenu(true);
       }}
     >
       {menu && <FlowBarMenu onClose={() => setMenu(false)} />}
+      {wand && wandMenu && <WandMenu transforms={wand} onClose={() => setWandMenu(false)} />}
       {changes && <ChangesCard view={changes} onClose={() => setChanges(null)} />}
       {answer && <AnswerCard answer={answer} onDismiss={() => setAnswer(null)} />}
       {notice && (
@@ -174,7 +187,21 @@ export function FlowBar() {
       )}
       {hovered && <LanguageSwitch />}
       {(state.phase !== "idle" || resting) && (
-        <Pill state={state} levels={levels} error={notice?.level === "error"} privacy={privacy} />
+        <div className="pill-row">
+          {wand && (
+            <Wand
+              transforms={wand}
+              open={wandMenu}
+              onToggle={() => {
+                setMenu(false);
+                setWandMenu((open) => !open);
+              }}
+            />
+          )}
+          <Pill state={state} levels={levels} error={notice?.level === "error"} privacy={privacy} />
+          {/* Keeps the pill where it was on the bottom edge, which centres the bar on it. */}
+          {wand && edge === "bottom" && <span className="wand-balance" aria-hidden="true" />}
+        </div>
       )}
     </section>
   );

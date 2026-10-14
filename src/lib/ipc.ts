@@ -30,6 +30,7 @@ export type NoticeAction =
   | "openAiSettings"
   | "openExperimentalSettings"
   | "viewTransformChanges"
+  | "revealEdit"
   | "openDictionary"
   | "undoCancel"
   | "chooseMicrophone"
@@ -173,16 +174,21 @@ export interface TransformView {
   result: string;
 }
 
-/** Mirrors `dictation::TransformAction`: the changes view's buttons. */
-export type TransformAction = "view" | "copy" | "retry" | "undo";
+/** Mirrors `edit::transforms::QuickTransform`: the changes view's re-transforms (TRF-04). */
+export type QuickTransform = "promptEngineer" | "turnToList" | "translateToEnglish" | "empathize";
 
-/** Mirrors `settings::PolishRules`. */
+/** Mirrors `dictation::TransformAction`: the changes view's buttons. */
+export type TransformAction = "view" | "copy" | "retry" | "undo" | { retransform: QuickTransform };
+
+/** Mirrors `settings::PolishRules`: five rules on by default, `mainPoint` and `impact` off. */
 export interface PolishRules {
   concise: boolean;
   clarity: boolean;
   reorder: boolean;
   structure: boolean;
   tone: boolean;
+  mainPoint: boolean;
+  impact: boolean;
 }
 
 /** Mirrors `settings::CustomTransform`. */
@@ -203,6 +209,8 @@ export interface TransformSettings {
   custom: CustomTransform[];
   /** "polish", "promptEngineer" or a custom transform's id. */
   autoApply: string | null;
+  /** What the Flow Bar's wand runs; follows `autoApply` while that is on (TRF-07). */
+  wand: string;
 }
 
 /** Mirrors `stt::ModelState`, flattened into `ModelStatus`. */
@@ -317,7 +325,7 @@ export interface Settings {
   };
   transforms: TransformSettings;
   vibeCoding: { fileTagging: boolean };
-  dictionary: { autoLearn: boolean };
+  dictionary: { autoLearn: boolean; sort: DictionarySort };
   microphone: {
     selected: string | null;
     ranking: { id: string; name: string; kind: DeviceKind }[];
@@ -439,6 +447,9 @@ export interface AiTestResult {
 
 /** Mirrors `storage::EntrySource`. */
 export type EntrySource = "manual" | "learned" | "imported";
+
+/** Mirrors `settings::DictionarySort`: the Dictionary page's Sort by (DIC-04). */
+export type DictionarySort = "starred" | "newest" | "oldest" | "alphabetical" | "mostUsed";
 
 /** Mirrors `storage::DictionaryEntry`. */
 export interface DictionaryEntry {
@@ -642,6 +653,12 @@ export type FlowBarAction = "pasteLast" | "history" | "settings" | "hide";
 
 export const flowBarAction = (action: FlowBarAction): Promise<void> =>
   invoke("flow_bar_action", { action });
+
+/** Mirrors `commands::dictation::WandAction`: the Flow Bar's wand and its menu (TRF-07). */
+export type WandAction = "run" | "configure" | { choose: string } | { autoApply: boolean };
+
+export const flowBarWand = (action: WandAction): Promise<void> =>
+  invoke("flow_bar_wand", { action });
 
 export const runNoticeAction = (action: NoticeAction): Promise<void> =>
   invoke("run_notice_action", { action });

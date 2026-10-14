@@ -397,10 +397,10 @@ SHRIMP_EVAL_PROVIDER=ollama SHRIMP_EVAL_MODEL=qwen3.5:4b \
 provider failed) and the unedited transcript would have been inserted. The pipeline's own
 log lines, including rejected outputs at debug level, are printed under the case.
 
-`src-tauri/tests/command_eval.rs` does the same for Command Mode and transforms: the 15
+`src-tauri/tests/command_eval.rs` does the same for Command Mode and transforms: the 19
 cases in `tests/fixtures/eval/commands.json` (edits, questions, drafts, injection
-attempts in the selection and the document, Polish, Prompt Engineer and a custom
-transform). The same variables apply, except `SHRIMP_EVAL_RUNS`:
+attempts in the selection and the document, Polish, Prompt Engineer, a custom transform,
+and the changes view's Turn to list, Translate to English and Empathize). The same variables apply, except `SHRIMP_EVAL_RUNS`:
 
 ```sh
 SHRIMP_EVAL_PROVIDER=ollama SHRIMP_EVAL_MODEL=qwen2.5-coder:7b \

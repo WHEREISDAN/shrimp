@@ -18,9 +18,28 @@ interface ShortcutsDialogProps {
   onClose: () => void;
 }
 
+/**
+ * Hands-free also starts by double-tapping push to talk (CORE-05), so its row
+ * says so with the user's own keys (KEYS-11): "Or double-tap fn".
+ */
+function useDoubleTapHint() {
+  const { t, i18n } = useTranslation();
+  return (handsFree: ShortcutRow, rows: ShortcutRow[]): string | null => {
+    const keys = rows.find((row) => row.action === "pushToTalk")?.shortcuts ?? [];
+    if (keys.length === 0) {
+      return null;
+    }
+    const list = new Intl.ListFormat(i18n.language, { type: "disjunction" }).format(keys);
+    return handsFree.shortcuts.length > 0
+      ? t("shortcuts.doubleTap", { keys: list })
+      : t("shortcuts.doubleTapOnly", { keys: list });
+  };
+}
+
 /** Every action and its bindings (KEYS-01): click one to record a replacement, + to add one. */
 export function ShortcutsDialog({ onClose }: ShortcutsDialogProps) {
   const { t } = useTranslation();
+  const doubleTapHint = useDoubleTapHint();
   const [list, setList] = useState<ShortcutList | null>(null);
   const [problem, setProblem] = useState<string | null>(null);
   const [confirmReset, setConfirmReset] = useState(false);
@@ -68,6 +87,7 @@ export function ShortcutsDialog({ onClose }: ShortcutsDialogProps) {
               typeof row.action === "string" ? row.action : `custom-${row.action.customTransform}`
             }
             row={row}
+            hint={row.action === "handsFree" ? doubleTapHint(row, list.rows) : null}
             recording={recording}
             guard={guard}
             onRemove={(index) => void run(removeShortcut(row.action, index))}
@@ -123,12 +143,14 @@ export function ShortcutsDialog({ onClose }: ShortcutsDialogProps) {
 
 interface ShortcutItemProps {
   row: ShortcutRow;
+  /** Another way to start the action, shown under its name. */
+  hint: string | null;
   recording: ShortcutRecording;
   guard: (work: () => void) => () => void;
   onRemove: (index: number) => void;
 }
 
-function ShortcutItem({ row, recording, guard, onRemove }: ShortcutItemProps) {
+function ShortcutItem({ row, hint, recording, guard, onRemove }: ShortcutItemProps) {
   const { t } = useTranslation();
   const { active } = recording;
   const mine = active !== null && sameAction(active.action, row.action);
@@ -138,7 +160,10 @@ function ShortcutItem({ row, recording, guard, onRemove }: ShortcutItemProps) {
   const canRemove = !(row.required && row.shortcuts.length === 1);
   return (
     <li className="shortcut-item">
-      <span className="shortcut-name">{row.name}</span>
+      <span className="shortcut-label">
+        <span className="shortcut-name">{row.name}</span>
+        {hint && <span className="shortcut-hint">{hint}</span>}
+      </span>
       <div className="shortcut-bindings">
         {row.shortcuts.map((label, index) =>
           mine && active.index === index ? (

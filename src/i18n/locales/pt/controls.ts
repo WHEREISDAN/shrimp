@@ -103,10 +103,20 @@ export const controls: ControlsCatalog = {
     recorder: "Atalho para {{label}}: {{shortcut}}",
     removeOne: "Remover",
     removeOneLabel: "Remover o atalho para {{label}}",
+    doubleTap: "Ou toque duas vezes em {{keys}}",
+    doubleTapOnly: "Toque duas vezes em {{keys}}",
   },
   dialog: {
     done: "Concluído",
     save: "Salvar",
+  },
+  wand: {
+    label: "Varinha de transformações",
+    run: "Aplicar {{name}} à seleção",
+    choose: "Escolher uma transformação",
+    menu: "Menu da varinha de transformações",
+    autoApply: "Aplicar automaticamente após o ditado",
+    configure: "Configurar transformações",
   },
   flowBarMenu: {
     label: "Menu da Flow Bar",
@@ -126,6 +136,13 @@ export const controls: ControlsCatalog = {
     retry: "Tentar de novo",
     undo: "Desfazer",
     accept: "Aceitar edições",
+    quick: {
+      label: "Transformar de novo",
+      promptEngineer: "Prompt Engineer",
+      turnToList: "Transformar em lista",
+      translateToEnglish: "Traduzir para o inglês",
+      empathize: "Deixar mais empático",
+    },
   },
   languageSwitch: {
     label: "Idioma do ditado",

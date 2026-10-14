@@ -23,6 +23,7 @@ export const core: CoreCatalog = {
       openAiSettings: "Apri Impostazioni",
       openExperimentalSettings: "Vai alle impostazioni",
       viewTransformChanges: "Vedi modifiche",
+      revealEdit: "Mostra modifica",
       openDictionary: "Visualizza",
       undoCancel: "Annulla",
       chooseMicrophone: "Scegli microfono",

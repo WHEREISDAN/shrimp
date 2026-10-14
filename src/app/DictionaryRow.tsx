@@ -5,6 +5,7 @@ interface DictionaryRowProps {
   entry: DictionaryEntry;
   selected: boolean;
   onSelect: (selected: boolean) => void;
+  /** Stars or unstars it (the stored field is `pinned`). */
   onPin: () => void;
   onEdit: () => void;
   onDelete: () => void;
@@ -31,7 +32,7 @@ export function DictionaryRow({
       <div className="list-main">
         <p className="list-title">{title}</p>
         <p className="list-meta">
-          {entry.pinned && <span className="badge">{t("dictionary.pinned")}</span>}
+          {entry.pinned && <span className="badge">{t("dictionary.starred")}</span>}
           {entry.source === "imported" && <span className="badge">{t("dictionary.imported")}</span>}
           {entry.source === "learned" && (
             <span className="badge" title={t("dictionary.learnedHint")}>
@@ -45,7 +46,7 @@ export function DictionaryRow({
       </div>
       <div className="row-actions">
         <button type="button" aria-pressed={entry.pinned} onClick={onPin}>
-          {entry.pinned ? t("dictionary.unpin") : t("dictionary.pin")}
+          {entry.pinned ? t("dictionary.unstar") : t("dictionary.star")}
         </button>
         <button type="button" onClick={onEdit}>
           {t("dictionary.edit")}

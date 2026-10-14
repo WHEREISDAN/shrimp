@@ -21,6 +21,7 @@ export const core = {
       openAiSettings: "Open Settings",
       openExperimentalSettings: "Go to settings",
       viewTransformChanges: "See changes",
+      revealEdit: "Reveal edit",
       openDictionary: "View",
       undoCancel: "Undo",
       chooseMicrophone: "Choose microphone",

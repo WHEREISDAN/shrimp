@@ -22,10 +22,10 @@ pub use audio::{KnownMicrophone, MediaSettings, MicrophoneSettings, SoundSetting
 pub use flow_bar::FlowBarSettings;
 pub use languages::LanguageSettings;
 pub use model::{
-    APP_LANGUAGES, AiSettings, AppSettings, DictionarySettings, ExperimentalSettings,
-    FormattingTips, GrantedPermissions, HistoryStorage, NoticeSettings, NotificationSettings,
-    OnboardingSettings, OnboardingStep, PrivacySettings, SETTINGS_VERSION, Settings, SttSettings,
-    StyleSettings, VibeCodingSettings,
+    APP_LANGUAGES, AiSettings, AppSettings, DictionarySettings, DictionarySort,
+    ExperimentalSettings, FormattingTips, GrantedPermissions, HistoryStorage, NoticeSettings,
+    NotificationSettings, OnboardingSettings, OnboardingStep, PrivacySettings, SETTINGS_VERSION,
+    Settings, SttSettings, StyleSettings, VibeCodingSettings,
 };
 pub use shortcuts::ShortcutSettings;
 pub use transforms::{CustomTransform, PolishRules, TransformSettings};

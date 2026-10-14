@@ -89,7 +89,7 @@ export const styleTransforms: StyleTransformsCatalog = {
     heading: "Beliebigen Text mit KI umschreiben",
     toggle: "Transformationen",
     toggleBody:
-      "Wähle irgendwo Text aus und drück den Kurzbefehl einer Transformation: Das Ergebnis ersetzt ihn, und „Änderungen ansehen“ zeigt, was sich geändert hat. Dein Text wird an deinen KI-Anbieter gesendet.",
+      "Wähle irgendwo Text aus und drück den Kurzbefehl einer Transformation oder klick in der Flow Bar auf den Zauberstab: Das Ergebnis ersetzt ihn, und „Änderungen ansehen“ zeigt, was sich geändert hat. Dein Text wird an deinen KI-Anbieter gesendet.",
     newTransform: "Neue Transformation",
     afterDictation: "Nach dem Diktat",
     autoApply: "Nach jedem Diktat eine Transformation anwenden",
@@ -110,6 +110,10 @@ export const styleTransforms: StyleTransformsCatalog = {
       structureBody: "Kurze Absätze und Listen für Aufzählungen.",
       tone: "Deinen Ton beibehalten",
       toneBody: "Lässt deine Ausdrucksweise, wie sie ist.",
+      mainPoint: "Kernaussage verdeutlichen",
+      mainPointBody: "Sagt klar, worum es im Text geht oder was er verlangt.",
+      impact: "Formulierungen wirkungsvoller machen",
+      impactBody: "Bevorzugt starke Verben und konkrete Wörter, ohne zu übertreiben.",
       instructions: "Eigene Anweisungen",
       remove: "Entfernen",
       removeInstruction: "„{{instruction}}“ entfernen",
@@ -120,7 +124,7 @@ export const styleTransforms: StyleTransformsCatalog = {
       tooLong_many: "Halte jede Anweisung unter {{count, number}} Wörtern.",
       tooLong_other: "Halte jede Anweisung unter {{count, number}} Wörtern.",
       tooLong_zero: "Halte jede Anweisung unter {{count, number}} Wörtern.",
-      duplicate: "Diese Anweisung steht schon in der Liste.",
+      duplicate: "Eine eigene Regel mit diesem Text gibt es bereits",
     },
     promptEngineer: {
       title: "Prompt Engineer",

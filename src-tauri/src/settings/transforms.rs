@@ -2,6 +2,7 @@
 //! up to 8 custom transforms, their shortcuts and auto-apply.
 
 use serde::{Deserialize, Serialize};
+use serde_json::{Value, json};
 
 use crate::t;
 
@@ -22,7 +23,7 @@ the writer gave and invent no new requirements.";
 pub const POLISH: &str = "polish";
 pub const PROMPT_ENGINEER: &str = "promptEngineer";
 
-#[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", default)]
 pub struct TransformSettings {
     /// Turned on from the Transforms page; until then no shortcut is bound.
@@ -36,6 +37,23 @@ pub struct TransformSettings {
     /// "polish", "promptEngineer" or a custom transform's id; runs after
     /// every dictation (TRF-05).
     pub auto_apply: Option<String>,
+    /// What the Flow Bar's wand runs (TRF-07); Auto Apply, when on, runs
+    /// the same transform.
+    pub wand: String,
+}
+
+impl Default for TransformSettings {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            polish: PolishSettings::default(),
+            prompt_engineer: PromptEngineerSettings::default(),
+            custom: Vec::new(),
+            view_changes_shortcut: None,
+            auto_apply: None,
+            wand: POLISH.into(),
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
@@ -48,7 +66,8 @@ pub struct PolishSettings {
     pub shortcut: Option<String>,
 }
 
-/// Wispr Flow's five base Polish rules.
+/// Wispr Flow's five base Polish rules, on by default, and its two extra
+/// ones, off by default (a settings file without them gets them off).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", default)]
 pub struct PolishRules {
@@ -57,6 +76,10 @@ pub struct PolishRules {
     pub reorder: bool,
     pub structure: bool,
     pub tone: bool,
+    /// Clarify main point.
+    pub main_point: bool,
+    /// Refine phrasing for impact.
+    pub impact: bool,
 }
 
 impl Default for PolishRules {
@@ -67,6 +90,8 @@ impl Default for PolishRules {
             reorder: true,
             structure: true,
             tone: true,
+            main_point: false,
+            impact: false,
         }
     }
 }
@@ -132,6 +157,46 @@ impl TransformSettings {
         taken
     }
 
+    /// Whether `id` names Polish, Prompt Engineer or a custom transform.
+    fn knows(&self, id: &str) -> bool {
+        id == POLISH || id == PROMPT_ENGINEER || self.custom.iter().any(|item| item.id == id)
+    }
+
+    /// The wand runs what Auto Apply runs while it is on, and Polish once
+    /// its transform is deleted.
+    pub fn normalize_wand(&mut self) {
+        if let Some(id) = &self.auto_apply {
+            self.wand.clone_from(id);
+        } else if !self.knows(&self.wand) {
+            self.wand = POLISH.into();
+        }
+    }
+
+    /// The settings patch that makes the wand run `id`; Auto Apply, when
+    /// on, follows it (TRF-07).
+    pub fn choose_wand(&self, id: &str) -> Result<Value, String> {
+        let usable = id == POLISH
+            || id == PROMPT_ENGINEER
+            || self
+                .custom
+                .iter()
+                .any(|item| item.id == id && item.is_complete());
+        if !usable {
+            return Err(t!("notice.shortcuts.transformGone"));
+        }
+        let mut patch = json!({"transforms": {"wand": id}});
+        if self.auto_apply.is_some() {
+            patch["transforms"]["autoApply"] = json!(id);
+        }
+        Ok(patch)
+    }
+
+    /// The settings patch that turns Auto Apply on with the wand's
+    /// transform, or off (TRF-05, TRF-07).
+    pub fn set_auto_apply(&self, on: bool) -> Value {
+        json!({"transforms": {"autoApply": on.then(|| self.wand.clone())}})
+    }
+
     pub fn validate(&self) -> Result<(), String> {
         let instructions = &self.polish.instructions;
         if instructions.len() > MAX_CUSTOM_INSTRUCTIONS {
@@ -153,9 +218,10 @@ impl TransformSettings {
             ));
         }
         for (index, text) in instructions.iter().enumerate() {
+            let key = text.trim().to_lowercase();
             let duplicate = instructions[..index]
                 .iter()
-                .any(|other| other.trim().eq_ignore_ascii_case(text.trim()));
+                .any(|other| other.trim().to_lowercase() == key);
             if duplicate {
                 return Err(t!("error.transforms.duplicateInstruction"));
             }
@@ -180,13 +246,10 @@ impl TransformSettings {
                 return Err(t!("error.transforms.tooManySamples", max = MAX_SAMPLES));
             }
         }
-        if let Some(choice) = &self.auto_apply {
-            let known = choice == POLISH
-                || choice == PROMPT_ENGINEER
-                || self.custom.iter().any(|transform| &transform.id == choice);
-            if !known {
-                return Err(t!("error.transforms.unknownAutoApply"));
-            }
+        if let Some(choice) = &self.auto_apply
+            && !self.knows(choice)
+        {
+            return Err(t!("error.transforms.unknownAutoApply"));
         }
         Ok(())
     }
@@ -211,7 +274,22 @@ mod tests {
         let settings = TransformSettings::default();
         assert!(!settings.enabled);
         assert!(settings.polish.rules.concise && settings.polish.rules.tone);
+        assert!(!settings.polish.rules.main_point && !settings.polish.rules.impact);
         settings.validate().unwrap();
+    }
+
+    #[test]
+    fn rules_saved_before_the_extra_two_keep_their_choices() {
+        let json = serde_json::json!({
+            "polish": {"rules": {"concise": false, "tone": true}},
+        });
+        let settings: TransformSettings = serde_json::from_value(json).unwrap();
+        let rules = settings.polish.rules;
+        assert!(!rules.concise && rules.clarity && rules.tone);
+        assert!(!rules.main_point && !rules.impact);
+        let written = serde_json::to_value(settings).unwrap();
+        assert_eq!(written["polish"]["rules"]["mainPoint"], false);
+        assert_eq!(written["polish"]["rules"]["impact"], false);
     }
 
     #[test]
@@ -219,6 +297,13 @@ mod tests {
         let mut settings = TransformSettings::default();
         settings.polish.instructions = vec!["Use British spelling".into(); 2];
         assert!(settings.validate().is_err(), "duplicates");
+        settings.polish.instructions = vec!["Écris court".into(), " écris COURT ".into()];
+        assert_eq!(
+            settings.validate().unwrap_err(),
+            "A custom rule with this text already exists"
+        );
+        settings.polish.instructions = vec!["word ".repeat(50)];
+        settings.validate().unwrap();
         settings.polish.instructions = (0..6).map(|n| format!("Rule {n}")).collect();
         assert!(settings.validate().is_err(), "at most 5");
         settings.polish.instructions = vec!["word ".repeat(51)];
@@ -259,6 +344,56 @@ mod tests {
         let written = serde_json::to_value(&settings).unwrap();
         assert!(written["polish"].get("shortcut").is_none());
         assert!(written["custom"][0].get("shortcut").is_none());
+    }
+
+    #[test]
+    fn the_wand_and_auto_apply_run_the_same_transform() {
+        let mut settings = TransformSettings::default();
+        assert_eq!(settings.wand, POLISH);
+        settings.custom.push(CustomTransform {
+            id: "pirate".into(),
+            name: "Pirate".into(),
+            prompt: "Talk like a pirate.".into(),
+            ..CustomTransform::default()
+        });
+        assert_eq!(
+            settings.choose_wand("pirate").unwrap(),
+            json!({"transforms": {"wand": "pirate"}})
+        );
+        assert!(settings.choose_wand("gone").is_err());
+        settings.wand = "pirate".into();
+        assert_eq!(
+            settings.set_auto_apply(true),
+            json!({"transforms": {"autoApply": "pirate"}})
+        );
+        settings.auto_apply = Some("pirate".into());
+        assert_eq!(
+            settings.choose_wand(PROMPT_ENGINEER).unwrap(),
+            json!({"transforms": {"wand": "promptEngineer", "autoApply": "promptEngineer"}})
+        );
+        assert_eq!(
+            settings.set_auto_apply(false),
+            json!({"transforms": {"autoApply": null}})
+        );
+
+        settings.auto_apply = Some(PROMPT_ENGINEER.into());
+        settings.normalize_wand();
+        assert_eq!(
+            settings.wand, PROMPT_ENGINEER,
+            "the Transforms page's choice"
+        );
+        settings.auto_apply = None;
+        settings.wand = "pirate".into();
+        settings.custom.clear();
+        settings.normalize_wand();
+        assert_eq!(settings.wand, POLISH, "its transform was deleted");
+    }
+
+    #[test]
+    fn a_settings_file_without_a_wand_runs_polish() {
+        let json = json!({"enabled": true});
+        let settings: TransformSettings = serde_json::from_value(json).unwrap();
+        assert_eq!(settings.wand, POLISH);
     }
 
     #[test]

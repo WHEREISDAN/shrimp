@@ -6,6 +6,7 @@ use super::gestures::{BarControl, RecordingMode};
 use super::learn::{LearnTarget, LearnTiming};
 use super::transform::{TransformRun, TransformView};
 use crate::audio::AudioClip;
+use crate::edit::transforms::QuickTransform;
 use crate::history::Dictation;
 use crate::history::journal::JournalFiles;
 use crate::hotkeys::{Action, RecordUpdate, ShortcutEvent};
@@ -170,6 +171,8 @@ pub enum ControllerInput {
     SettingsChanged,
     /// The changes view's buttons and "See changes" (TRF-04).
     Transform(TransformAction),
+    /// The Flow Bar's wand runs its chosen transform (TRF-07).
+    Wand,
     /// A cancelled recording, kept so paste-last can transcribe it, and
     /// the History entry it was stored as (HIS-10).
     Cancelled {
@@ -184,7 +187,8 @@ pub enum ControllerInput {
     Shutdown(std::sync::mpsc::Sender<()>),
 }
 
-/// What the user can do with the last transform.
+/// What the user can do with the last transform. Mirrors `TransformAction`
+/// in src/lib/ipc.ts.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub enum TransformAction {
@@ -192,6 +196,8 @@ pub enum TransformAction {
     Copy,
     Retry,
     Undo,
+    /// Runs another transform on the original text in place (TRF-04).
+    Retransform(QuickTransform),
 }
 
 /// A finished pipeline run and the notices it raised on the way (an AI
@@ -210,6 +216,8 @@ pub struct Processed {
     pub history_id: Option<i64>,
     /// The recording saved as it happened, deleted once stored (HIS-06).
     pub journal: Option<JournalFiles>,
+    /// The transform auto-apply ran on the dictation, for the changes view (TRF-05).
+    pub transform: Option<Box<TransformRun>>,
 }
 
 impl From<Outcome> for Processed {
@@ -222,6 +230,7 @@ impl From<Outcome> for Processed {
             record: None,
             history_id: None,
             journal: None,
+            transform: None,
         }
     }
 }
@@ -304,6 +313,16 @@ mod tests {
         assert_eq!(timing.session_warning, Duration::from_secs(19 * 60));
         assert_eq!(timing.session_limit, Duration::from_secs(20 * 60));
         assert_eq!(timing.clipboard_hold, Duration::from_millis(500));
+    }
+
+    #[test]
+    fn transform_actions_deserialize_from_the_changes_view() {
+        let parse = |json| serde_json::from_value::<TransformAction>(json).unwrap();
+        assert_eq!(parse(serde_json::json!("retry")), TransformAction::Retry);
+        assert_eq!(
+            parse(serde_json::json!({"retransform": "turnToList"})),
+            TransformAction::Retransform(QuickTransform::TurnToList)
+        );
     }
 
     #[test]

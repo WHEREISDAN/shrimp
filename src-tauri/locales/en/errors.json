@@ -55,7 +55,7 @@
   "error.transforms.tooManyInstructions": "Use at most {max} custom instructions.",
   "error.transforms.emptyInstruction": "An instruction cannot be empty.",
   "error.transforms.instructionTooLong": "Keep each instruction under {max} words.",
-  "error.transforms.duplicateInstruction": "That instruction is already in the list.",
+  "error.transforms.duplicateInstruction": "A custom rule with this text already exists",
   "error.transforms.promptTooLong": "Keep the prompt under {max} characters.",
   "error.transforms.tooMany": "Use at most {max} custom transforms.",
   "error.transforms.missingId": "A transform needs an id.",

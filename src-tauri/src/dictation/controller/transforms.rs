@@ -1,5 +1,6 @@
-//! Transforms from their shortcuts (TRF-01..04): start one on the focused
-//! text, then show, copy, retry or undo its changes.
+//! Transforms from their shortcuts and the Flow Bar's wand (TRF-01..04,
+//! TRF-07): start one on the focused text, then show, copy, retry,
+//! re-transform or undo its changes.
 
 use std::sync::Arc;
 use std::time::Instant;
@@ -51,9 +52,24 @@ impl Controller {
                 .map(Transform::Custom),
             _ => None,
         };
-        let Some(transform) = transform else {
+        if let Some(transform) = transform {
+            self.run_transform(transform);
+        }
+    }
+
+    /// The Flow Bar's wand: its chosen transform on the app in front, the
+    /// same way as that transform's shortcut (TRF-07).
+    pub(super) fn run_wand(&mut self) {
+        let settings = self.settings.get().transforms;
+        if !settings.enabled {
             return;
-        };
+        }
+        if let Some(transform) = Transform::by_id(&settings, &settings.wand) {
+            self.run_transform(transform);
+        }
+    }
+
+    fn run_transform(&mut self, transform: Transform) {
         if !self.begin_work() {
             return;
         }
@@ -96,18 +112,23 @@ impl Controller {
                     Err(error) => ui.notice(Notice::error(t!("notice.copyFailed", error = error))),
                 });
             }
-            TransformAction::Retry | TransformAction::Undo => {
+            TransformAction::Retry | TransformAction::Undo | TransformAction::Retransform(_) => {
                 if !self.begin_work() {
                     return;
                 }
-                self.retrying = action == TransformAction::Retry;
+                self.retrying = action != TransformAction::Undo;
+                let settings = self.settings.get().transforms;
                 let runner = self.transform_runner();
                 let tx = self.tx.clone();
                 tauri::async_runtime::spawn(async move {
-                    let outcome = if action == TransformAction::Retry {
-                        runner.retry(&run).await
-                    } else {
-                        runner.undo(&run).await
+                    let outcome = match action {
+                        TransformAction::Retransform(quick) => {
+                            runner
+                                .retransform(&run, Transform::quick(&settings, quick))
+                                .await
+                        }
+                        TransformAction::Retry => runner.retry(&run).await,
+                        _ => runner.undo(&run).await,
                     };
                     let _ = tx.send(ControllerInput::Processed(Box::new(outcome.into())));
                 });

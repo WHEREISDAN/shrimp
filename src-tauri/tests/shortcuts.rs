@@ -226,3 +226,73 @@ fn without_an_fn_key_the_defaults_use_ctrl_opt() {
         .collect();
     assert_eq!(labels, ["⌃⌥", "⌃⌥Space", "⌃⌥⌘"]);
 }
+
+/// KEYS-02, KEYS-11: Hands-free needs no binding of its own, because
+/// double-tapping push to talk starts it too.
+#[test]
+fn hands_free_can_lose_every_binding_and_stays_unbound_after_a_restart() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("settings.json");
+    let defaults = macos_defaults(true);
+    let store = SettingsStore::load(path.clone());
+    store
+        .update(&serde_json::json!({
+            "shortcuts": {"bindings": {"handsFree": ["Fn+Space", "Mouse5"]}}
+        }))
+        .unwrap();
+    for _ in 0..2 {
+        let patch =
+            bindings::without_trigger(&defaults, &store.get(), Action::HandsFree, 0).unwrap();
+        store.update(&patch).unwrap();
+    }
+    drop(store);
+
+    let settings = SettingsStore::load(path).get();
+    assert!(settings.shortcuts.bindings["handsFree"].is_empty());
+    assert!(bindings::triggers(Action::HandsFree, &defaults, &settings).is_empty());
+    assert!(
+        bindings::configured(&defaults, &settings)
+            .iter()
+            .all(|binding| binding.action != Action::HandsFree)
+    );
+}
+
+#[test]
+fn double_tap_starts_hands_free_without_a_hands_free_binding() {
+    let mut settings = Settings::default();
+    settings
+        .shortcuts
+        .bindings
+        .insert("handsFree".into(), Vec::new());
+    let h = Harness::with(
+        5.0,
+        0.3,
+        fast_timing(),
+        Setup {
+            settings,
+            ..Setup::default()
+        },
+    );
+    h.hold(Action::PushToTalk, Duration::from_millis(80));
+    std::thread::sleep(Duration::from_millis(100));
+    h.hold(Action::PushToTalk, Duration::from_millis(80));
+    wait_until("hands-free", || {
+        h.fakes.last_state()
+            == Some(DictationState::Recording {
+                mode: Mode::Locked,
+                command: false,
+            })
+    });
+    assert!(
+        h.fakes
+            .bound
+            .lock()
+            .unwrap()
+            .iter()
+            .all(|binding| binding.action != Action::HandsFree)
+    );
+    // A third quick press would cancel (CORE-05).
+    std::thread::sleep(Duration::from_millis(900));
+    h.hold(Action::PushToTalk, Duration::from_millis(50));
+    wait_until("insertion", || h.fakes.inserted() == [TEXT]);
+}

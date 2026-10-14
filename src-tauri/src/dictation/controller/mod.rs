@@ -341,6 +341,7 @@ impl Controller {
             ControllerInput::AnswerPressEnter { enable } => self.answer_press_enter(enable),
             ControllerInput::SettingsChanged => self.refresh_bindings(),
             ControllerInput::Transform(action) => self.transform_action(action),
+            ControllerInput::Wand => self.run_wand(),
             ControllerInput::Bar(control) => self.gesture(Input::Bar(control)),
             ControllerInput::Menu(action) => {
                 self.paste_delay = self.timing.menu_paste_delay;
@@ -645,6 +646,9 @@ impl Controller {
         self.set_state(DictationState::Idle);
         for notice in processed.notices {
             self.ui.notice(notice);
+        }
+        if let Some(run) = processed.transform {
+            self.last_transform = Some(*run);
         }
         match &processed.outcome {
             Outcome::Inserted(_) if !self.gestures.is_command() => {
