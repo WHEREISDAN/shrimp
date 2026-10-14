@@ -1,8 +1,10 @@
 //! Dictionary auto-learn (DIC-07): after a dictation is pasted, watch the
 //! field for a while; a word of the dictation that the user respells (and
 //! leaves alone for a moment) is added to the dictionary, unless it is a
-//! path, a URL, code, a number, an emoji, an everyday word or a word the
-//! user deleted from the dictionary before.
+//! path, a URL, a partial email address, code, markdown, a key, hash or ID,
+//! a number, a date, an emoji, an everyday word, a very common or globally
+//! famous name, an everyday acronym or a word the user deleted from the
+//! dictionary before.
 
 use std::ops::Range;
 use std::sync::Arc;
@@ -18,6 +20,12 @@ use crate::{t, tn};
 
 const TEXT_LIMIT: usize = 40_000;
 const MAX_WORD_CHARS: usize = 40;
+/// Characters of email addresses, markdown and code; a replacement that
+/// contains one teaches nothing.
+const SYMBOLS: &[char] = &[
+    '@', '*', '_', '`', '#', '[', ']', '(', ')', '<', '>', '/', '\\', '=', '+', '~', '|', '{',
+    '}', '$', '%', '^', '&',
+];
 
 /// Where a dictation was pasted, for the watcher.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -89,8 +97,12 @@ pub fn respellings(before: &str, after: &str, inserted: &Range<usize>) -> Vec<(S
             .filter(|word| !word.is_empty())
             .collect()
     };
+    let replacement = &after[start..new_end.max(start)];
+    if replacement.contains(SYMBOLS) {
+        return Vec::new();
+    }
     let old = split(&before[start..old_end]);
-    let new = split(&after[start..new_end.max(start)]);
+    let new = split(replacement);
     match (old.len(), new.len()) {
         (1..=3, 1) => vec![(old.join(" "), new[0].clone())],
         (count, same) if count == same && count <= 5 => old
@@ -111,11 +123,29 @@ pub fn learnable(old: &str, new: &str) -> bool {
     if !(2..=MAX_WORD_CHARS).contains(&chars) || !letters_only {
         return false;
     }
+    if looks_generated(new) || words::is_date_word(new) || words::is_famous_name(new) {
+        return false;
+    }
     if old.eq_ignore_ascii_case(new) {
         // A casing fix teaches the casing of an unusual word ("tauri" → "Tauri").
         return new.chars().any(char::is_uppercase) && !words::is_common(new);
     }
     !(words::is_common(new) || words::is_common_first_name(new) || words::is_everyday_acronym(new))
+}
+
+/// Keys, hashes and IDs made of letters only: hex strings, case that
+/// switches back and forth, long capitals, or no vowels at all.
+fn looks_generated(word: &str) -> bool {
+    let chars: Vec<char> = word.chars().filter(|c| c.is_alphabetic()).collect();
+    let hex = chars.len() >= 8 && chars.iter().all(char::is_ascii_hexdigit);
+    let case_switches = chars
+        .windows(2)
+        .filter(|pair| pair[0].is_lowercase() && pair[1].is_uppercase())
+        .count();
+    let long_capitals = chars.len() > 8 && chars.iter().all(|c| c.is_uppercase());
+    let vowel = |c: &char| !c.is_ascii() || "aeiouyAEIOUY".contains(*c);
+    let no_vowels = chars.len() >= 5 && !chars.iter().any(vowel);
+    hex || case_switches >= 3 || long_capitals || no_vowels
 }
 
 /// Watches the field until the next dictation (`generation` moves on), the
@@ -248,8 +278,38 @@ mod tests {
         assert!(!learnable("x", "v2"), "number");
         assert!(!learnable("x", "🦐"), "emoji");
         assert!(!learnable("x", "John"), "common first name");
+        assert!(!learnable("x", "Sarah"), "common first name");
         assert!(!learnable("x", "ASAP"), "everyday acronym");
+        assert!(!learnable("x", "CEO"), "everyday acronym");
         assert!(!learnable("the", "The"), "casing of an everyday word");
+    }
+
+    #[test]
+    fn keys_hashes_dates_and_famous_names_are_not_learned() {
+        assert!(!learnable("x", "deadbeefcafe"), "hash");
+        assert!(!learnable("x", "aBcDeFgHiJ"), "key");
+        assert!(!learnable("x", "AKIAIOSFODNNEXAMPLE"), "ID");
+        assert!(!learnable("x", "xkcdqz"), "ID");
+        assert!(!learnable("monday", "Monday"), "date");
+        assert!(!learnable("x", "September"), "date");
+        assert!(!learnable("x", "Einstein"), "famous name");
+        assert!(!learnable("you", "YouTube"), "famous name");
+        assert!(learnable("x", "Kubernetes"));
+        assert!(learnable("x", "GitHub"), "camel case is a name");
+        assert!(learnable("x", "NASDAQ"));
+    }
+
+    #[test]
+    fn partial_emails_and_markdown_teach_nothing() {
+        let before = "Please ask when to review it.";
+        let inserted = 0..before.len();
+        assert!(respellings(before, "Please ask nguyen@ to review it.", &inserted).is_empty());
+        assert!(respellings(before, "Please ask **Nguyen** to review it.", &inserted).is_empty());
+        assert!(respellings(before, "Please ask `Nguyen` to review it.", &inserted).is_empty());
+        assert_eq!(
+            respellings(before, "Please ask Nguyen to review it.", &inserted),
+            [("when".to_owned(), "Nguyen".to_owned())]
+        );
     }
 
     #[test]

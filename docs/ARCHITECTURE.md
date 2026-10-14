@@ -1028,11 +1028,14 @@ paste the field's text is read (it must contain the dictation), then once a seco
 minute, until the next recording starts. When the text has changed and then stayed the
 same for a second, the changed span is found by its common prefix and suffix, widened
 to whole words, and accepted only inside the dictation: one to three words replaced by
-one, or as many words for as many. The new word is learned unless it has digits or
-symbols (paths, URLs, domains, emails, code, hashes, emoji, markdown), is an everyday
-English word, a very common first name or an everyday acronym, is already in the
-dictionary, or was deleted from it before (`dictionary_rejected`; adding it by hand
-forgives it). A casing fix of an unusual word ("tauri" → "Tauri") counts. Learned
+one, or as many words for as many. The new word is learned unless it or the text that
+replaced it has digits or symbols (paths, URLs, domains, partial email addresses, code,
+markdown, emoji), it looks generated (a key, hash or ID: 8 or more hex letters, case that
+switches three times, more than 8 capitals, or no vowels in 5 letters or more), it is a
+weekday or month (dates), an everyday English word, a very common first name, a globally
+famous name (a curated list of about 50 people and brands in `context/words.rs`) or an
+everyday acronym, it is already in the dictionary, or it was deleted from it before
+(`dictionary_rejected`; adding it by hand forgives it). A casing fix of an unusual word ("tauri" → "Tauri") counts. Learned
 entries are marked `learned` (a "Learned" badge) and announced in one notice with View.
 Field text is read and compared on the device only.
 

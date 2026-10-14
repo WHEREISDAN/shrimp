@@ -1,5 +1,6 @@
-//! Everyday English words, very common first names and everyday acronyms.
-//! Names on screen and auto-learned dictionary words exclude them.
+//! Everyday English words, very common first names, globally famous names,
+//! weekdays and months, and everyday acronyms. Names on screen and
+//! auto-learned dictionary words exclude them.
 //!
 //! `common_words.txt` is SCOWL 2020.12.07 (english-words and american-words,
 //! levels 10 to 35), lowercase words without apostrophes; see
@@ -106,11 +107,114 @@ const FIRST_NAMES: &[&str] = &[
     "william",
 ];
 
+/// Globally famous people and brands, which the speech engine already
+/// spells right (DIC-07). A short curated list, not a gazetteer.
+const FAMOUS_NAMES: &[&str] = &[
+    "airbnb",
+    "amazon",
+    "aristotle",
+    "beethoven",
+    "beyonce",
+    "beyoncé",
+    "bezos",
+    "biden",
+    "chatgpt",
+    "churchill",
+    "darwin",
+    "disney",
+    "einstein",
+    "elon",
+    "facebook",
+    "freud",
+    "gandhi",
+    "google",
+    "instagram",
+    "iphone",
+    "lincoln",
+    "linkedin",
+    "macbook",
+    "mandela",
+    "messi",
+    "michelangelo",
+    "microsoft",
+    "mozart",
+    "musk",
+    "napoleon",
+    "netflix",
+    "newton",
+    "obama",
+    "openai",
+    "oprah",
+    "paypal",
+    "picasso",
+    "plato",
+    "putin",
+    "rihanna",
+    "ronaldo",
+    "samsung",
+    "shakespeare",
+    "socrates",
+    "spotify",
+    "starbucks",
+    "tesla",
+    "tiktok",
+    "trump",
+    "whatsapp",
+    "youtube",
+    "zuckerberg",
+];
+
+/// Weekdays and months with their usual abbreviations: parts of dates.
+const DATE_WORDS: &[&str] = &[
+    "monday",
+    "tuesday",
+    "wednesday",
+    "thursday",
+    "friday",
+    "saturday",
+    "sunday",
+    "mon",
+    "tue",
+    "tues",
+    "wed",
+    "thu",
+    "thur",
+    "thurs",
+    "fri",
+    "sat",
+    "sun",
+    "january",
+    "february",
+    "march",
+    "april",
+    "may",
+    "june",
+    "july",
+    "august",
+    "september",
+    "october",
+    "november",
+    "december",
+    "jan",
+    "feb",
+    "mar",
+    "apr",
+    "jun",
+    "jul",
+    "aug",
+    "sep",
+    "sept",
+    "oct",
+    "nov",
+    "dec",
+];
+
 /// Acronyms everyone writes the same way.
 const ACRONYMS: &[&str] = &[
-    "AI", "AM", "API", "ASAP", "ATM", "BTW", "CEO", "CFO", "CTO", "DIY", "DM", "ETA", "FAQ", "FYI",
-    "GPS", "HR", "ID", "IT", "LOL", "OK", "PC", "PDF", "PM", "PR", "PS", "QA", "RSVP", "TBD", "TV",
-    "UK", "URL", "US", "USA", "VIP", "VP",
+    "AI", "AKA", "AM", "API", "ASAP", "ATM", "BTW", "CEO", "CFO", "COO", "CTO", "DIY", "DM", "EOD",
+    "ETA", "FAQ", "FYI", "GPS", "HR", "ID", "IDK", "IMO", "IT", "KPI", "LOL", "NDA", "OK", "OMG",
+    "PC", "PDF", "PM", "PR", "PS", "QA", "ROI", "RSVP", "TBD", "TBH", "TV", "UK", "URL", "US",
+    "USA", "VIP", "VP",
 ];
 
 /// Whether `word` (any case) is an everyday English word.
@@ -125,6 +229,15 @@ pub fn is_common_first_name(word: &str) -> bool {
 
 pub fn is_everyday_acronym(word: &str) -> bool {
     ACRONYMS.contains(&word)
+}
+
+pub fn is_famous_name(word: &str) -> bool {
+    FAMOUS_NAMES.contains(&word.to_lowercase().as_str())
+}
+
+/// A weekday or month, written out or abbreviated.
+pub fn is_date_word(word: &str) -> bool {
+    DATE_WORDS.contains(&word.to_lowercase().as_str())
 }
 
 #[cfg(test)]
@@ -146,5 +259,11 @@ mod tests {
         assert!(is_common_first_name("John"));
         assert!(is_everyday_acronym("PDF"));
         assert!(!is_everyday_acronym("pdf"));
+        assert!(is_famous_name("Einstein"));
+        assert!(is_famous_name("YouTube"));
+        assert!(!is_famous_name("Nguyen"));
+        assert!(is_date_word("Monday"));
+        assert!(is_date_word("Sept"));
+        assert!(!is_date_word("Mondays"));
     }
 }
