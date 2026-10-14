@@ -1,5 +1,5 @@
 //! Transforms from their shortcuts (TRF-01..04): start one on the focused
-//! text, then show, copy, retry or undo its changes.
+//! text, then show, copy, retry, re-transform or undo its changes.
 
 use std::sync::Arc;
 use std::time::Instant;
@@ -96,18 +96,23 @@ impl Controller {
                     Err(error) => ui.notice(Notice::error(t!("notice.copyFailed", error = error))),
                 });
             }
-            TransformAction::Retry | TransformAction::Undo => {
+            TransformAction::Retry | TransformAction::Undo | TransformAction::Retransform(_) => {
                 if !self.begin_work() {
                     return;
                 }
-                self.retrying = action == TransformAction::Retry;
+                self.retrying = action != TransformAction::Undo;
+                let settings = self.settings.get().transforms;
                 let runner = self.transform_runner();
                 let tx = self.tx.clone();
                 tauri::async_runtime::spawn(async move {
-                    let outcome = if action == TransformAction::Retry {
-                        runner.retry(&run).await
-                    } else {
-                        runner.undo(&run).await
+                    let outcome = match action {
+                        TransformAction::Retransform(quick) => {
+                            runner
+                                .retransform(&run, Transform::quick(&settings, quick))
+                                .await
+                        }
+                        TransformAction::Retry => runner.retry(&run).await,
+                        _ => runner.undo(&run).await,
                     };
                     let _ = tx.send(ControllerInput::Processed(Box::new(outcome.into())));
                 });

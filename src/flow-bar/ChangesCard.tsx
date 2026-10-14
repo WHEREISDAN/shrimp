@@ -1,14 +1,22 @@
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { diffWords } from "../lib/diff";
-import { transformAction, type TransformAction, type TransformView } from "../lib/ipc";
+import {
+  transformAction,
+  type QuickTransform,
+  type TransformAction,
+  type TransformView,
+} from "../lib/ipc";
+
+/** Re-transforms of the original text, in Wispr Flow's order (TRF-04). */
+const QUICK: QuickTransform[] = ["promptEngineer", "turnToList", "translateToEnglish", "empathize"];
 
 interface ChangesCardProps {
   view: TransformView;
   onClose: () => void;
 }
 
-/** What a transform changed, with Copy, Retry, Accept edits and Undo (TRF-04). */
+/** What a transform changed, with Copy, Retry, re-transforms, Accept edits and Undo (TRF-04). */
 export function ChangesCard({ view, onClose }: ChangesCardProps) {
   const { t } = useTranslation();
   const parts = useMemo(() => diffWords(view.original, view.result), [view]);
@@ -41,6 +49,18 @@ export function ChangesCard({ view, onClose }: ChangesCardProps) {
             <del key={index}>{part.text}</del>
           ),
         )}
+      </div>
+      <div className="quick-transforms" role="group" aria-label={t("changes.quick.label")}>
+        {QUICK.map((quick) => (
+          <button
+            key={quick}
+            type="button"
+            className="quick-transform"
+            onClick={act({ retransform: quick }, false)}
+          >
+            {t(`changes.quick.${quick}`)}
+          </button>
+        ))}
       </div>
       <div className="answer-actions">
         <button type="button" className="notice-action" onClick={act("copy", false)}>

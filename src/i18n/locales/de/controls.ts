@@ -126,6 +126,13 @@ export const controls: ControlsCatalog = {
     retry: "Wiederholen",
     undo: "Widerrufen",
     accept: "Änderungen übernehmen",
+    quick: {
+      label: "Erneut umwandeln",
+      promptEngineer: "Prompt Engineer",
+      turnToList: "In Liste umwandeln",
+      translateToEnglish: "Ins Englische übersetzen",
+      empathize: "Einfühlsamer formulieren",
+    },
   },
   languageSwitch: {
     label: "Diktiersprache",

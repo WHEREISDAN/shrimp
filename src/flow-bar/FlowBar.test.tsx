@@ -1,6 +1,6 @@
 import { emit } from "@tauri-apps/api/event";
 import { mockIPC } from "@tauri-apps/api/mocks";
-import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import {
   EVENTS,
@@ -218,6 +218,30 @@ describe("FlowBar", () => {
     await act(async () => emit(EVENTS.changes, view));
     fireEvent.click(screen.getByRole("button", { name: "Accept edits" }));
     expect(screen.queryByRole("region", { name: "Polish changes" })).toBeNull();
+  });
+
+  it("re-transforms the original from the changes view and keeps it open", async () => {
+    const calls = backend();
+    render(<FlowBar />);
+    await screen.findByRole("button", { name: "Start dictation" });
+    const view: TransformView = { id: 2, name: "Polish", original: "a b", result: "A, b." };
+    await act(async () => emit(EVENTS.changes, view));
+    const quick = screen.getByRole("group", { name: "Transform again" });
+    for (const name of ["Prompt Engineer", "Turn to list", "Translate to English", "Empathize"]) {
+      fireEvent.click(within(quick).getByRole("button", { name }));
+    }
+    await waitFor(() => {
+      const actions = calls
+        .filter((call) => call.cmd === "transform_action")
+        .map((call) => (call.args as { action: unknown }).action);
+      expect(actions).toEqual([
+        { retransform: "promptEngineer" },
+        { retransform: "turnToList" },
+        { retransform: "translateToEnglish" },
+        { retransform: "empathize" },
+      ]);
+    });
+    expect(screen.getByRole("region", { name: "Polish changes" })).toBeInTheDocument();
   });
 
   it("offers one-click language switching on hover when there are several languages", async () => {

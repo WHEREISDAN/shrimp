@@ -6,6 +6,7 @@ use super::gestures::{BarControl, RecordingMode};
 use super::learn::{LearnTarget, LearnTiming};
 use super::transform::{TransformRun, TransformView};
 use crate::audio::AudioClip;
+use crate::edit::transforms::QuickTransform;
 use crate::history::Dictation;
 use crate::history::journal::JournalFiles;
 use crate::hotkeys::{Action, RecordUpdate, ShortcutEvent};
@@ -175,7 +176,8 @@ pub enum ControllerInput {
     Shutdown(std::sync::mpsc::Sender<()>),
 }
 
-/// What the user can do with the last transform.
+/// What the user can do with the last transform. Mirrors `TransformAction`
+/// in src/lib/ipc.ts.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub enum TransformAction {
@@ -183,6 +185,8 @@ pub enum TransformAction {
     Copy,
     Retry,
     Undo,
+    /// Runs another transform on the original text in place (TRF-04).
+    Retransform(QuickTransform),
 }
 
 /// A finished pipeline run and the notices it raised on the way (an AI
@@ -292,6 +296,16 @@ mod tests {
         assert_eq!(timing.session_warning, Duration::from_secs(19 * 60));
         assert_eq!(timing.session_limit, Duration::from_secs(20 * 60));
         assert_eq!(timing.clipboard_hold, Duration::from_millis(500));
+    }
+
+    #[test]
+    fn transform_actions_deserialize_from_the_changes_view() {
+        let parse = |json| serde_json::from_value::<TransformAction>(json).unwrap();
+        assert_eq!(parse(serde_json::json!("retry")), TransformAction::Retry);
+        assert_eq!(
+            parse(serde_json::json!({"retransform": "turnToList"})),
+            TransformAction::Retransform(QuickTransform::TurnToList)
+        );
     }
 
     #[test]

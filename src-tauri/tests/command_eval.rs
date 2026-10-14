@@ -158,6 +158,9 @@ async fn run(
         Some("promptEngineer") => {
             Transform::PromptEngineer(settings.transforms.prompt_engineer.prompt.clone())
         }
+        Some("turnToList") => Transform::TurnToList,
+        Some("translateToEnglish") => Transform::TranslateToEnglish,
+        Some("empathize") => Transform::Empathize,
         _ => Transform::Custom(CustomTransform {
             id: case.id.clone(),
             name: case.id.clone(),

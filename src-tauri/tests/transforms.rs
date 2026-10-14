@@ -1,11 +1,12 @@
 //! Transforms through the controller: Polish on the selection, the field or
-//! the last dictation, the changes view's Copy, Retry and Undo, the limits
-//! and errors, and auto-apply after a dictation.
+//! the last dictation, the changes view's Copy, Retry, quick re-transforms
+//! and Undo, the limits and errors, and auto-apply after a dictation.
 
 mod support;
 
 use std::time::Duration;
 
+use shrimp_lib::edit::transforms::QuickTransform;
 use shrimp_lib::notify::NoticeAction;
 use shrimp_lib::platform::Editable;
 use support::*;
@@ -226,6 +227,67 @@ fn retry_swaps_in_a_new_result_and_copy_copies_it() {
     wait_until("the copy", || {
         h.fakes.copied.lock().unwrap().as_slice() == ["Our plan."]
     });
+}
+
+#[test]
+fn a_quick_retransform_runs_on_the_original_and_undo_still_restores_it() {
+    let list = "- Milk\n- Eggs\n- Bread";
+    let h = harness(
+        Some(selection("buy milk eggs and bread")),
+        vec![Ok("Buy milk, eggs and bread.".into()), Ok(list.into())],
+    );
+    press(&h, Action::Polish);
+    wait_until("insertion", || {
+        h.fakes.inserted() == ["Buy milk, eggs and bread."]
+    });
+    idle(&h);
+    *h.fakes.field_later.lock().unwrap() = Some(cursor_in("Buy milk, eggs and bread."));
+    h.controller
+        .send(ControllerInput::Transform(TransformAction::Retransform(
+            QuickTransform::TurnToList,
+        )));
+    wait_until("the list", || {
+        h.fakes.inserted() == ["Buy milk, eggs and bread.", list]
+    });
+    let prompt = h.fakes.prompts.lock().unwrap()[1].clone();
+    assert!(prompt.system.contains("You turn text into a list"));
+    assert!(!prompt.system.contains("<earlier>"));
+    assert_eq!(
+        prompt.messages[0].content,
+        "<text>buy milk eggs and bread</text>"
+    );
+    wait_until("the changes", || {
+        h.fakes.changes.lock().unwrap().last().is_some_and(|view| {
+            view.name == "Turn to list"
+                && view.original == "buy milk eggs and bread"
+                && view.result == list
+        })
+    });
+    idle(&h);
+    *h.fakes.field_later.lock().unwrap() = Some(cursor_in(list));
+    h.controller
+        .send(ControllerInput::Transform(TransformAction::Undo));
+    wait_until("the undo", || {
+        h.fakes.inserted().last().map(String::as_str) == Some("buy milk eggs and bread")
+    });
+    assert_eq!(
+        h.fakes.selected_ranges.lock().unwrap().last(),
+        Some(&TextRange {
+            start: 0,
+            len: list.encode_utf16().count()
+        })
+    );
+}
+
+#[test]
+fn an_unchanged_result_says_the_text_looks_good() {
+    let h = harness(
+        Some(selection("The plan is ready.")),
+        vec![Ok("The plan is ready.".into())],
+    );
+    press(&h, Action::Polish);
+    wait_until("the notice", || h.fakes.has_notice("Your text looks good!"));
+    assert!(!h.fakes.has_notice("Done."));
 }
 
 #[test]

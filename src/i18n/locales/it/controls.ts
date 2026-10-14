@@ -128,6 +128,13 @@ export const controls: ControlsCatalog = {
     retry: "Riprova",
     undo: "Annulla",
     accept: "Accetta modifiche",
+    quick: {
+      label: "Trasforma di nuovo",
+      promptEngineer: "Prompt Engineer",
+      turnToList: "Trasforma in elenco",
+      translateToEnglish: "Traduci in inglese",
+      empathize: "Rendi più empatico",
+    },
   },
   languageSwitch: {
     label: "Lingua di dettatura",

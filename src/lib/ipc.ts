@@ -171,8 +171,11 @@ export interface TransformView {
   result: string;
 }
 
+/** Mirrors `edit::transforms::QuickTransform`: the changes view's re-transforms (TRF-04). */
+export type QuickTransform = "promptEngineer" | "turnToList" | "translateToEnglish" | "empathize";
+
 /** Mirrors `dictation::TransformAction`: the changes view's buttons. */
-export type TransformAction = "view" | "copy" | "retry" | "undo";
+export type TransformAction = "view" | "copy" | "retry" | "undo" | { retransform: QuickTransform };
 
 /** Mirrors `settings::PolishRules`: five rules on by default, `mainPoint` and `impact` off. */
 export interface PolishRules {

@@ -122,6 +122,13 @@ export const controls = {
     retry: "Retry",
     undo: "Undo",
     accept: "Accept edits",
+    quick: {
+      label: "Transform again",
+      promptEngineer: "Prompt Engineer",
+      turnToList: "Turn to list",
+      translateToEnglish: "Translate to English",
+      empathize: "Empathize",
+    },
   },
   languageSwitch: {
     label: "Dictation language",

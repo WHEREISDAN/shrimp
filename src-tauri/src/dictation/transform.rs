@@ -275,10 +275,26 @@ impl TransformRunner {
 
     /// Runs the transform on the original again and swaps the new result in.
     pub async fn retry(&self, run: &TransformRun) -> Outcome {
+        self.rerun(run, run.transform.clone(), Some(&run.result))
+            .await
+    }
+
+    /// Runs another transform on the original and swaps its result in;
+    /// Undo still brings the original back (TRF-04).
+    pub async fn retransform(&self, run: &TransformRun, transform: Transform) -> Outcome {
+        self.rerun(run, transform, None).await
+    }
+
+    async fn rerun(
+        &self,
+        run: &TransformRun,
+        transform: Transform,
+        earlier: Option<&str>,
+    ) -> Outcome {
         let result = match self
             .pipeline
             .editor
-            .transform(&run.transform, &run.original, Some(&run.result))
+            .transform(&transform, &run.original, earlier)
             .await
         {
             Ok((result, _)) => result,
@@ -287,6 +303,7 @@ impl TransformRunner {
         match self.replace_result(run, &result).await {
             Outcome::TransformUndone => Outcome::Transformed(Box::new(TransformRun {
                 id: NEXT_RUN.fetch_add(1, Ordering::Relaxed),
+                transform,
                 result,
                 ..run.clone()
             })),
