@@ -103,6 +103,8 @@ export const controls: ControlsCatalog = {
     recorder: "Kurzbefehl für {{label}}: {{shortcut}}",
     removeOne: "Entfernen",
     removeOneLabel: "Kurzbefehl für {{label}} entfernen",
+    doubleTap: "Oder zweimal {{keys}} drücken",
+    doubleTapOnly: "Zweimal {{keys}} drücken",
   },
   dialog: {
     done: "Fertig",

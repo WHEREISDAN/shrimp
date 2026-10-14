@@ -105,6 +105,8 @@ export const controls: ControlsCatalog = {
     recorder: "Atajo para {{label}}: {{shortcut}}",
     removeOne: "Quitar",
     removeOneLabel: "Quitar el atajo para {{label}}",
+    doubleTap: "O pulsa dos veces {{keys}}",
+    doubleTapOnly: "Pulsa dos veces {{keys}}",
   },
   dialog: {
     done: "Listo",

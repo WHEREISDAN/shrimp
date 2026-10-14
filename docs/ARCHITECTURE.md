@@ -509,7 +509,10 @@ let such events through without tracking them.
   `pressEnter`, `polish`, `transform:<id>`…) to its bindings as text (`"Fn"`,
   `"Ctrl+Opt+Space"`, `"Ctrl+Mouse4"`). A missing key means the defaults, an empty list
   unbound. Each action takes up to 4 bindings, Cancel 1; push to talk, Command Mode,
-  paste and copy last and Cancel keep at least one. Phase 3's single fields
+  paste and copy last and Cancel keep at least one. Hands-free may have none, and stays
+  unbound after a restart: double-tapping push to talk still starts it, which the
+  Shortcuts dialog's Hands-free row says with the user's own keys ("Or double-tap fn",
+  "Double-tap fn or Mouse 4" when it has no binding; KEYS-11). Phase 3's single fields
   (`shortcuts.pressEnter`, the transforms' `shortcut`) are moved into the map when the
   settings load (`Settings::normalize`). The file is per device.
 - **Defaults.** Fn, Fn+Space and Fn+Ctrl, or Ctrl+Opt, Ctrl+Opt+Space and Cmd+Ctrl+Opt when

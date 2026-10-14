@@ -99,6 +99,8 @@ export const controls = {
     recorder: "{{label}} shortcut: {{shortcut}}",
     removeOne: "Remove",
     removeOneLabel: "Remove {{label}} shortcut",
+    doubleTap: "Or double-tap {{keys}}",
+    doubleTapOnly: "Double-tap {{keys}}",
   },
   dialog: {
     done: "Done",

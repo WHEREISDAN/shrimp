@@ -105,6 +105,8 @@ export const controls: ControlsCatalog = {
     recorder: "Scorciatoia {{label}}: {{shortcut}}",
     removeOne: "Rimuovi",
     removeOneLabel: "Rimuovi scorciatoia {{label}}",
+    doubleTap: "Oppure premi due volte {{keys}}",
+    doubleTapOnly: "Premi due volte {{keys}}",
   },
   dialog: {
     done: "Fine",

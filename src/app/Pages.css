@@ -425,6 +425,17 @@
   font-size: 0.9rem;
 }
 
+.shortcut-label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+
+.shortcut-hint {
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+
 .shortcut-bindings {
   display: flex;
   flex-wrap: wrap;
