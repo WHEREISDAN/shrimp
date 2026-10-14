@@ -4,6 +4,7 @@
 use std::os::windows::process::CommandExt;
 use std::process::{Command, Stdio};
 
+use windows::Win32::Foundation::ERROR_SUCCESS;
 use windows::Win32::Globalization::{
     GetUserDefaultGeoName, GetUserDefaultLocaleName, GetUserPreferredUILanguages,
     MUI_LANGUAGE_NAME, U_ZERO_ERROR, UErrorCode, ULDN_STANDARD_NAMES, uldn_close,
@@ -11,6 +12,7 @@ use windows::Win32::Globalization::{
 };
 use windows::Win32::Security::Authentication::Identity::{GetUserNameExW, NameDisplay};
 use windows::Win32::Storage::FileSystem::GetDiskFreeSpaceExW;
+use windows::Win32::System::Registry::{HKEY_LOCAL_MACHINE, RRF_RT_REG_SZ, RegGetValueW};
 use windows::Win32::UI::Shell::ShellExecuteW;
 use windows::Win32::UI::WindowsAndMessaging::SW_SHOWNORMAL;
 use windows::core::{HSTRING, PCSTR, PWSTR, w};
@@ -52,6 +54,31 @@ impl Launcher for WinLauncher {
         }
         open(url)
     }
+}
+
+/// Windows 11 (build 22000 or later), the first with Mica.
+pub fn is_windows_11() -> bool {
+    let mut buffer = [0u16; 16];
+    let mut size = std::mem::size_of_val(&buffer) as u32;
+    let status = unsafe {
+        RegGetValueW(
+            HKEY_LOCAL_MACHINE,
+            w!(r"SOFTWARE\Microsoft\Windows NT\CurrentVersion"),
+            w!("CurrentBuildNumber"),
+            RRF_RT_REG_SZ,
+            None,
+            Some(buffer.as_mut_ptr().cast()),
+            Some(&mut size),
+        )
+    };
+    if status != ERROR_SUCCESS {
+        return false;
+    }
+    let units = (size as usize / 2).min(buffer.len());
+    String::from_utf16_lossy(&buffer[..units])
+        .trim_end_matches('\0')
+        .parse::<u32>()
+        .is_ok_and(|build| build >= 22_000)
 }
 
 pub fn open_settings_page(page: &str) -> Result<(), PlatformError> {

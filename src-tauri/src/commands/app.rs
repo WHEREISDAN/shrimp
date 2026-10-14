@@ -1,6 +1,8 @@
 use serde::Serialize;
 use tauri::{AppHandle, PackageInfo, State};
 
+use crate::app::window::WindowMaterial;
+
 /// The user's first name, read once at startup.
 pub struct UserName(pub Option<String>);
 
@@ -31,6 +33,12 @@ impl AppInfo {
 #[tauri::command]
 pub fn app_info(app: AppHandle, user: State<'_, UserName>) -> AppInfo {
     AppInfo::from_package(app.package_info(), user.0.clone())
+}
+
+/// The native material behind the main window's sidebar: `vibrancy`, `mica` or `none`.
+#[tauri::command]
+pub fn window_material() -> WindowMaterial {
+    crate::app::window::material()
 }
 
 /// The main window says whether one of its text fields has focus, so a

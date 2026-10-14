@@ -1,6 +1,7 @@
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, OnceLock};
 
+use serde::Serialize;
 use tauri::{AppHandle, Emitter, Manager, Runtime, Window, WindowEvent};
 
 use super::events::MAIN_VISIBLE_EVENT;
@@ -56,6 +57,60 @@ impl PreviousApp {
     fn is_own(&self, id: &str) -> bool {
         self.own_ids.iter().any(|own| own.eq_ignore_ascii_case(id))
     }
+}
+
+/// The native material behind the main window's sidebar, which the page
+/// leaves clear wherever it should show.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub enum WindowMaterial {
+    /// macOS sidebar vibrancy, set up by tauri.macos.conf.json.
+    Vibrancy,
+    /// Windows 11.
+    #[cfg_attr(not(target_os = "windows"), allow(dead_code))]
+    Mica,
+    /// Windows 10, which has no Mica: the page paints the sidebar itself.
+    None,
+}
+
+static MATERIAL: OnceLock<WindowMaterial> = OnceLock::new();
+
+/// Gives the main window its material, once at startup.
+pub fn apply_material<R: Runtime>(app: &AppHandle<R>) {
+    let material = if cfg!(target_os = "macos") {
+        WindowMaterial::Vibrancy
+    } else {
+        mica(app)
+    };
+    let _ = MATERIAL.set(material);
+}
+
+pub fn material() -> WindowMaterial {
+    MATERIAL.get().copied().unwrap_or(WindowMaterial::None)
+}
+
+#[cfg(target_os = "windows")]
+fn mica<R: Runtime>(app: &AppHandle<R>) -> WindowMaterial {
+    use tauri::window::{Effect, EffectsBuilder};
+
+    if !crate::platform::is_windows_11() {
+        return WindowMaterial::None;
+    }
+    let Some(window) = app.get_webview_window(MAIN_LABEL) else {
+        return WindowMaterial::None;
+    };
+    match window.set_effects(EffectsBuilder::new().effect(Effect::Mica).build()) {
+        Ok(()) => WindowMaterial::Mica,
+        Err(err) => {
+            log::warn!("failed to apply Mica: {err}");
+            WindowMaterial::None
+        }
+    }
+}
+
+#[cfg(not(target_os = "windows"))]
+fn mica<R: Runtime>(_app: &AppHandle<R>) -> WindowMaterial {
+    WindowMaterial::None
 }
 
 pub fn show_main<R: Runtime>(app: &AppHandle<R>) {

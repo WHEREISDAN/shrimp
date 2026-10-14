@@ -456,8 +456,9 @@ pub use macos::{
 
 #[cfg(target_os = "windows")]
 pub use windows::{
-    free_bytes, language_name, move_to_applications, open_keyboard_settings, open_sound_settings,
-    open_storage_settings, outside_applications, relaunch_after_exit, set_own_field_focused,
+    free_bytes, is_windows_11, language_name, move_to_applications, open_keyboard_settings,
+    open_sound_settings, open_storage_settings, outside_applications, relaunch_after_exit,
+    set_own_field_focused,
 };
 
 /// What a restart passes the new instance, so it opens its main window even

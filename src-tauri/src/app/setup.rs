@@ -262,6 +262,7 @@ pub fn setup(app: &mut App) -> Result<(), Box<dyn std::error::Error>> {
         Arc::new(move |notice| notices.notice(notice)),
     );
     updates::start(&handle);
+    window::apply_material(&handle);
     // The main window starts hidden; a launch at login stays in the menu bar (APP-06),
     // unless setup isn't finished or Shrimp was just updated.
     if updated

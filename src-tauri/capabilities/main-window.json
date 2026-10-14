@@ -1,0 +1,7 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "main-window",
+  "description": "Dragging the main window by its own title bar area",
+  "windows": ["main"],
+  "permissions": ["core:window:allow-start-dragging"]
+}

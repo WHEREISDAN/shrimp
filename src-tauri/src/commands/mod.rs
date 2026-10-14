@@ -24,6 +24,7 @@ use serde::Serialize;
 pub const NAMES: &[&str] = &[
     "app_info",
     "own_field_focused",
+    "window_material",
     "get_dictation_state",
     "flow_bar_control",
     "flow_bar_ready",

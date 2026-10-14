@@ -46,6 +46,7 @@ pub fn run() {
             tauri::generate_handler![
                 commands::app::app_info,
                 commands::app::own_field_focused,
+                commands::app::window_material,
                 commands::dictation::get_dictation_state,
                 commands::dictation::flow_bar_control,
                 commands::dictation::flow_bar_ready,
