@@ -811,6 +811,14 @@ Open in phase 1: ENG-04 and MIC-01 need a microphone. This Mac has no audio inpu
 the WAV source every sample from the key press reaches STT (controller test and live), and
 with no device Shrimp shows "No microphone found" without a permission prompt.
 
+Redesign, 0.1.1 (2026-10-14), macOS: every page, dialog, menu, onboarding step, error
+screen and Flow Bar state was captured live in light and dark at 900 × 640 and 660 × 600
+(German too), with the dev app's hooks off (`SHRIMP_NO_HOTKEYS=1`); `a11y.test.tsx` (axe)
+passes on every page. `pnpm regression:mac`: 82 of 85 cases passed, FMT-01 passed on a
+rerun (Ollama's first request had outlasted the 5 s limit), and FMT-07 and FMT-09 ended
+with the usual local-model warnings. The Windows title bar, caption buttons and Mica
+still need a run on Windows.
+
 ## Parity audit (AUD-01)
 
 On 2026-10-13, phase 6 re-read Wispr's what's-new page (entries up to 9 October 2026),
