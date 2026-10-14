@@ -15,6 +15,7 @@ mod input;
 mod insert;
 mod keycode;
 mod login;
+pub mod main_window;
 mod media;
 mod mice;
 mod permissions;

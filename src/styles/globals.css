@@ -178,6 +178,16 @@
     background: var(--brand);
   }
 
+  /* Windows 10 draws no frame line around the main window (platform::main_window); the page does. */
+  html[data-platform="windows"][data-material="none"]:not([data-maximized]) body::after {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: 100;
+    pointer-events: none;
+    box-shadow: inset 0 0 0 1px var(--window-edge);
+  }
+
   /* WebView2's classic scrollbars, slimmed down. */
   html[data-platform="windows"] * {
     scrollbar-width: thin;

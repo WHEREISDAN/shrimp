@@ -35,6 +35,11 @@ export function WindowControls() {
     };
   }, []);
 
+  // The stylesheet leaves out the Windows 10 window edge while the window fills the screen.
+  useEffect(() => {
+    document.documentElement.toggleAttribute("data-maximized", maximized);
+  }, [maximized]);
+
   const window = () => getCurrentWindow();
   return (
     <div

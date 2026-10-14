@@ -500,7 +500,7 @@ pub fn register_plugins<R: tauri::Runtime>(builder: tauri::Builder<R>) -> tauri:
 pub use macos::flow_bar;
 
 #[cfg(target_os = "windows")]
-pub use windows::flow_bar;
+pub use windows::{flow_bar, main_window};
 
 #[cfg(test)]
 mod tests {
