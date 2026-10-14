@@ -298,7 +298,7 @@ export interface Settings {
   };
   transforms: TransformSettings;
   vibeCoding: { fileTagging: boolean };
-  dictionary: { autoLearn: boolean };
+  dictionary: { autoLearn: boolean; sort: DictionarySort };
   microphone: {
     selected: string | null;
     ranking: { id: string; name: string; kind: DeviceKind }[];
@@ -418,6 +418,9 @@ export interface AiTestResult {
 
 /** Mirrors `storage::EntrySource`. */
 export type EntrySource = "manual" | "learned" | "imported";
+
+/** Mirrors `settings::DictionarySort`: the Dictionary page's Sort by (DIC-04). */
+export type DictionarySort = "starred" | "newest" | "oldest" | "alphabetical" | "mostUsed";
 
 /** Mirrors `storage::DictionaryEntry`. */
 export interface DictionaryEntry {

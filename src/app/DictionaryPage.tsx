@@ -8,6 +8,7 @@ import {
   previewDictionaryImport,
   setDictionaryPinned,
   type DictionaryEntry,
+  type DictionarySort,
 } from "../lib/ipc";
 import { AutoLearnToggle } from "./AutoLearnToggle";
 import { ConfirmDialog } from "./ConfirmDialog";
@@ -16,7 +17,9 @@ import { DictionaryRow } from "./DictionaryRow";
 import { ImportDialog, ImportFileInput } from "./ImportDialog";
 import { Page } from "./Page";
 import { useFileImport } from "./useFileImport";
+import { useSettings } from "./useSettings";
 import { primaryKey } from "../lib/platform";
+import { DICTIONARY_SORTS, sortEntries } from "./dictionarySort";
 
 type Dialog =
   | { kind: "edit"; entry: DictionaryEntry | null }
@@ -41,7 +44,9 @@ const matches = (entry: DictionaryEntry, query: string) =>
   (entry.misspelling?.toLowerCase().includes(query) ?? false);
 
 export function DictionaryPage() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const { settings, update } = useSettings();
+  const sort = settings?.dictionary.sort ?? "starred";
   const [entries, setEntries] = useState<DictionaryEntry[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [query, setQuery] = useState("");
@@ -77,8 +82,13 @@ export function DictionaryPage() {
 
   const needle = query.trim().toLowerCase();
   const visible = useMemo(
-    () => (entries ?? []).filter((entry) => matches(entry, needle)),
-    [entries, needle],
+    () =>
+      sortEntries(
+        (entries ?? []).filter((entry) => matches(entry, needle)),
+        sort,
+        i18n.language,
+      ),
+    [entries, needle, sort, i18n.language],
   );
   const selectedIds = useMemo(
     () => visible.filter((entry) => selected.has(entry.id)).map((entry) => entry.id),
@@ -181,14 +191,31 @@ export function DictionaryPage() {
   return (
     <Page title={t("dictionary.title")} actions={actions} modal={modal}>
       <AutoLearnToggle />
-      <input
-        type="search"
-        className="search"
-        aria-label={t("dictionary.search")}
-        placeholder={t("dictionary.searchPlaceholder")}
-        value={query}
-        onChange={(event) => setQuery(event.target.value)}
-      />
+      <div className="list-tools">
+        <input
+          type="search"
+          className="search"
+          aria-label={t("dictionary.search")}
+          placeholder={t("dictionary.searchPlaceholder")}
+          value={query}
+          onChange={(event) => setQuery(event.target.value)}
+        />
+        <label className="sort-by">
+          <span>{t("dictionary.sortBy")}</span>
+          <select
+            value={sort}
+            onChange={(event) =>
+              void update({ dictionary: { sort: event.target.value as DictionarySort } })
+            }
+          >
+            {DICTIONARY_SORTS.map((option) => (
+              <option key={option} value={option}>
+                {t(`dictionary.sorts.${option}`)}
+              </option>
+            ))}
+          </select>
+        </label>
+      </div>
       {selectedIds.length > 0 && (
         <div className="selection-bar">
           <span>{t("dictionary.selected", { count: selectedIds.length })}</span>

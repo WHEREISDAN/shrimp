@@ -143,7 +143,7 @@ export const SETTINGS: Settings = {
     wand: "polish",
   },
   vibeCoding: { fileTagging: true },
-  dictionary: { autoLearn: true },
+  dictionary: { autoLearn: true, sort: "starred" },
   microphone: { selected: null, ranking: [] },
   sounds: { dictation: true, notifications: true },
   media: { mute: false, pause: false },

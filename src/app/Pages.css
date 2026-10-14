@@ -41,6 +41,25 @@
   font-size: 0.9rem;
 }
 
+.list-tools {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.sort-by {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 0.45rem;
+  font-size: 0.85rem;
+  white-space: nowrap;
+}
+
+.sort-by select {
+  width: auto;
+}
+
 .selection-bar {
   display: flex;
   align-items: center;

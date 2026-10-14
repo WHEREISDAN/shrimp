@@ -1228,7 +1228,11 @@ category, Formal by default), `privacy` (`contextAwareness`, on by default),
 (`local`, `autoDelete` or `never`, HIS-07), `shortcuts`
 (`bindings` per action, see Shortcuts), `notices` (how often one-off notices were shown),
 `transforms`, `vibeCoding` (`fileTagging`, on by default) and `dictionary` (`autoLearn`, on
-by default). Every change is announced to listeners: the webview's `settings://changed`,
+by default; `sort`, the Dictionary page's Sort by: Starred first, the default and the
+list's own order of starred, most used, newest; Newest first and Oldest first by when a
+word was added; Alphabetical (A–Z) by what the row shows first; Most used, DIC-04).
+Pinning a word is called Star and Unstar, as in Wispr Flow; the stored field stays
+`pinned`. Every change is announced to listeners: the webview's `settings://changed`,
 the controller, which rebinds shortcuts, and the model manager, which loads a newly chosen
 Whisper model. `microphone` (selection and ranking), `sounds` (dictation and notification
 sounds) and `media` (mute or pause while dictating, at most one) hold Settings ›

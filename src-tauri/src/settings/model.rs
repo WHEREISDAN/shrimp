@@ -183,12 +183,33 @@ pub struct ExperimentalSettings {
 pub struct DictionarySettings {
     /// Words the user respells after a paste are added (DIC-07).
     pub auto_learn: bool,
+    /// The list's Sort by choice (DIC-04).
+    pub sort: DictionarySort,
 }
 
 impl Default for DictionarySettings {
     fn default() -> Self {
-        Self { auto_learn: true }
+        Self {
+            auto_learn: true,
+            sort: DictionarySort::default(),
+        }
     }
+}
+
+/// How the Dictionary page orders its words (DIC-04). Mirrors
+/// `DictionarySort` in src/lib/ipc.ts, which does the sorting.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum DictionarySort {
+    /// Starred words first, then the most used, then the newest.
+    #[default]
+    Starred,
+    Newest,
+    Oldest,
+    /// By the word written first (the misspelling of a correction), A to Z.
+    Alphabetical,
+    /// The most used first, starred or not.
+    MostUsed,
 }
 
 /// Settings › Vibe coding.
@@ -467,6 +488,17 @@ mod tests {
         assert_eq!(json["experimental"]["commandMode"], false);
         assert_eq!(json["shortcuts"]["bindings"], serde_json::json!({}));
         assert_eq!(json["transforms"]["wand"], "polish");
+        assert_eq!(
+            json["dictionary"],
+            serde_json::json!({"autoLearn": true, "sort": "starred"})
+        );
+        let sorted: DictionarySettings =
+            serde_json::from_value(serde_json::json!({"sort": "mostUsed"})).unwrap();
+        assert_eq!(sorted.sort, DictionarySort::MostUsed);
+        assert!(
+            sorted.auto_learn,
+            "a file from before Sort by keeps its defaults"
+        );
         assert_eq!(json["transforms"]["polish"]["rules"]["mainPoint"], false);
     }
 
