@@ -170,6 +170,7 @@ export function FlowBar() {
       onMouseLeave={() => hover(false)}
       onContextMenu={(event) => {
         event.preventDefault();
+        setWandMenu(false);
         setMenu(true);
       }}
     >
@@ -188,7 +189,14 @@ export function FlowBar() {
       {(state.phase !== "idle" || resting) && (
         <div className="pill-row">
           {wand && (
-            <Wand transforms={wand} open={wandMenu} onToggle={() => setWandMenu((open) => !open)} />
+            <Wand
+              transforms={wand}
+              open={wandMenu}
+              onToggle={() => {
+                setMenu(false);
+                setWandMenu((open) => !open);
+              }}
+            />
           )}
           <Pill state={state} levels={levels} error={notice?.level === "error"} privacy={privacy} />
           {/* Keeps the pill where it was on the bottom edge, which centres the bar on it. */}
