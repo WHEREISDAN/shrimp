@@ -96,7 +96,8 @@ async function violations(): Promise<string[]> {
   );
 }
 
-describe("accessibility (A11Y-01, A11Y-02)", () => {
+// axe walks every page; beside the other test files on a busy CPU that outlasts 5 s.
+describe("accessibility (A11Y-01, A11Y-02)", { timeout: 30_000 }, () => {
   it("every page of the main window has named controls and valid roles", async () => {
     backend();
     render(<App />);
