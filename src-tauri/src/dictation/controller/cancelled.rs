@@ -108,7 +108,7 @@ impl Controller {
             clip: Some(clip),
             history_id,
         });
-        self.ui.last_transcript(true);
+        self.ui.last_transcript(true, false);
     }
 
     /// Transcribes the cancelled dictation and inserts it (CORE-11).

@@ -201,6 +201,8 @@ pub fn setup(app: &mut App) -> Result<(), Box<dyn std::error::Error>> {
     )));
 
     tray::create(&handle, &settings.get())?;
+    #[cfg(target_os = "macos")]
+    super::menu_bar::create(&handle)?;
     let tray_handle = handle.clone();
     let shown =
         |settings: &Settings| (settings.privacy.privacy_mode, settings.app.language.clone());

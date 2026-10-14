@@ -19,15 +19,17 @@ use crate::t;
 const TRAY_ID: &str = "main";
 const TRAY_ICON: Image<'_> = include_image!("icons/tray.png");
 const OPEN_ID: &str = "open";
-const SHORTCUTS_ID: &str = "shortcuts";
+pub const SHORTCUTS_ID: &str = "shortcuts";
 const PASTE_LAST_ID: &str = "paste-last";
-const COPY_LAST_ID: &str = "copy-last";
+pub const COPY_LAST_ID: &str = "copy-last";
 const PRIVACY_ID: &str = "privacy-mode";
 const RESTART_ID: &str = "restart";
-const QUIT_ID: &str = "quit";
+pub const QUIT_ID: &str = "quit";
 
 /// Paste last transcript is greyed out until there is one (WIN-09).
 static PASTE_LAST_AVAILABLE: AtomicBool = AtomicBool::new(false);
+/// The last transcript has text, for the menu bar's Copy last transcript (APP-10).
+static COPY_LAST_AVAILABLE: AtomicBool = AtomicBool::new(false);
 
 pub fn create<R: Runtime>(app: &AppHandle<R>, settings: &Settings) -> tauri::Result<()> {
     let privacy = settings.privacy.privacy_mode;
@@ -66,8 +68,11 @@ pub fn create<R: Runtime>(app: &AppHandle<R>, settings: &Settings) -> tauri::Res
     Ok(())
 }
 
-/// Shows Privacy mode in the menu, the icon and the tooltip (PRIV-03).
+/// Shows Privacy mode in the menu, the icon and the tooltip (PRIV-03). The
+/// menu bar shares the menu's texts and states, so it follows.
 pub fn refresh<R: Runtime>(app: &AppHandle<R>, settings: &Settings) {
+    #[cfg(target_os = "macos")]
+    super::menu_bar::refresh(app);
     let Some(tray) = app.tray_by_id(TRAY_ID) else {
         return;
     };
@@ -81,9 +86,12 @@ pub fn refresh<R: Runtime>(app: &AppHandle<R>, settings: &Settings) {
     }
 }
 
-/// Enables or greys out Paste last transcript.
-pub fn set_paste_last_available<R: Runtime>(app: &AppHandle<R>, available: bool) {
-    if PASTE_LAST_AVAILABLE.swap(available, Ordering::Relaxed) == available {
+/// Enables or greys out Paste last transcript, and the menu bar's Copy last
+/// transcript.
+pub fn set_last_transcript<R: Runtime>(app: &AppHandle<R>, paste: bool, copy: bool) {
+    let paste_changed = PASTE_LAST_AVAILABLE.swap(paste, Ordering::Relaxed) != paste;
+    let copy_changed = COPY_LAST_AVAILABLE.swap(copy, Ordering::Relaxed) != copy;
+    if !paste_changed && !copy_changed {
         return;
     }
     if let Some(settings) = app.try_state::<Arc<SettingsStore>>() {
@@ -136,6 +144,11 @@ fn menu<R: Runtime>(app: &AppHandle<R>, settings: &Settings) -> tauri::Result<Me
             &quit,
         ],
     )
+}
+
+/// Whether the last transcript has text to copy.
+pub fn copy_last_available() -> bool {
+    COPY_LAST_AVAILABLE.load(Ordering::Relaxed)
 }
 
 fn tooltip(privacy: bool) -> String {

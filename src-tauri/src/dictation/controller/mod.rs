@@ -667,8 +667,8 @@ impl Controller {
         }
         if let Some(mut last) = outcomes::report(processed.outcome, self.ui.as_ref()) {
             last.history_id = processed.history_id;
+            self.ui.last_transcript(true, last.text.is_some());
             self.last = Some(last);
-            self.ui.last_transcript(true);
         }
     }
 

@@ -201,5 +201,16 @@ describe("App", () => {
       fireEvent.click(within(dialog).getByRole("button", { name: "Done" }));
       expect(screen.queryByRole("dialog")).toBeNull();
     });
+
+    it("opens Help from the menu bar", async () => {
+      mockIPC(backend([model({})]), { shouldMockEvents: true });
+      render(<App />);
+      await screen.findByTestId("app-info");
+
+      await act(async () => emit(EVENTS.navigate, "help"));
+
+      expect(await screen.findByRole("heading", { level: 1, name: "Help" })).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Help" })).toHaveAttribute("aria-current", "page");
+    });
   });
 });

@@ -1,10 +1,13 @@
-//! App shell: setup, windows, tray, Flow Bar, events, updates and the dev-only MCP bridge.
+//! App shell: setup, windows, tray, the macOS menu bar, Flow Bar, events,
+//! updates and the dev-only MCP bridge.
 
 #[cfg(debug_assertions)]
 pub mod dev_bridge;
 pub mod events;
 pub mod flow_bar;
 mod flow_bar_place;
+#[cfg(target_os = "macos")]
+mod menu_bar;
 pub mod setup;
 mod system;
 pub mod tray;

@@ -50,6 +50,8 @@ app/                    shell                                                   
   system.rs             startup: pending reset or repair, crash and storage checks,
                         launch at login, background start (APP-06..09)                (built)
   tray.rs               tray icon and menu                                             (built)
+  menu_bar.rs           the macOS menu bar: app menu, Edit, Dictation, Window, Help
+                        (APP-10)                                                       (built)
   updates.rs            update checks, download, install when idle (PKG-03, PKG-04)   (built)
   flow_bar.rs           Flow Bar window: sizing, hiding when empty, edge placement on
                         the cursor's display, dragging (BAR-04, BAR-05)                (built)
@@ -1289,7 +1291,20 @@ alone.
   languages, app language), System (launch at login, Dock icon, sound, Flow Bar,
   notifications, Reset & restart), Data and privacy, Speech engine, AI provider,
   Experimental and Vibe coding. `app://navigate` targets a page and what to bring into
-  view (`settings`, `ai`, `microphone`, `languages`, `experimental`).
+  view (`settings`, `ai`, `microphone`, `languages`, `experimental`), or `history`,
+  `dictionary`, `insights`, `voiceProfile`, `help` and `shortcuts` (the dialog).
+- **Menu bar (APP-10, macOS).** While Shrimp is the active app, macOS shows its menu
+  bar (`app/menu_bar.rs`): the app menu (About Shrimp, Settings… ⌘, which opens
+  Settings, the tray's update item, Hide Shrimp, Hide Others, Show All, Quit Shrimp ⌘Q),
+  Edit (Undo, Redo, Cut, Copy, Paste, Select All, so text fields in the webview keep
+  their shortcuts), Dictation (Copy last transcript, greyed out while the last
+  transcript has no text; Wispr Flow has no Paste item there), Window (Minimize, Zoom,
+  Close, and the window list) and Help (Shortcuts, which opens the Shortcuts dialog,
+  and Shrimp Help, which opens the Help page; macOS adds its search field). Tauri hands
+  every menu's clicks to every menu handler, so the items it shares with the tray keep
+  the tray's ids and run through the tray's handler. It is built again whenever the
+  tray menu is (the interface language, the update status, what there is to copy).
+  Windows has no app menu, so the module is compiled only on macOS.
 - **Settings › System** lives in `settings.app` (`language`, `launchAtLogin`,
   `showInDock`). At startup the login item's real state wins over the saved switch (the
   user may have turned it off in System Settings); a failed change puts the switch back

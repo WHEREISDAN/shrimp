@@ -55,8 +55,9 @@ pub trait DictationUi: Send + Sync {
     fn changes(&self, _view: TransformView) {}
     /// Progress of a shortcut being recorded (KEYS-01).
     fn shortcut_recording(&self, _status: RecordingStatus) {}
-    /// Paste last transcript has something to paste (WIN-09).
-    fn last_transcript(&self, _available: bool) {}
+    /// Paste last transcript has something to paste (WIN-09), and Copy
+    /// last transcript some text to copy (APP-10).
+    fn last_transcript(&self, _paste: bool, _copy: bool) {}
 }
 
 /// A shortcut being recorded, for the Shortcuts dialog. Mirrors
