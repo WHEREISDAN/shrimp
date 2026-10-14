@@ -25,16 +25,16 @@ phase that adds it (phases are defined in [PARITY.md](PARITY.md)).
 
 ## Processes, windows and threads
 
-| Piece         | What it is                                                                                                                                                                                                                                                                                       |
-| ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Main window   | `main` webview: Home, Insights, Dictionary, Snippets, Style, Transforms, Settings, onboarding. Closing hides it **(built)**.                                                                                                                                                                     |
-| Flow Bar      | `flow-bar` webview in a transparent, always-on-top window that never takes focus, on the bottom, left or right edge of the display under the cursor. On macOS it is a non-activating `NSPanel` (tauri-nspanel); on Windows a topmost `WS_EX_NOACTIVATE` tool window **(built)**.                 |
-| Tray          | Menu-bar / notification-area icon and menu: Open Shrimp, Shortcuts…, Check for updates…, Paste last transcript, Copy last transcript, Privacy mode, Restart Shrimp, Quit. A click opens the menu on macOS; on Windows a left click opens the main window and a right click the menu **(built)**. |
-| Hotkey thread | Owns the OS keyboard hook (a CGEventTap run loop on macOS, Shrimp's own `WH_KEYBOARD_LL` and `WH_MOUSE_LL` hooks on Windows) **(built)**.                                                                                                                                                        |
-| Audio thread  | The cpal input stream callback, which only converts samples to f32 and sends them **(built)**.                                                                                                                                                                                                   |
-| Async runtime | Tauri's tokio runtime: the dictation controller task, IPC commands, HTTP calls.                                                                                                                                                                                                                  |
-| Blocking pool | `spawn_blocking` for Whisper inference, SQLite and accessibility calls.                                                                                                                                                                                                                          |
-| Main thread   | AppKit/Win32 work that must run there (windows, panels, pasteboard and key posting where required), reached with `AppHandle::run_on_main_thread`.                                                                                                                                                |
+| Piece         | What it is                                                                                                                                                                                                                                                                       |
+| ------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Main window   | `main` webview: Home, Insights, Dictionary, Snippets, Style, Transforms, Settings, onboarding. Closing hides it **(built)**.                                                                                                                                                     |
+| Flow Bar      | `flow-bar` webview in a transparent, always-on-top window that never takes focus, on the bottom, left or right edge of the display under the cursor. On macOS it is a non-activating `NSPanel` (tauri-nspanel); on Windows a topmost `WS_EX_NOACTIVATE` tool window **(built)**. |
+| Tray          | Menu-bar / notification-area icon and menu: Open Shrimp, Shortcuts…, Check for updates…, Paste last transcript, Copy last transcript, Privacy mode, Restart Shrimp, Quit. On Windows a left click opens the main window **(built)**.                                             |
+| Hotkey thread | Owns the OS keyboard hook (a CGEventTap run loop on macOS, Shrimp's own `WH_KEYBOARD_LL` and `WH_MOUSE_LL` hooks on Windows) **(built)**.                                                                                                                                        |
+| Audio thread  | The cpal input stream callback, which only converts samples to f32 and sends them **(built)**.                                                                                                                                                                                   |
+| Async runtime | Tauri's tokio runtime: the dictation controller task, IPC commands, HTTP calls.                                                                                                                                                                                                  |
+| Blocking pool | `spawn_blocking` for Whisper inference, SQLite and accessibility calls.                                                                                                                                                                                                          |
+| Main thread   | AppKit/Win32 work that must run there (windows, panels, pasteboard and key posting where required), reached with `AppHandle::run_on_main_thread`.                                                                                                                                |
 
 ## Rust module layout
 
@@ -1180,11 +1180,11 @@ third quick press, or another app's shortcut early in a hold, CORE-12) is stored
 "cancelled" with its recording and offers Recover (HIS-10); a shorter one, or one with
 "Never store", is not. Undo on the cancel notice and paste last transcript (CORE-11)
 update that entry instead of adding one, as with a failed dictation. An interrupted
-start doesn't replace the last transcript, so paste last still pastes the one before. A dictation with words is counted in the stats even with
-"Never store". History's Retry and Recover go through the controller (refused while
-recording: "Cannot retry while dictating."; while processing: "Transcript currently
-processing"), transcribe and edit the stored audio again and update the entry without
-pasting; Retry needs at least 5 s of audio under 14 days old, Recover any length. The
+start doesn't replace the last transcript, so paste last still pastes the one before.
+A dictation with words is counted in the stats even with "Never store". History's Retry
+and Recover go through the controller (refused while recording: "Cannot retry while
+dictating."; while processing: "Transcript currently processing"), transcribe and edit
+the stored audio again and update the entry without pasting; Retry needs at least 5 s of audio under 14 days old, Recover any length. The
 hourly sweep (also run at startup) forgets recordings older than 14 days, deletes
 entries older than 24 hours with Auto-delete, deletes stray recordings and makes the
 day's backup. "Never store" (typed confirmation "delete all") deletes every entry,
@@ -1282,12 +1282,13 @@ alone.
   (`capture_rust_logs`), readable with `query_logs`. Release builds add a file logger in
   phase 4. Logs never contain transcripts, field text or keys at `info` level or above.
 
-## App shell (APP-04..09)
+## App shell (APP-04..12)
 
 - **Main window.** It starts hidden (`visible: false`) and setup shows it, unless the
   launch came from the login item (or `--background`) and nothing needs attention
-  (`app/system.rs`); a launch by Shrimp's own restart (`--relaunched`) always shows it. The sidebar lists Home, Insights, Dictionary, Snippets, Style and
-  Transforms, with Settings and Help at the bottom. ⌘[ and ⌘] go back and forward
+  (`app/system.rs`); a launch by Shrimp's own restart (`--relaunched`) always shows
+  it. The sidebar lists Home, Insights, Dictionary, Snippets, Style and Transforms,
+  with Settings and Help at the bottom. ⌘[ and ⌘] go back and forward
   through the pages visited, ⌥↑/⌥↓ move through the sidebar (`usePageHistory`), and on
   Settings ⌥↑/⌥↓ move through its pages instead.
 - **Settings pages** (APP-05) are a vertical tab list: General (shortcuts, microphone,
@@ -1311,11 +1312,12 @@ alone.
 - **Settings › System** lives in `settings.app` (`language`, `launchAtLogin`,
   `showInDock`). At startup the login item's real state wins over the saved switch (the
   user may have turned it off in System Settings); a failed change puts the switch back
-  with a notice. "Show app in Dock" sets the activation policy (`window::update_dock`): Regular
-  with the Dock icon and the app's menu bar, or Accessory with only the menu bar icon.
-  With it off, the Dock icon still shows while the main window is open or minimized
-  and goes when the window closes to the tray, as Wispr Flow's does; the Flow Bar never
-  brings it back. Windows has no Dock, so the switch is hidden there. The main window is created hidden and unfocused
+  with a notice. "Show app in Dock" sets the activation policy
+  (`window::update_dock`): Regular with the Dock icon and the app's menu bar, or
+  Accessory with only the menu bar icon. With it off, the Dock icon still shows while
+  the main window is open or minimized and goes when the window closes to the tray, as
+  Wispr Flow's does; the Flow Bar never brings it back. Windows has no Dock, so the
+  switch is hidden there. The main window is created hidden and unfocused
   (`focus: false`), so a background launch never takes focus (WebView2 would otherwise
   focus the hidden window); `show_main` focuses it when it is shown.
 - **Reset & restart (APP-08)** writes `reset-requested` and restarts. The next launch
