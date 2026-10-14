@@ -1,12 +1,13 @@
 //! Shell services: opening URLs and Settings pages, restarting Shrimp, free
-//! disk space, the user's languages and name, and language names (ICU).
+//! disk space, the user's languages, region and name, and language names (ICU).
 
 use std::os::windows::process::CommandExt;
 use std::process::{Command, Stdio};
 
 use windows::Win32::Globalization::{
-    GetUserPreferredUILanguages, MUI_LANGUAGE_NAME, U_ZERO_ERROR, UErrorCode, ULDN_STANDARD_NAMES,
-    uldn_close, uldn_languageDisplayName, uldn_open,
+    GetUserDefaultGeoName, GetUserDefaultLocaleName, GetUserPreferredUILanguages,
+    MUI_LANGUAGE_NAME, U_ZERO_ERROR, UErrorCode, ULDN_STANDARD_NAMES, uldn_close,
+    uldn_languageDisplayName, uldn_open,
 };
 use windows::Win32::Security::Authentication::Identity::{GetUserNameExW, NameDisplay};
 use windows::Win32::Storage::FileSystem::GetDiskFreeSpaceExW;
@@ -129,6 +130,40 @@ pub fn preferred_language() -> Option<String> {
     (!tag.is_empty()).then_some(tag)
 }
 
+/// The user's region as an ISO 3166 code ("CA"): Settings › Time & language ›
+/// Region, else the region of the user's locale ("en-CA").
+pub fn region() -> Option<String> {
+    let mut geo = [0u16; 16];
+    let length = unsafe { GetUserDefaultGeoName(&mut geo) };
+    let geo = text(&geo, length);
+    if is_region(&geo) {
+        return Some(geo.to_ascii_uppercase());
+    }
+    // LOCALE_NAME_MAX_LENGTH.
+    let mut locale = [0u16; 85];
+    let length = unsafe { GetUserDefaultLocaleName(&mut locale) };
+    text(&locale, length)
+        .split('-')
+        .skip(1)
+        .find(|part| is_region(part))
+        .map(str::to_ascii_uppercase)
+}
+
+/// The text a call wrote into `buffer`, up to its terminating zero.
+fn text(buffer: &[u16], length: i32) -> String {
+    let written = usize::try_from(length).unwrap_or(0).min(buffer.len());
+    let text = buffer[..written]
+        .split(|unit| *unit == 0)
+        .next()
+        .unwrap_or_default();
+    String::from_utf16_lossy(text)
+}
+
+/// Two letters; numeric UN M.49 areas such as "419" are no country.
+fn is_region(code: &str) -> bool {
+    code.len() == 2 && code.chars().all(|c| c.is_ascii_alphabetic())
+}
+
 /// The first word of the account's display name.
 pub fn first_name() -> Option<String> {
     let mut size = 256u32;
@@ -191,6 +226,7 @@ mod tests {
     #[test]
     fn reads_the_user_and_the_disk() {
         assert!(preferred_language().is_some_and(|tag| tag.contains('-')));
+        assert!(region().is_some_and(|code| is_region(&code)));
         let free = free_bytes(&std::env::temp_dir()).unwrap();
         assert!(free > 0);
     }

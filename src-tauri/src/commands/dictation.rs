@@ -198,6 +198,16 @@ pub fn run_notice_action(
             updates::restart_when_idle(&app);
             Ok(())
         }
+        NoticeAction::SwitchToCanadianEnglish => {
+            controller.send(ControllerInput::SwitchToCanadianEnglish);
+            Ok(())
+        }
+        NoticeAction::SetUpMouseButton => {
+            window::show_main(&app);
+            let _ = app.emit_to(window::MAIN_LABEL, NAVIGATE_EVENT, "shortcuts");
+            Ok(())
+        }
+        NoticeAction::NotNow => Ok(()),
     }
 }
 

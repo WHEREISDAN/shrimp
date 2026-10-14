@@ -3,6 +3,7 @@
 
 #[cfg(target_os = "macos")]
 mod macos;
+mod overrides;
 mod switchable;
 #[cfg(target_os = "windows")]
 mod windows;
@@ -355,6 +356,13 @@ pub trait Launcher: Send + Sync {
     fn open_url(&self, url: &str) -> Result<(), PlatformError>;
 }
 
+/// The mice connected now (CORE-18).
+pub trait MouseDevices: Send + Sync {
+    /// The most buttons any connected mouse has, 0 without one. Built-in
+    /// trackpads and Apple's mice and trackpads don't count. Blocking.
+    fn most_buttons(&self) -> u32;
+}
+
 /// The OS services the app uses, built once at startup.
 pub struct Platform {
     pub hotkeys: Box<dyn HotkeyBackend>,
@@ -379,6 +387,10 @@ pub struct Platform {
     /// The user's first name, for Home's greeting (STA-02).
     pub user_name: Option<String>,
     pub login_item: Arc<dyn LoginItem>,
+    /// The system region as an ISO 3166 code ("CA"), for the Canadian
+    /// English suggestion (LANG-07).
+    pub region: Option<String>,
+    pub mice: Arc<dyn MouseDevices>,
 }
 
 /// The system action of the Fn (Globe) key pressed alone.
@@ -414,12 +426,12 @@ impl GlobeKeyAction {
 
 #[cfg(target_os = "macos")]
 pub fn native(main_thread: MainThread) -> Platform {
-    macos::platform(main_thread)
+    overrides::apply(macos::platform(main_thread))
 }
 
 #[cfg(target_os = "windows")]
 pub fn native(main_thread: MainThread) -> Platform {
-    windows::platform(main_thread)
+    overrides::apply(windows::platform(main_thread))
 }
 
 #[cfg(target_os = "macos")]

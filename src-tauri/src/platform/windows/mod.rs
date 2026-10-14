@@ -16,6 +16,7 @@ mod insert;
 mod keycode;
 mod login;
 mod media;
+mod mice;
 mod permissions;
 mod process;
 mod sound;
@@ -44,6 +45,8 @@ pub fn platform(_main_thread: MainThread) -> Platform {
         globe_key: GlobeKeyAction::DoNothing,
         user_name: system::first_name(),
         login_item: Arc::new(login::WinLoginItem),
+        region: system::region(),
+        mice: Arc::new(mice::RawInputMice),
     }
 }
 

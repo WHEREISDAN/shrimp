@@ -122,6 +122,8 @@ export const SETTINGS: Settings = {
     languageCardDay: "",
     languageCardOff: false,
     formattingTips: { list: 0, email: 0, backtrack: 0, day: "" },
+    canadianEnglishShown: false,
+    mouseButtonsShown: false,
   },
   transforms: {
     enabled: false,

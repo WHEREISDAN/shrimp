@@ -47,7 +47,10 @@ export type NoticeAction =
   | "openInsights"
   | "seeVoiceProfile"
   | "updateVoiceProfile"
-  | "restartToUpdate";
+  | "restartToUpdate"
+  | "switchToCanadianEnglish"
+  | "setUpMouseButton"
+  | "notNow";
 
 /** Mirrors `notify::Notice`. */
 export interface Notice {
@@ -287,6 +290,8 @@ export interface Settings {
     languageCardDay: string;
     languageCardOff: boolean;
     formattingTips: { list: number; email: number; backtrack: number; day: string };
+    canadianEnglishShown: boolean;
+    mouseButtonsShown: boolean;
   };
   transforms: TransformSettings;
   vibeCoding: { fileTagging: boolean };

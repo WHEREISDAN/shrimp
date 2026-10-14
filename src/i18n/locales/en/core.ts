@@ -39,6 +39,9 @@ export const core = {
       seeVoiceProfile: "See profile",
       updateVoiceProfile: "Update profile",
       restartToUpdate: "Restart now",
+      switchToCanadianEnglish: "Switch",
+      setUpMouseButton: "Set up",
+      notNow: "Not now",
     },
   },
   bar: {

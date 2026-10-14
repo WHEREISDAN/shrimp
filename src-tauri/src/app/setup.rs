@@ -174,6 +174,8 @@ pub fn setup(app: &mut App) -> Result<(), Box<dyn std::error::Error>> {
         microphones: Some(Arc::clone(&microphones)),
         history: Some(Arc::clone(&history)),
         timing: Timing::default(),
+        region: platform.region,
+        mice: platform.mice,
     });
 
     let shortcuts_changed = controller.clone();

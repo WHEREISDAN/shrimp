@@ -107,6 +107,12 @@ pub enum NoticeAction {
     UpdateVoiceProfile,
     /// Installs the downloaded update and restarts (PKG-03).
     RestartToUpdate,
+    /// Dictates in English (Canada) instead of the other English (LANG-07).
+    SwitchToCanadianEnglish,
+    /// Opens the Shortcuts dialog to bind a mouse button (CORE-18).
+    SetUpMouseButton,
+    /// Closes a one-time suggestion.
+    NotNow,
 }
 
 static NEXT_ID: AtomicU64 = AtomicU64::new(1);
@@ -170,6 +176,20 @@ mod tests {
         assert_eq!(json["actions"], serde_json::json!(["copyLastTranscript"]));
         assert_eq!(json["category"], "status");
         assert!(json["id"].as_u64().unwrap() > 0);
+    }
+
+    #[test]
+    fn suggestion_actions_serialize_in_camel_case() {
+        let json = serde_json::to_value([
+            NoticeAction::SwitchToCanadianEnglish,
+            NoticeAction::SetUpMouseButton,
+            NoticeAction::NotNow,
+        ])
+        .unwrap();
+        assert_eq!(
+            json,
+            serde_json::json!(["switchToCanadianEnglish", "setUpMouseButton", "notNow"])
+        );
     }
 
     #[test]

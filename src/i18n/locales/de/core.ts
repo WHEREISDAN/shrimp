@@ -41,6 +41,9 @@ export const core: CoreCatalog = {
       seeVoiceProfile: "Profil ansehen",
       updateVoiceProfile: "Profil aktualisieren",
       restartToUpdate: "Jetzt neu starten",
+      switchToCanadianEnglish: "Wechseln",
+      setUpMouseButton: "Einrichten",
+      notNow: "Nicht jetzt",
     },
   },
   bar: {

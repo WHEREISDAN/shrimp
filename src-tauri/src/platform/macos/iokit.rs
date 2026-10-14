@@ -14,7 +14,7 @@ use objc2_io_kit::{
 };
 
 /// Apple's USB and Bluetooth vendor IDs.
-const APPLE_VENDORS: [i64; 2] = [0x05AC, 0x004C];
+pub(super) const APPLE_VENDORS: [i64; 2] = [0x05AC, 0x004C];
 const KEYBOARD_PAGE: i64 = 1;
 const KEYBOARD_USAGE: i64 = 6;
 /// `kVK_CapsLock`.

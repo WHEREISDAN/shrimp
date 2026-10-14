@@ -1,8 +1,9 @@
-//! Languages (LANG-01..05): the catalog, what the speech engine is told, and
-//! how a variant shapes the output.
+//! Languages (LANG-01..05, LANG-07): the catalog, what the speech engine is
+//! told, how a variant shapes the output, and the region's variant.
 
 pub mod catalog;
 pub mod french;
+pub mod region;
 pub mod spelling;
 
 use crate::settings::LanguageSettings;

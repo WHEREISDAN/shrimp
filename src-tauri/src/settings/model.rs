@@ -224,6 +224,10 @@ pub struct NoticeSettings {
     pub language_card_off: bool,
     /// Formatting tips shown so far (FMT-13).
     pub formatting_tips: FormattingTips,
+    /// "Switch to Canadian English?" was offered; it shows once (LANG-07).
+    pub canadian_english_shown: bool,
+    /// "Your mouse has extra buttons" was shown; it shows once (CORE-18).
+    pub mouse_buttons_shown: bool,
 }
 
 /// How many times each formatting tip was shown: one explanation, then up

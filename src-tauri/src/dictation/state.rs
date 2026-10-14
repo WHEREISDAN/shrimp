@@ -154,6 +154,10 @@ pub enum ControllerInput {
     },
     /// The different-language card's Add language.
     AddDetectedLanguage,
+    /// "Switch to Canadian English?"'s Switch (LANG-07).
+    SwitchToCanadianEnglish,
+    /// The most buttons a connected mouse has, read after a dictation (CORE-18).
+    MouseButtons(u32),
     Bar(BarControl),
     /// Paste or copy last transcript from the tray menu.
     Menu(Action),
@@ -201,6 +205,8 @@ pub struct Processed {
     pub history_id: Option<i64>,
     /// The recording saved as it happened, deleted once stored (HIS-06).
     pub journal: Option<JournalFiles>,
+    /// How the dictation started; None for everything but dictations.
+    pub started_by: Option<StartedBy>,
 }
 
 impl From<Outcome> for Processed {
@@ -213,8 +219,18 @@ impl From<Outcome> for Processed {
             record: None,
             history_id: None,
             journal: None,
+            started_by: None,
         }
     }
+}
+
+/// What started a recording.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum StartedBy {
+    /// A key or mouse shortcut.
+    Shortcut,
+    /// A click on the Flow Bar.
+    FlowBar,
 }
 
 /// The final text of a dictation.

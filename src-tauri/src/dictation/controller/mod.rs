@@ -5,6 +5,7 @@ mod language;
 mod microphone;
 mod recording;
 mod shortcuts;
+mod suggestions;
 mod transforms;
 
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -23,7 +24,7 @@ use super::outcomes;
 use super::pipeline::Pipeline;
 use super::state::{
     ControllerInput, DictationState, DictationUi, LastDictation, LastStatus, Outcome, Processed,
-    Timing, TransformAction,
+    StartedBy, Timing, TransformAction,
 };
 use super::transform::TransformRun;
 use crate::audio::{AudioError, AudioSourceSpec, Recorder, level};
@@ -35,8 +36,8 @@ use crate::hotkeys::{Action, Binding, HotkeyEvent, Trigger};
 use crate::mic::Microphones;
 use crate::notify::{Notice, NoticeAction, NoticeCategory};
 use crate::platform::{
-    CuePlayer, FocusInspector, HotkeyBackend, Launcher, MediaControl, Permission, PermissionStatus,
-    Permissions, PlatformError, TextInserter,
+    CuePlayer, FocusInspector, HotkeyBackend, Launcher, MediaControl, MouseDevices, Permission,
+    PermissionStatus, Permissions, PlatformError, TextInserter,
 };
 use crate::settings::SettingsStore;
 use crate::sounds::Cue;
@@ -72,6 +73,10 @@ pub struct Services {
     /// Stores finished dictations (HIS-01); tests may leave it out.
     pub history: Option<Arc<History>>,
     pub timing: Timing,
+    /// The system region, for the Canadian English suggestion (LANG-07).
+    pub region: Option<String>,
+    /// The connected mice, for the mouse button suggestion (CORE-18).
+    pub mice: Arc<dyn MouseDevices>,
 }
 
 /// Cheap to clone; the app keeps one in managed state.
@@ -161,6 +166,7 @@ struct Recording {
     context: PendingContext,
     /// The audio saved as it arrives, in case Shrimp quits (HIS-06).
     journal: Option<Journal>,
+    started_by: StartedBy,
 }
 
 impl Recording {
@@ -214,6 +220,7 @@ struct Controller {
     /// The language the different-language card offers to add (LANG-04).
     detected_language: Option<String>,
     secure_input: Arc<Mutex<Option<String>>>,
+    suggestions: suggestions::Suggestions,
 }
 
 impl Controller {
@@ -268,6 +275,7 @@ impl Controller {
             shortcut_target: None,
             detected_language: None,
             secure_input: Arc::new(Mutex::new(None)),
+            suggestions: suggestions::Suggestions::new(services.region, services.mice),
         }
     }
 
@@ -337,6 +345,8 @@ impl Controller {
                 self.language_detected(code, probability);
             }
             ControllerInput::AddDetectedLanguage => self.add_detected_language(),
+            ControllerInput::SwitchToCanadianEnglish => self.switch_to_canadian_english(),
+            ControllerInput::MouseButtons(buttons) => self.mouse_buttons(buttons),
             ControllerInput::SettingsChanged => self.refresh_bindings(),
             ControllerInput::Transform(action) => self.transform_action(action),
             ControllerInput::Bar(control) => self.gesture(Input::Bar(control)),
@@ -377,14 +387,18 @@ impl Controller {
     }
 
     fn gesture(&mut self, input: Input) {
+        let started_by = match input {
+            Input::Bar(_) => StartedBy::FlowBar,
+            _ => StartedBy::Shortcut,
+        };
         if let Some(command) = self.gestures.handle(input, Instant::now()) {
-            self.apply(command);
+            self.apply(command, started_by);
         }
     }
 
-    fn apply(&mut self, command: Command) {
+    fn apply(&mut self, command: Command, started_by: StartedBy) {
         match command {
-            Command::Start(mode) => self.start_recording(mode),
+            Command::Start(mode) => self.start_recording(mode, started_by),
             Command::Lock => {
                 self.sounds.play(Cue::Lock);
                 self.set_state(DictationState::Recording {
@@ -404,7 +418,7 @@ impl Controller {
         }
     }
 
-    fn start_recording(&mut self, mode: RecordingMode) {
+    fn start_recording(&mut self, mode: RecordingMode, started_by: StartedBy) {
         let (source, device) = match self.open_source() {
             Ok(Some(opened)) => opened,
             Ok(None) => {
@@ -456,6 +470,7 @@ impl Controller {
                     media,
                     context,
                     journal,
+                    started_by,
                 });
                 let editor = Arc::clone(&self.pipeline.editor);
                 tauri::async_runtime::spawn(async move { editor.warm_up().await });
@@ -538,6 +553,7 @@ impl Controller {
             focus: Arc::clone(&self.focus),
             launcher: Arc::clone(&self.launcher),
         });
+        let started_by = runner.is_none().then_some(recording.started_by);
         let tx = self.tx.clone();
         tauri::async_runtime::spawn(async move {
             let context = recording.context;
@@ -556,6 +572,7 @@ impl Controller {
                 Err(error) => Outcome::RecordingFailed(error.to_string()).into(),
             };
             processed.journal = journal;
+            processed.started_by = started_by;
             pipeline.store(&mut processed).await;
             let _ = tx.send(ControllerInput::Processed(Box::new(processed)));
         });
@@ -681,6 +698,10 @@ impl Controller {
         }
         if let (Some(clip), Outcome::Inserted(_)) = (processed.language_check, &processed.outcome) {
             self.check_language(clip);
+        }
+        if let (Some(started_by), Outcome::Inserted(_)) = (processed.started_by, &processed.outcome)
+        {
+            self.suggest(started_by);
         }
         if let Some(target) = processed.learn
             && self.settings.get().dictionary.auto_learn

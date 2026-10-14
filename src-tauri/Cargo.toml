@@ -51,11 +51,11 @@ tauri-nspanel = "2.1.1"
 block2 = "0.6"
 objc2 = "0.6"
 objc2-foundation = { version = "0.3.2", default-features = false, features = ["std", "NSData", "NSString", "NSArray", "NSURL", "NSLocale", "NSPathUtilities"] }
-objc2-core-foundation = { version = "0.3.2", default-features = false, features = ["std", "CFString", "CFData", "CFArray", "CFDictionary", "CFNumber", "CFBase", "CFPreferences", "CFURL", "CFMachPort", "CFRunLoop"] }
+objc2-core-foundation = { version = "0.3.2", default-features = false, features = ["std", "CFString", "CFData", "CFArray", "CFDictionary", "CFNumber", "CFBase", "CFPreferences", "CFURL", "CFMachPort", "CFRunLoop", "CFSet"] }
 objc2-app-kit = { version = "0.3.2", default-features = false, features = ["std", "NSPasteboard", "NSPasteboardItem", "NSRunningApplication", "NSWorkspace", "NSSound", "libc"] }
 objc2-core-graphics = { version = "0.3.2", default-features = false, features = ["std", "CGEvent", "CGEventSource", "CGEventTypes", "CGRemoteOperation", "CGSession"] }
 objc2-core-audio = { version = "0.3.2", default-features = false, features = ["std", "AudioHardware", "objc2-core-audio-types"] }
-objc2-io-kit = { version = "0.3.2", default-features = false, features = ["std", "libc", "hidsystem"] }
+objc2-io-kit = { version = "0.3.2", default-features = false, features = ["std", "libc", "hid", "hidsystem"] }
 libc = "0.2"
 objc2-application-services = { version = "0.3.2", default-features = false, features = ["std", "AXUIElement", "AXError", "AXValue", "AXValueConstants", "AXAttributeConstants", "AXRoleConstants", "HIServices", "libc"] }
 objc2-av-foundation = { version = "0.3.2", default-features = false, features = ["std", "block2", "AVCaptureDevice", "AVMediaFormat"] }
@@ -85,6 +85,7 @@ windows = { version = "0.62", features = [
   "Win32_System_Threading",
   "Win32_System_Variant",
   "Win32_UI_Accessibility",
+  "Win32_UI_Input",
   "Win32_UI_Input_KeyboardAndMouse",
   "Win32_UI_Shell",
   "Win32_UI_Shell_PropertiesSystem",
