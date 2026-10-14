@@ -60,8 +60,9 @@ context/                context awareness: what surrounds the cursor (CTX-01..04
   mod.rs                DictationContext: readable field, names, identifiers, files,
                         category (web apps by domain)                                  (built)
   capture.rs            PendingContext: reads the field while recording, never waits   (built)
-  apps.rs               terminals, remote desktops, browsers, code editors             (built)
-  web.rs                site → category (STY-05)                                       (built)
+  apps.rs               terminals, remote desktops, browsers, code editors; writing
+                        apps (documents in Insights, STA-06)                           (built)
+  web.rs                site → category (STY-05); writing sites (STA-06)               (built)
   terms.rs              names, identifiers and file names in visible text              (built)
   words.rs              everyday English words (SCOWL), common first names, acronyms   (built)
 commands/               thin IPC handlers, one file per area                           (built)
@@ -77,10 +78,11 @@ audio/                  audio input                                             
   spec.rs               AudioSourceSpec, SHRIMP_AUDIO_SOURCE parsing, open()           (built)
   devices.rs            InputDevice, DeviceProvider, fake and switchable devices       (built)
   wav_encode.rs         16-bit WAV encoding in memory for cloud uploads                (built)
-lang/                   languages (LANG-01..05)                                        (built)
+lang/                   languages (LANG-01..05, LANG-07)                               (built)
   catalog.rs            Whisper's languages plus English, Chinese, German variants     (built)
   spelling.rs           US/UK/Canadian spelling, ß→ss, Simplified/Traditional (hanconv) (built)
   french.rs             narrow no-break spaces before ; : ! ? (FMT-14)                 (built)
+  region.rs             the region's variant: Canadian English in Canada (LANG-07)     (built)
   mod.rs                what the engine is told, the variant, prompt rules            (built)
 mic/                    microphones (MIC-02..08)                                       (built)
   mod.rs                Microphones: choose, rank, hot-plug prompt, Bluetooth advice   (built)
@@ -133,18 +135,22 @@ history/                transcript history (HIS-01..08)                         
   journal.rs            the recording in progress saved as it arrives; leftovers of
                         a quit or crash become "Interrupted" entries (HIS-06)          (built)
   fixes.rs              words the AI edit removed or changed, for Insights             (built)
-insights/               Insights (STA-01..05)                                          (built)
+insights/               Insights (STA-01..06)                                          (built)
   mod.rs                speed, totals, streaks, the year's days, apps, the week's
                         words; word-count and voice-profile milestones                 (built)
   profile.rs            the voice profile: local facts and samples to the configured
                         LLM, milestones, JSON reply parsing                            (built)
+  usage.rs              usage categories, Power/Moderate/Light usage (STA-06)          (built)
+  share.rs              X and LinkedIn compose pages with a line of text (STA-03)      (built)
 dictation/              orchestration                                                  (built)
   controller/           the dictation actor (state machine below); shortcuts.rs for
                         Press Enter and bindings, transforms.rs for transform runs,
                         recording.rs for recording shortcuts, interrupts (CORE-12),
                         Secure Keyboard Entry and the cancel notice's Undo (CORE-11),
                         microphone.rs for the source and its warnings, language.rs
-                        for the different-language card (LANG-04)                     (built)
+                        for the different-language card (LANG-04), suggestions.rs for
+                        the Canadian English and mouse button suggestions (LANG-07,
+                        CORE-18)                                                       (built)
   gestures.rs           hold / double-tap / short-tap / busy recognition, pure         (built)
   pipeline.rs           trim, transcribe, insert, press Enter; store in History, and
                         History's Retry (no paste)                                     (built)
@@ -169,7 +175,10 @@ hotkeys/                bindings, platform independent                          
   validation.rs         rules and Wispr's messages for recorded shortcuts (KEYS-03..07) (built)
 platform/               OS integration behind traits (next section)                    (built)
   mod.rs                traits + Platform bundle + GlobeKeyAction
-  macos/                hotkeys, mouse (button tap), secure_input, iokit (Fn keyboard,
+  overrides.rs          debug builds' pretended region and mouse (SHRIMP_REGION,
+                        SHRIMP_FAKE_MOUSE_BUTTONS)
+  macos/                hotkeys, mouse (button tap), mice (HID mice and their
+                        buttons), secure_input, iokit (Fn keyboard,
                         lid, Caps Lock), core_audio (devices, output mute and volume),
                         media (mute, MediaRemote pause), insert, pasteboard, keymap,
                         focus, context, ax, permissions, sound, globe, flow_bar, login
@@ -178,15 +187,16 @@ platform/               OS integration behind traits (next section)             
                         (SendInput), clipboard, insert, process (foreground app,
                         elevation), uia, focus, context (UI Automation), audio
                         (endpoints, sessions), media (per-app mute, SMTC pause), sound,
-                        permissions, login (Run key), system (shell, ICU), flow_bar,
-                        gpu (Vulkan loader fallback)                                   (built)
+                        permissions, login (Run key), system (shell, region, ICU),
+                        mice (Raw Input), flow_bar, gpu (Vulkan loader fallback)       (built)
 storage/                SQLite                                                         (built)
   db.rs                 open, WAL, migrations                                          (built)
   dictionary.rs         words and corrections, validation, CSV import                  (built)
   snippets.rs           triggers and expansions, validation, JSON import               (built)
   import.rs             CSV and JSON parsing, size and row limits                      (built)
   history.rs            history rows: insert, search, Undo AI edit, expire, delete     (built)
-  stats.rs              daily, per-app, hourly and speed counts; key-value meta        (built)
+  stats.rs              daily, per-app, hourly, speed and usage-category counts;
+                        key-value meta                                                 (built)
   backup.rs             daily `VACUUM INTO` copy, newest two kept                      (built)
 settings/               typed Settings, JSON file, merge-patch updates, change events;
                         shortcuts.rs for the bindings per action                      (built)
@@ -253,6 +263,7 @@ Built so far:
 | Phase 4  | `get_shortcuts` (every action's bindings, the overlap warning, Secure Keyboard Entry), `record_shortcut` (records through the hooks; progress as `shortcuts://recording`), `cancel_shortcut_recording`, `remove_shortcut`, `reset_shortcuts`; `retry_model`, `download_model`, `delete_model`; `get_microphones`, `select_microphone`, `rank_microphone`, `forget_microphone`, `start_mic_preview`, `stop_mic_preview`; `get_languages`, `set_languages`, `set_active_language`; `flow_bar_drag`, `flow_bar_action` (the right-click menu)      |
 | Phase 4b | `get_app_health`, `dismiss_crash`, `check_storage`, `open_storage_settings`, `repair_data`, `reset_app` (both restart the app); `get_insights`, `get_voice_profile`, `generate_voice_profile` (rejects with `{kind}`), `copy_image` and `save_image` (a raw PNG request body; the file name in an `x-file-name` header); `list_history`, `copy_history`, `set_history_raw` (Undo/Redo AI edit), `retry_history`, `history_audio` (raw WAV bytes), `extract_history_audio`, `delete_history`, `set_history_storage` ("never" needs "delete all") |
 | Phase 2  | `get_settings`, `update_settings`, `get_ai_options`, `get_api_keys`, `set_api_key`, `delete_api_key`, `list_ollama_models`, `test_ai_provider`; dictionary and snippet CRUD and imports (`list_dictionary`, `add_dictionary_entry`, `update_dictionary_entry`, `set_dictionary_pinned`, `delete_dictionary_entries`, `preview_dictionary_import`, `import_dictionary`, `list_snippets`, `add_snippet`, `update_snippet`, `delete_snippets`, `preview_snippet_import`, `import_snippets`)                                                        |
+| Phase 6  | `share_image` (X or LinkedIn: a raw PNG request body, the network in an `x-share-network` header)                                                                                                                                                                                                                                                                                                                                                                                                                                               |
 | Dev only | `dev_get_audio_source`, `dev_set_audio_source`, `dev_set_app_category`, `dev_edit_text`, `dev_read_context`, `dev_set_microphones`, `dev_set_permissions` (debug builds; see DEVELOPMENT.md)                                                                                                                                                                                                                                                                                                                                                    |
 | Events   | `dictation://state`, `dictation://level` (Flow Bar only), `notify://notice`, `command://answer` and `transform://changes` (Flow Bar only), `models://status`, `app://navigate`, `settings://changed`, `shortcuts://recording`, `notify://dismiss` (a notice whose cause went away), `mic://devices`, `mic://level`, `flow-bar://hover` (Flow Bar only), `app://main-visible` (main window shown or closed to the tray)                                                                                                                          |
 
@@ -376,6 +387,8 @@ pub struct Platform {
     pub globe_key: GlobeKeyAction,    // what Fn alone does (CORE-02)
     pub user_name: Option<String>,    // first name for Home's greeting (NSFullUserName)
     pub login_item: Arc<dyn LoginItem>,
+    pub region: Option<String>,       // ISO 3166 region, "CA" (LANG-07)
+    pub mice: Arc<dyn MouseDevices>,  // connected mice (CORE-18)
 }
 // Also: platform::free_bytes(path) (statvfs) and open_storage_settings() for APP-09.
 
@@ -470,7 +483,16 @@ pub trait MediaControl: Send + Sync {
     fn mute(&self) -> Option<Restore>;
     fn pause(&self) -> Option<Restore>;
 }
+
+/// The most buttons a connected mouse has, 0 without one; built-in trackpads
+/// and Apple's mice and trackpads don't count. Blocking (CORE-18).
+pub trait MouseDevices: Send + Sync {
+    fn most_buttons(&self) -> u32;
+}
 ```
+
+Debug builds pass the bundle through `platform/overrides.rs`: `SHRIMP_REGION=CA` pretends
+the region, `SHRIMP_FAKE_MOUSE_BUTTONS=5` a mouse with that many buttons.
 
 The macOS inserter decides itself whether an editable field is focused
 (`platform/macos/focus.rs`) unless `InsertOptions::require_field` is off. `FocusInspector`
@@ -530,6 +552,13 @@ let such events through without tracking them.
 - **Stuck shortcuts (CORE-14).** The matcher remembers when each shortcut went down. One
   that still looks held after 10 s is released, unless it holds the running dictation
   (`set_protected`), so a long hold is never cut short.
+- **Mouse button suggestion (CORE-18).** After a dictation a shortcut started (not a Flow
+  Bar click), once setup is done and while no binding uses a mouse button, the
+  controller reads `MouseDevices::most_buttons` on the blocking pool (at most every 10
+  minutes, never on the dictation's path). A mouse with more than three buttons gets a
+  Suggestions notice once ever, "Your mouse has extra buttons. Use one to dictate.", with
+  Set up (the Shortcuts dialog) and Not now (`notices.mouseButtonsShown`). The Canadian
+  English suggestion goes first: one suggestion per dictation.
 
 ### macOS backend (`platform/macos/`)
 
@@ -555,6 +584,8 @@ ever used (Apple DTS, developer forums thread 828052).
 | Flow Bar panel            | tauri-nspanel 2.1.1: a `tauri_panel!` class with `can_become_key_window: false` and `is_floating_panel: true`; `window.to_panel()`, `PanelLevel::Status`, the non-activating style mask, collection behaviour `can_join_all_spaces().full_screen_auxiliary().stationary().ignores_cycle()`, `set_hides_on_deactivate(false)`. Panel calls must run on the main thread. Tauri's `focusable(false)` alone does not stop a click from activating the app; the window also needs `accept_first_mouse(true)` so the first click on the inactive panel registers. Show it with Tauri's `window.show()` before `orderFrontRegardless`: while Tauri believes the window is hidden, WebKit keeps painting a stale snapshot of the first frame over later content. Needs Tauri's `macos-private-api` feature (`macOSPrivateApi` in tauri.conf.json).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             | none                        |
 | Dictation sounds          | `NSSound` from in-memory WAV data, created and played on the main thread, so no audio output stream stays open between cues (rodio would hold one). The cues are synthesised in `sounds/`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             | none                        |
 | Launch at login           | objc2-service-management `SMAppService::mainAppService()` (`registerAndReturnError`, `unregisterAndReturnError`, `status`), the modern login-item API (`platform/macos/login.rs`). macOS doesn't say whether a launch came from the login item, so a launch within 2 minutes of the console session's start (the utmpx `USER_PROCESS` record on `console`) while the login item is enabled counts as one, and the main window stays hidden; `--background` does the same, and debug builds read `SHRIMP_LAUNCHED_AT_LOGIN`. A LaunchAgent with a `--background` argument was rejected: unregistering it would stop a Shrimp that it had started. tauri-plugin-autostart would install a LaunchAgent or use AppleScript instead.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        | none                        |
+| Connected mice            | `mice.rs`: an `IOHIDManager` matching Generic Desktop mice (`DeviceUsagePage` 1, `DeviceUsage` 2) and, per device, the distinct Button-page (9) `Input_Button` elements of `IOHIDDeviceCopyMatchingElements`. Built-in devices (`Built-In`), Apple's (vendor 0x05AC or 0x004C: Magic Mouse, Magic Trackpad) and touch pads (any Digitizer-page element) don't count (CORE-18). Nothing is opened: listing devices and their elements worked unopened, without a prompt, and a Magic Trackpad showed buttons 1 and 2 beside its touch pad collection.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   | none                        |
+| Region                    | `NSLocale.currentLocale.regionCode` (macOS 14 and later): System Settings › General › Language & Region (LANG-07).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     | none                        |
 
 ### Windows backend (`platform/windows/`)
 
@@ -577,7 +608,8 @@ runs on threads Shrimp owns (multithreaded apartment), never on the UI thread.
 | Flow Bar                  | `WS_EX_NOACTIVATE`, `WS_EX_TOOLWINDOW` and `WS_EX_TOPMOST` (re-applied before each show, because tao rewrites the extended style), shown with `SW_SHOWNOACTIVATE`. Tauri's `show()` is not used: it activates the window and would take focus from the app in front (`flow_bar::show_first`). A click on the bar's WebView2 doesn't activate it either.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
 | Dictation sounds          | `PlaySoundW` with `SND_MEMORY` and `SND_ASYNC` from the synthesised WAVs, kept for the life of the process.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
 | Launch at login           | The user's `Run` key: a value named after the product ("Shrimp", "Shrimp Dev" for debug builds) with `"<exe>" --background`; Task Manager's "Disabled" (`StartupApproved\Run`) counts as off, and turning it on in Shrimp clears that. The installer writes the same value on a first install (WIN-10).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
-| Shell                     | `ShellExecuteW` for URLs and `ms-settings:` pages; free space from `GetDiskFreeSpaceExW`; the preferred language from `GetUserPreferredUILanguages`; the first name from `GetUserNameExW(NameDisplay)`; language names from the ICU that ships with Windows 10 (`uldn_languageDisplayName`); a restart through a hidden PowerShell that waits for the process to end.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| Connected mice            | Raw Input (`mice.rs`): `GetRawInputDeviceList`, then `GetRawInputDeviceInfoW(RIDI_DEVICEINFO)` for each `RIM_TYPEMOUSE` device and its `RID_DEVICE_INFO_MOUSE.dwNumberOfButtons` (CORE-18).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| Shell                     | `ShellExecuteW` for URLs and `ms-settings:` pages; free space from `GetDiskFreeSpaceExW`; the preferred language from `GetUserPreferredUILanguages`; the region from `GetUserDefaultGeoName`, else the region of `GetUserDefaultLocaleName` (LANG-07); the first name from `GetUserNameExW(NameDisplay)`; language names from the ICU that ships with Windows 10 (`uldn_languageDisplayName`); a restart through a hidden PowerShell that waits for the process to end.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
 
 Crates evaluated and not used: rdev (unmaintained, crashes under `tauri dev`), device_query
 (archived), inputbot (no release since 2023), enigo for pasting (main-thread crashes on
@@ -890,7 +922,7 @@ settings, the dictionary and snippets (`Library`, read from SQLite per dictation
     Simplified even with a Traditional prompt and writes Cantonese speech as standard
     written Chinese.
 
-### Languages (LANG-01..05)
+### Languages (LANG-01..05, LANG-07)
 
 `settings.languages` holds `autoDetect`, `selected` (Whisper codes and variants such as
 `en-GB`, `zh-Hant`, `yue`, `de-CH`; variants of one language exclude each other) and
@@ -902,6 +934,14 @@ fixed languages, Whisper checks the clip's language in the background; a confide
 sounded like French." at most once a day, with Open language settings, Add language and
 Don't show again. Hovering the Flow Bar with two or more languages shows Auto and one
 chip per language.
+
+In Canada (`Platform::region` is "CA"), after an inserted dictation once setup is done,
+a selection with another English variant and no English (Canada) gets a Suggestions
+notice once ever (LANG-07, `lang/region.rs`): "Switch to Canadian English? Spellings like
+colour and centre will come out right." Switch puts English (Canada) in the other
+variant's place in the list, and in the Flow Bar's choice if it was that; Not now closes
+it. `notices.canadianEnglishShown` remembers it; with Suggestions muted it isn't shown or
+used up.
 
 ### Interface language (LANG-06)
 
@@ -1036,7 +1076,7 @@ forgives it). A casing fix of an unusual word ("tauri" → "Tauri") counts. Lear
 entries are marked `learned` (a "Learned" badge) and announced in one notice with View.
 Field text is read and compared on the device only.
 
-## Insights (STA-01..05)
+## Insights (STA-01..06)
 
 Insights read only the stats tables, which `History::record` fills for every dictation
 with words, whatever the storage choice, so they survive deletion (STA-05):
@@ -1052,13 +1092,31 @@ with words, whatever the storage choice, so they survive deletion (STA-05):
 - **Activity:** a year of days, Sunday to Saturday per column, shaded 0, 1–249,
   250–499, 500–749, 750+ words; each day's title gives its words, apps and top app.
   **Apps:** words per app and the top app.
+- **Where you dictate (STA-06):** Wispr Flow's six categories, all listed, most words
+  first: personal messages, work messages, emails, AI prompts, documents and other tasks
+  (`insights/usage.rs`). A dictation takes its app's or website's style category
+  (STY-01, STY-05): Personal, Work and Email map across, AI assistants (and an IDE's
+  chat) are AI prompts, and of the rest, writing apps and sites are documents (Pages,
+  Microsoft Word, TextEdit, Notes, Notion, Obsidian; Google Docs, notion.so, obsidian.md,
+  the identifiers Wispr Flow lists for notes and docs) and everything else other tasks.
+  `usage_categories` keeps words and dictations per category from migration 3 on;
+  History's Retry has no app, so it isn't counted there. Each row shows its share of the
+  words, a count (dictations, except that emails count half and documents a fifth,
+  rounded, as Wispr Flow counts) and Power usage (10,000+ words), Moderate usage
+  (1,000–9,999) or Light usage (under 1,000); its title gives the exact words.
 
-Home shows a greeting with the user's first name and the push-to-talk shortcut, and a
-card with the week's words, speed and streak that opens Insights (STA-02). The share card
-is drawn on a canvas (1200 × 630) and sent to Rust as PNG bytes: Copy image writes
-`public.png` to the pasteboard, Download saves "My Shrimp activity <date>.png" to
-Downloads (STA-03). Insights refresh after each dictation (`history://changed`) and
-hourly.
+Home shows a greeting with the user's first name, with the push-to-talk shortcut until
+2,000 words are dictated (as Wispr Flow does), and a card with the week's words, speed
+and streak that opens Insights (STA-02). The share card is drawn on a canvas
+(1200 × 630) and sent to Rust as PNG bytes: Copy image writes `public.png` to the
+pasteboard, Download saves "My Shrimp activity <date>.png" to Downloads, and X or
+LinkedIn (`share_image`) copies the image first and, only if that worked, opens the
+network's compose page through `Launcher::open_url` with "I've dictated N words with
+Shrimp." in the interface language, so the image can be pasted into the post (STA-03).
+X's is its documented web intent, `https://x.com/intent/tweet?text=`. LinkedIn documents
+no compose URL that takes text (its `share-offsite` URL only shares a link), so Shrimp
+opens `https://www.linkedin.com/feed/?shareActive=true&text=`, the composer Wispr Flow
+opens. Insights refresh after each dictation (`history://changed`) and hourly.
 
 **Voice profile (STA-04).** It unlocks at 2,000 words, then at each milestone: every
 5,000 words to 12,000, every 10,000 to 37,000, then every 20,000. Building it needs as
@@ -1126,7 +1184,7 @@ rusqlite 0.40 (`bundled`, so SQLite and FTS5 are compiled in) with rusqlite_migr
 is used from the blocking pool. tauri-plugin-sql is not used: it would expose SQL to the
 webview, and the data is written by the Rust pipeline anyway.
 
-Schema (migration 1 is phase 2, migration 2 phase 4):
+Schema (migration 1 is phase 2, migration 2 phase 4, migration 3 phase 6):
 
 ```sql
 CREATE TABLE history (                                  -- P4
@@ -1153,6 +1211,7 @@ CREATE TABLE app_usage (day, app_id, app_name, words, dictations, PRIMARY KEY (d
 CREATE TABLE hourly_activity (weekday, hour, words, PRIMARY KEY (weekday, hour));
 CREATE TABLE recent_speed (id INTEGER PRIMARY KEY, created_at, words, speech_ms);  -- last 100
 CREATE TABLE meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
+CREATE TABLE usage_categories (category TEXT PRIMARY KEY, words, dictations);       -- STA-06
 ```
 
 History search is a `LIKE` over the final and raw text and the app name (with `%`, `_`
@@ -1223,7 +1282,8 @@ belongs to the signed app and reading it never prompts.
 
 Every notice has a category. Status notices (errors, permissions, the microphone, what a
 dictation did) always show; Suggestions (usage tips such as the short-tap tip, Bluetooth
-advice, the different-language card), Announcements (formatting tips) and Milestones
+advice, the different-language card, the Canadian English and mouse button
+suggestions), Announcements (formatting tips) and Milestones
 (word counts, the voice profile) follow Settings › Notifications (`settings.notifications`).
 `MutedNotices` wraps the notice chain (`MutedNotices` → `SoundingNotices` → `TauriUi`), so a
 muted notice neither sounds nor shows. The Flow Bar shows one notice at a time: an error

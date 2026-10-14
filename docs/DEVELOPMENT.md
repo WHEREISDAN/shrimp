@@ -297,7 +297,7 @@ is closed; `{"devices": null}` goes back to the real devices:
 dictation uses them when the audio source is `mic` (the default). Tests use the same fakes
 through `FakeDevices`.
 
-### Permissions, login, disk space
+### Permissions, login, disk space, region, mouse
 
 Debug builds can pretend states that are hard to produce for real:
 
@@ -307,11 +307,16 @@ Debug builds can pretend states that are hard to produce for real:
 | `SHRIMP_PRETEND_PERMISSIONS=accessibility=denied`     | The same from launch, so the check after an update runs with it (`microphone=notDetermined` too, comma-separated).                                                            |
 | `SHRIMP_LAUNCHED_AT_LOGIN=1`                          | The launch counts as one from the login item: the main window stays hidden.                                                                                                   |
 | `SHRIMP_FAKE_FREE_BYTES=52000000`                     | Reports that much free disk space, to show the "Storage Full" screen.                                                                                                         |
+| `SHRIMP_REGION=CA`                                    | Pretends the system region (two letters), for the Canadian English suggestion (LANG-07).                                                                                      |
+| `SHRIMP_FAKE_MOUSE_BUTTONS=5`                         | Pretends a connected mouse with that many buttons, for the mouse button suggestion (CORE-18); `0` pretends none.                                                              |
 
-Set environment variables with `scripts/macos/dev-app.sh open --env NAME=value`. To test
-onboarding, quit the app and move `~/Library/Application Support/com.shrimp.desktop.dev`
-aside first (it starts on a fresh install), then put it back. The login item is visible
-with `osascript -e 'tell application "System Events" to get the name of every login item'`;
+Set environment variables with `scripts/macos/dev-app.sh open --env NAME=value`. The
+Canadian English and mouse button suggestions show once ever: set
+`notices.canadianEnglishShown` or `notices.mouseButtonsShown` back to `false`
+(`update_settings`) to see one again. To test onboarding, quit the app and move
+`~/Library/Application Support/com.shrimp.desktop.dev` aside first (it starts on a fresh
+install), then put it back. The login item is visible with
+`osascript -e 'tell application "System Events" to get the name of every login item'`;
 don't use `sfltool dumpbtm`, which asks for an administrator password.
 
 ### Keyboards without an Fn key
