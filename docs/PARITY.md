@@ -30,8 +30,8 @@ phase 6 audit (`AUD-01`, see "Parity audit"). Sources are listed at the end of t
 
 - Phases 1–4 are accepted on macOS. Phase 5 re-verifies every phase 1–4 item on Windows
   (`WIN-01`) and adds the Windows-only items.
-- Phase 6 items are ticked once verified on macOS. Those listed under "Verified in phase 6"
-  as "Windows pending" still need a Windows run, which `WIN-01` covers.
+- Phase 6 items are ticked once verified on macOS; they were then re-run on Windows (see
+  "Verified on Windows, in phase 6"). `WIN-01` still covers Windows 11 and NVDA.
 - Shortcut names below are the macOS defaults. The Windows defaults are in `WIN-02`.
 - Where Wispr's own documents contradict each other, the criterion states the behaviour
   Shrimp adopts.
@@ -355,8 +355,8 @@ phase 6 audit (`AUD-01`, see "Parity audit"). Sources are listed at the end of t
 | Status | ID     | Feature      | Acceptance criterion                                                                                                                               | Phase |
 | ------ | ------ | ------------ | -------------------------------------------------------------------------------------------------------------------------------------------------- | ----- |
 | [x]    | AUD-01 | Parity audit | Every item here is re-checked against Wispr Flow's then-current docs and changelog; new features are added or explicitly scoped out.               | 6     |
-| [ ]    | AUD-02 | Regression   | The automated tests and a scripted tauri-mcp walkthrough of every phase 1–5 item pass on macOS and Windows.                                        | 6     |
-| [ ]    | AUD-03 | Latency      | Key-release-to-insert latency for a 5-second dictation (local Whisper, with and without AI edits) is measured on both platforms and recorded here. | 6     |
+| [x]    | AUD-02 | Regression   | The automated tests and a scripted tauri-mcp walkthrough of every phase 1–5 item pass on macOS and Windows.                                        | 6     |
+| [x]    | AUD-03 | Latency      | Key-release-to-insert latency for a 5-second dictation (local Whisper, with and without AI edits) is measured on both platforms and recorded here. | 6     |
 
 ## Verification log
 
@@ -548,8 +548,8 @@ tap, with a WAV file as the audio source.
 | APP-11  | Live with `SHRIMP_PRETEND_OUTSIDE_APPLICATIONS=1`: `get_app_health` reported the screen, holding fn dictated nothing, and Move only logged the copy it would make. The copy and relaunch: `platform::macos::install` tests; a release build outside /Applications was not run.                                                                                                                                                                                                           |
 | APP-12  | Live: a real click on the tray icon and Restart Shrimp (pressed through Accessibility) relaunched a new process with its main window and no crash screen.                                                                                                                                                                                                                                                                                                                                |
 | AUD-01  | Wispr's sources were re-read on 2026-10-13 and every item compared; the findings are under "Parity audit" below.                                                                                                                                                                                                                                                                                                                                                                         |
-| AUD-02  | macOS passed 2026-10-13 (see "Verified in phase 6"); the Windows half is open.                                                                                                                                                                                                                                                                                                                                                                                                           |
-| AUD-03  | macOS measured 2026-10-13 (see "Latency"); the Windows half is open.                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| AUD-02  | macOS passed 2026-10-13 (see "Verified in phase 6"); Windows passed 2026-10-14 (see "Verified on Windows, in phase 6").                                                                                                                                                                                                                                                                                                                                                                  |
+| AUD-03  | macOS measured 2026-10-13 and Windows 2026-10-14 (see "Latency").                                                                                                                                                                                                                                                                                                                                                                                                                        |
 
 Verified in phase 6:
 
@@ -578,20 +578,89 @@ the signed `Shrimp Dev.app`, macOS 26.5, M4 Mac mini, dictating into its own tar
   tests (sources in the commit that added them); those apps weren't launched.
 - The controller now shuts down cleanly when a test harness is dropped, releasing the test
   database; on macOS `shutting_down_the_controller_releases_the_database` checks that
-  History's last holder is the harness. The Windows temporary-folder leak it fixes needs a
-  Windows `cargo test` run.
+  History's last holder is the harness. On Windows `cargo test` no longer leaves folders in
+  `%TEMP%` (checked in "Verified on Windows, in phase 6").
 
-Windows pending (phase 6 code that hasn't run on Windows; none of it was compiled there):
+Verified on Windows, in phase 6:
 
-- Windows-specific code: CORE-18 (Raw Input mouse buttons), LANG-07 (the region from
-  `GetUserDefaultGeoName`), APP-12 (the relaunch), APP-03 (left click opens the main window),
-  INS-10, INS-11 and STY-05 (the new executable names, and Shift+Insert for Hyper and
-  WezTerm, whose own keymaps differ), STA-06 (`WINWORD.EXE` as a document app).
-- Portable features to re-run on Windows: CORE-17, KEYS-11 (the hint with Ctrl+Win), FMT-15
-  (keyed by executable name), TRF-07 (the wand in the `WS_EX_NOACTIVATE` bar), HIS-09,
-  HIS-10, STA-02, STA-03, DIC-04, DIC-07, SNP-01, TRF-01, TRF-04, TRF-05, MIC-08, SND-01
-  (the new cues through `PlaySoundW`) and FMT-05, FMT-06 and FMT-14.
-- macOS only, nothing to run on Windows: APP-07, APP-10, APP-11.
+"Regression on Windows" means `pnpm regression:win` (see DEVELOPMENT.md) on the debug
+`Shrimp Dev` with Whisper on the GPU (Vulkan), on the PC described under "Verified on
+Windows, in phase 5", started in the console session through a scheduled task while nobody
+used the PC, dictating WAV fixtures into its own target app (the system's EDIT controls, as
+in Notepad). It runs the macOS cases with the Windows shortcuts and the Windows-only cases in
+`scripts/windows/regression/suites/windows.mjs`.
+
+- AUD-02, Windows half: the walkthrough passed on 2026-10-14 with 93 cases over 134 items: 0
+  failures, the same 2 model warnings as on macOS (`qwen2.5-coder:7b` added no "!" for
+  FMT-07's Excited style and made FMT-09's prompt a list), and 2 skipped (APP-03, APP-12,
+  below). The Windows checks passed: `cargo fmt`, clippy with `-D warnings` in debug and in
+  release with Vulkan, `cargo test`, `tsc`, Vitest, oxlint and Prettier. A `cargo test` run
+  left no new entry in `%TEMP%` (3,557 before and after).
+- Windows-specific code:
+  - CORE-18: live with the PC's real devices, no override: Raw Input read "the connected
+    mice have up to 32 buttons", and the first shortcut dictation showed "Your mouse has
+    extra buttons. Use one to dictate."; the relaunch case also ran with
+    `SHRIMP_FAKE_MOUSE_BUTTONS=5`. `reads_the_connected_mice` calls Raw Input.
+  - LANG-07: regression with `SHRIMP_REGION=CA`: "Switch to Canadian English?", Switch
+    selected en-CA and the next dictation read "My favourite colour is grey…". The region
+    from `GetUserDefaultGeoName` itself: `reads_the_user_and_the_disk`.
+  - INS-10: regression, with the target app running as `mstsc.exe`: the clipboard came back
+    about 5 s after the paste, and "Tomorrow at noon." after "…talk about it" was pasted as
+    is, without context spacing.
+  - INS-11: live in WezTerm 20240203 (the portable build) and Hyper 3.4.1 (unpacked from its
+    installer, not installed), each running a PowerShell that read one line: "Ship it now,
+    press enter." reached both as "Ship it now" and Enter. Shift+Insert clashes with neither
+    keymap: WezTerm binds it to `PasteFrom 'PrimarySelection'`, which reads the clipboard on
+    Windows, and Hyper (xterm.js) leaves it to Chromium's paste. Regression: the target app
+    running as `Code.exe`, `Hyper.exe` and `wezterm-gui.exe` received Shift+Insert, and as
+    itself Ctrl+V.
+  - STA-06: regression, with the target app running as `WINWORD.EXE`: the documents count
+    grew, and the clipboard came back about 3 s after the paste (WIN-04).
+  - STY-05: the new executable names are pinned by unit tests; no browser was launched.
+  - APP-03: in one trial run, with Explorer's flyout of hidden icons open, a posted right
+    click opened the tray menu and UI Automation listed Open Shrimp, Shortcuts…, Paste last
+    transcript, Copy last transcript, Restart Shrimp and Quit Shrimp. The left click and the
+    rest of the runs are skipped: Shrimp's icon sits in that flyout on this PC, where Windows
+    gives no position for it (`Shell_NotifyIconGetRect` returns `S_FALSE`), and tray-icon
+    ignores a click it can't place; opening the flyout means operating Explorer, which left
+    it stuck open once and was dropped.
+  - APP-12: skipped for the same reason. The relaunch it uses (`relaunch_after_exit`, the
+    same `system::restart` as Reset & restart) ran live in APP-08, which relaunched Shrimp as
+    a new process.
+- Windows items of phase 5, re-run by the regression: WIN-02 (every default listed; Start
+  stayed closed while Ctrl+Win was held), WIN-03 (Ctrl alone and Ctrl+C refused), WIN-04,
+  WIN-05 (no paste in clipboard history; Copy last transcript in it), WIN-09 (after a start
+  Shrimp's log shows Paste last transcript greyed, and enabled after a dictation), WIN-10
+  (`--background` kept the main window hidden) and WIN-11 (context, Command Mode and
+  auto-learn through UI Automation).
+- Portable features, re-run by the regression on Windows: CORE-17, KEYS-11 ("Or double-tap
+  Ctrl+Win"), FMT-15 (the target's executable name as the app), TRF-07 (the wand polished the
+  target's selection while the target stayed in front; Turn to list and Undo), HIS-09,
+  HIS-10, STA-02 (the greeting's "Hold Ctrl+Win"), STA-03 (Copy image put a PNG on the
+  clipboard and Download saved a PNG into Downloads, deleted afterwards; X and LinkedIn:
+  Vitest), DIC-04, DIC-07 (a pasted "Wyn" respelled as "Ngwenya" was added as learned), SNP-01,
+  TRF-01 (Win+Alt+1), TRF-04, TRF-05, MIC-08, SND-01 (`PlaySoundW` started the Start, Stop
+  and Paste cues, and no Paste cue for a copy), FMT-05, FMT-06 and FMT-14 (a French dictation
+  got U+202F before "?").
+- Bugs found by the Windows run and fixed:
+  - When Shrimp pasted or pressed Enter while push to talk was still held, it pressed Win
+    again after the paste, though its hook had swallowed Win; the hook then swallowed the
+    real release too, so Windows kept Win down and the next press opened Start, where the
+    paste landed in Search. Shrimp now leaves swallowed modifiers alone (WIN-02).
+  - Modifiers lifted for a sent key went back down even when the user had let go meanwhile,
+    and Alt or Win put back down and then released read as a bare press: Alt+Enter for Press
+    Enter (CORE-15) left the target window in menu mode. Only modifiers still held go back
+    down, followed by the inert key; and a Ctrl the user holds is pressed again for Ctrl+V,
+    so letting go of it just before the paste can't type a bare "v".
+  - The clipboard was opened without a window, so another app's open and close in between
+    closed it under Shrimp's write ("Thread does not have a clipboard open"), which failed
+    Copy image (STA-03) and could fail a paste. It is now opened in the name of a window of
+    Shrimp's own.
+  - Line breaks went on the clipboard as a lone "\n", which classic Windows edit controls
+    show as nothing; they now go as "\r\n" (INS-08, FMT-06), and auto-learn (DIC-07) and
+    transform Undo (TRF-04) find the pasted text whichever form the field keeps.
+- By tests only on Windows: STY-05's identifiers, Word's and WhatsApp's 3 s hold for the real
+  apps, and the macOS-only APP-07, APP-10 and APP-11 (not run).
 
 Verified partly, in phase 5:
 
@@ -775,14 +844,22 @@ before Friday afternoon, and copy me."), local Whisper Large v3 Turbo (q5_0, Met
 by `pnpm regression:mac latency --runs 10 --model qwen2.5-coder:7b`, which polls the field
 through Accessibility every 2 ms. Ten measured runs per mode after one warm-up run.
 
-| Platform | Date       | Machine                 | AI edits                                    | Median   | p90      | Min      | Max      | Whisper alone (median) |
-| -------- | ---------- | ----------------------- | ------------------------------------------- | -------- | -------- | -------- | -------- | ---------------------- |
-| macOS    | 2026-10-13 | M4 Mac mini, macOS 26.5 | Off (cleanup None)                          | 660 ms   | 698 ms   | 584 ms   | 708 ms   | 656 ms                 |
-| macOS    | 2026-10-13 | M4 Mac mini, macOS 26.5 | On (Light, Ollama `qwen2.5-coder:7b`, warm) | 1,665 ms | 1,709 ms | 1,630 ms | 1,750 ms | 652 ms                 |
-| Windows  | —          | —                       | Off / on                                    | pending  |          |          |          |                        |
+| Platform | Date       | Machine                                | AI edits                                    | Median   | p90      | Min      | Max      | Whisper alone (median) |
+| -------- | ---------- | -------------------------------------- | ------------------------------------------- | -------- | -------- | -------- | -------- | ---------------------- |
+| macOS    | 2026-10-13 | M4 Mac mini, macOS 26.5                | Off (cleanup None)                          | 660 ms   | 698 ms   | 584 ms   | 708 ms   | 656 ms                 |
+| macOS    | 2026-10-13 | M4 Mac mini, macOS 26.5                | On (Light, Ollama `qwen2.5-coder:7b`, warm) | 1,665 ms | 1,709 ms | 1,630 ms | 1,750 ms | 652 ms                 |
+| Windows  | 2026-10-14 | i9-9900K, RTX 2080 Ti, Windows 10 21H2 | Off (cleanup None)                          | 540 ms   | 600 ms   | 462 ms   | 647 ms   | 514 ms                 |
+| Windows  | 2026-10-14 | i9-9900K, RTX 2080 Ti, Windows 10 21H2 | On (Light, Ollama `qwen2.5-coder:7b`, warm) | 831 ms   | 847 ms   | 585 ms   | 878 ms   | 537 ms                 |
 
 With AI edits off nearly all of the time is Whisper; the paste and clipboard handling add a
-few milliseconds. The local 7B model adds about a second.
+few milliseconds. The local 7B model adds about a second on the Mac and about 0.3 s on the
+RTX 2080 Ti.
+
+On Windows: `pnpm regression:win latency -Runs 10 -Model qwen2.5-coder:7b` on the debug
+`Shrimp Dev` with Whisper Large v3 Turbo on the GPU (Vulkan) and Ollama 0.40.4 on the same
+GPU (CUDA), Ctrl+Win held for 5.0 s over the same sentence spoken by Windows' voice (4.75 s),
+timed from the release until the target field's text changed (`WM_GETTEXT` every 2 ms). Ten
+measured runs per mode after one warm-up run.
 
 ## Out of scope
 
