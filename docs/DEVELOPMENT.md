@@ -607,6 +607,12 @@ Not covered, and why:
   dictation ended, Ctrl+Esc reaches Windows and opens Start.
 - The Flow Bar's notices disappear after a few seconds; read them with `read_text` on
   `flow-bar` right after the action.
+- A helper can't bring Shrimp's window to the front while an elevated app (Task Manager,
+  for one) is in front; one started by a scheduled task with `-RunLevel Highest` can, with
+  `SetForegroundWindow` alone. Start Shrimp itself from a normal task, so it isn't elevated.
+- Show and hide the main window through Tauri (tauri-mcp's `manage_window`), not with
+  `ShowWindow`: tao keeps its own visibility flag and hides the window again at its next
+  style change, such as maximizing.
 
 ### Regression walkthrough (Windows)
 
