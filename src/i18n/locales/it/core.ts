@@ -88,7 +88,8 @@ export const core: CoreCatalog = {
     launchAtLogin: "Apri al login",
     launchAtLoginBody: "Shrimp si avvia in background quando accedi, pronto nella barra dei menu.",
     showInDock: "Mostra l'app nel Dock",
-    showInDockBody: "Altrimenti Shrimp resta solo nella barra dei menu.",
+    showInDockBody:
+      "Altrimenti Shrimp resta nella barra dei menu e appare nel Dock solo mentre la sua finestra è aperta.",
     resetTitle: "Ripristina l'app",
     resetBody:
       "Elimina i dati locali di Shrimp su questo Mac e lo riavvia. Usalo se Shrimp continua a non funzionare bene.",
@@ -215,6 +216,10 @@ export const core: CoreCatalog = {
       "Impostazioni e cronologia sono al sicuro. Se stavi dettando, la registrazione è stata salvata: recuperala dalla cronologia nella Home.",
     crashDetails: "Dettagli",
     continue: "Continua",
+    moveTitle: "Sposta Shrimp nella cartella Applicazioni",
+    moveBody: "Shrimp deve trovarsi nella cartella Applicazioni per funzionare e aggiornarsi.",
+    moveToApplications: "Sposta in Applicazioni",
+    quit: "Esci",
   },
   home: {
     tagline: "Dalla voce al testo, ovunque.",
@@ -336,6 +341,7 @@ export const core: CoreCatalog = {
     statusEmpty: "Nessuna voce rilevata",
     statusInterrupted:
       "Registrazione interrotta. Recuperala per trascrivere ciò che è stato detto.",
+    statusCancelled: "Dettatura annullata. Recuperala per trascrivere ciò che è stato detto.",
     notPasted: "Non incollato",
     unformatted: "Non formattato",
     unformattedHint: "Modifiche IA non applicate: è stata inserita la trascrizione grezza.",
@@ -394,5 +400,13 @@ export const core: CoreCatalog = {
       "Ogni trascrizione, registrazione e backup su questo Mac viene eliminato subito, e le nuove dettature non vengono salvate. Digita “delete all” per confermare.",
     neverField: "Conferma",
     neverConfirm: "Elimina tutti i dati",
+    transcriptsTitle: "Cronologia delle trascrizioni",
+    deleteAllBody:
+      "Elimina ogni trascrizione e registrazione su questo Mac. Statistiche, dizionario, snippet e impostazioni restano.",
+    deleteAll: "Elimina tutte le trascrizioni",
+    deleteAllTitle: "Eliminare tutte le trascrizioni?",
+    deleteAllWarning: "Verrà eliminata l'intera cronologia delle trascrizioni.",
+    deleteAllConfirm: "Elimina tutto",
+    deleteAllDone: "Tutte le trascrizioni eliminate",
   },
 };

@@ -3,28 +3,33 @@ use std::sync::atomic::{AtomicBool, Ordering};
 
 use tauri::image::Image;
 use tauri::menu::{CheckMenuItem, Menu, MenuItem, PredefinedMenuItem};
-use tauri::tray::TrayIconBuilder;
+use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
 use tauri::{AppHandle, Emitter, Manager, Runtime, include_image};
 
-use super::events::NAVIGATE_EVENT;
+use super::events::{NAVIGATE_EVENT, TauriUi};
 use super::{updates, window};
-use crate::dictation::{ControllerHandle, ControllerInput};
+use crate::commands::system;
+use crate::dictation::{ControllerHandle, ControllerInput, DictationUi};
 use crate::hotkeys::Action;
-use crate::platform::TRAY_ACCELERATORS;
+use crate::notify::Notice;
+use crate::platform::{TRAY_ACCELERATORS, TRAY_CLICK_OPENS_WINDOW};
 use crate::settings::{Settings, SettingsStore};
 use crate::t;
 
 const TRAY_ID: &str = "main";
 const TRAY_ICON: Image<'_> = include_image!("icons/tray.png");
 const OPEN_ID: &str = "open";
-const SHORTCUTS_ID: &str = "shortcuts";
+pub const SHORTCUTS_ID: &str = "shortcuts";
 const PASTE_LAST_ID: &str = "paste-last";
-const COPY_LAST_ID: &str = "copy-last";
+pub const COPY_LAST_ID: &str = "copy-last";
 const PRIVACY_ID: &str = "privacy-mode";
-const QUIT_ID: &str = "quit";
+const RESTART_ID: &str = "restart";
+pub const QUIT_ID: &str = "quit";
 
 /// Paste last transcript is greyed out until there is one (WIN-09).
 static PASTE_LAST_AVAILABLE: AtomicBool = AtomicBool::new(false);
+/// The last transcript has text, for the menu bar's Copy last transcript (APP-10).
+static COPY_LAST_AVAILABLE: AtomicBool = AtomicBool::new(false);
 
 pub fn create<R: Runtime>(app: &AppHandle<R>, settings: &Settings) -> tauri::Result<()> {
     let privacy = settings.privacy.privacy_mode;
@@ -33,7 +38,7 @@ pub fn create<R: Runtime>(app: &AppHandle<R>, settings: &Settings) -> tauri::Res
         .icon_as_template(true)
         .tooltip(tooltip(privacy))
         .menu(&menu(app, settings)?)
-        .show_menu_on_left_click(true)
+        .show_menu_on_left_click(!TRAY_CLICK_OPENS_WINDOW)
         .on_menu_event(|app, event| match event.id().as_ref() {
             OPEN_ID => window::show_main(app),
             SHORTCUTS_ID => {
@@ -44,15 +49,30 @@ pub fn create<R: Runtime>(app: &AppHandle<R>, settings: &Settings) -> tauri::Res
             COPY_LAST_ID => send(app, Action::CopyLast),
             PRIVACY_ID => toggle_privacy_mode(app),
             updates::MENU_ID => updates::menu_clicked(app),
+            RESTART_ID => restart(app),
             QUIT_ID => app.exit(0),
             _ => {}
+        })
+        .on_tray_icon_event(|tray, event| {
+            if let TrayIconEvent::Click {
+                button: MouseButton::Left,
+                button_state: MouseButtonState::Up,
+                ..
+            } = event
+                && TRAY_CLICK_OPENS_WINDOW
+            {
+                window::show_main(tray.app_handle());
+            }
         })
         .build(app)?;
     Ok(())
 }
 
-/// Shows Privacy mode in the menu, the icon and the tooltip (PRIV-03).
+/// Shows Privacy mode in the menu, the icon and the tooltip (PRIV-03). The
+/// menu bar shares the menu's texts and states, so it follows.
 pub fn refresh<R: Runtime>(app: &AppHandle<R>, settings: &Settings) {
+    #[cfg(target_os = "macos")]
+    super::menu_bar::refresh(app);
     let Some(tray) = app.tray_by_id(TRAY_ID) else {
         return;
     };
@@ -66,9 +86,12 @@ pub fn refresh<R: Runtime>(app: &AppHandle<R>, settings: &Settings) {
     }
 }
 
-/// Enables or greys out Paste last transcript.
-pub fn set_paste_last_available<R: Runtime>(app: &AppHandle<R>, available: bool) {
-    if PASTE_LAST_AVAILABLE.swap(available, Ordering::Relaxed) == available {
+/// Enables or greys out Paste last transcript, and the menu bar's Copy last
+/// transcript.
+pub fn set_last_transcript<R: Runtime>(app: &AppHandle<R>, paste: bool, copy: bool) {
+    let paste_changed = PASTE_LAST_AVAILABLE.swap(paste, Ordering::Relaxed) != paste;
+    let copy_changed = COPY_LAST_AVAILABLE.swap(copy, Ordering::Relaxed) != copy;
+    if !paste_changed && !copy_changed {
         return;
     }
     if let Some(settings) = app.try_state::<Arc<SettingsStore>>() {
@@ -103,6 +126,7 @@ fn menu<R: Runtime>(app: &AppHandle<R>, settings: &Settings) -> tauri::Result<Me
         settings.privacy.privacy_mode,
         None::<&str>,
     )?;
+    let restart = item(RESTART_ID, t!("tray.restart"), true, None)?;
     let quit = item(QUIT_ID, t!("tray.quit"), true, quit_keys)?;
     Menu::with_items(
         app,
@@ -116,9 +140,16 @@ fn menu<R: Runtime>(app: &AppHandle<R>, settings: &Settings) -> tauri::Result<Me
             &PredefinedMenuItem::separator(app)?,
             &privacy,
             &PredefinedMenuItem::separator(app)?,
+            &restart,
             &quit,
         ],
     )
+}
+
+/// Whether the last transcript has text to copy.
+#[cfg(target_os = "macos")]
+pub fn copy_last_available() -> bool {
+    COPY_LAST_AVAILABLE.load(Ordering::Relaxed)
 }
 
 fn tooltip(privacy: bool) -> String {
@@ -161,6 +192,22 @@ fn toggle_privacy_mode<R: Runtime>(app: &AppHandle<R>) {
     let on = !settings.get().privacy.privacy_mode;
     if let Err(error) = settings.update(&serde_json::json!({"privacy": {"privacyMode": on}})) {
         log::warn!("could not switch Privacy mode: {error}");
+    }
+}
+
+/// "Restart Shrimp" (APP-12): a normal quit, so Whisper unloads and no crash
+/// screen follows, then the app opens again with its main window, without
+/// asking first (Wispr Flow's Restart Flow, article 7492559320).
+fn restart<R: Runtime>(app: &AppHandle<R>) {
+    let Err(error) = system::restart(app) else {
+        return;
+    };
+    log::error!("could not restart: {}", error.message);
+    if let Some(ui) = app.try_state::<Arc<TauriUi>>() {
+        ui.notice(Notice::error(t!(
+            "notice.restartFailed",
+            error = error.message
+        )));
     }
 }
 

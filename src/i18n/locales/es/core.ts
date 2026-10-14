@@ -89,7 +89,8 @@ export const core: CoreCatalog = {
     launchAtLoginBody:
       "Shrimp se abre en segundo plano al iniciar sesión y queda disponible en la barra de menús.",
     showInDock: "Mostrar la app en el Dock",
-    showInDockBody: "Si está desactivado, Shrimp solo aparece en la barra de menús.",
+    showInDockBody:
+      "Si está desactivado, Shrimp vive en la barra de menús y solo aparece en el Dock mientras su ventana está abierta.",
     resetTitle: "Restablecer la app",
     resetBody:
       "Elimina los datos locales de Shrimp en este Mac y reinicia la app. Úsalo si Shrimp sigue dando problemas.",
@@ -213,6 +214,10 @@ export const core: CoreCatalog = {
       "Tus ajustes y tu historial están a salvo. Si estabas dictando, la grabación se guardó: recupérala desde el historial en Inicio.",
     crashDetails: "Detalles",
     continue: "Continuar",
+    moveTitle: "Mueve Shrimp a la carpeta Aplicaciones",
+    moveBody: "Shrimp tiene que estar en la carpeta Aplicaciones para funcionar y actualizarse.",
+    moveToApplications: "Mover a Aplicaciones",
+    quit: "Salir",
   },
   home: {
     tagline: "Voz a texto, en cualquier lugar.",
@@ -334,6 +339,7 @@ export const core: CoreCatalog = {
     statusFailed: "No se pudo transcribir",
     statusEmpty: "No se detectó voz",
     statusInterrupted: "Grabación interrumpida. Recupérala para transcribir lo que dijiste.",
+    statusCancelled: "Dictado cancelado. Recupéralo para transcribir lo que dijiste.",
     notPasted: "No pegado",
     unformatted: "Sin formato",
     unformattedHint: "No se aplicaron ediciones con IA: se insertó la transcripción sin editar.",
@@ -392,5 +398,13 @@ export const core: CoreCatalog = {
       "Se eliminan ahora todas las transcripciones, grabaciones y copias de seguridad de este Mac, y los dictados nuevos no se guardan. Escribe “delete all” para confirmar.",
     neverField: "Confirmación",
     neverConfirm: "Eliminar todos los datos",
+    transcriptsTitle: "Historial de transcripciones",
+    deleteAllBody:
+      "Elimina todas las transcripciones y grabaciones de este Mac. Las estadísticas, tu diccionario, los fragmentos y los ajustes se conservan.",
+    deleteAll: "Eliminar todas las transcripciones",
+    deleteAllTitle: "¿Eliminar todas las transcripciones?",
+    deleteAllWarning: "Se eliminará todo tu historial de transcripciones.",
+    deleteAllConfirm: "Eliminar todo",
+    deleteAllDone: "Todas las transcripciones eliminadas",
   },
 };

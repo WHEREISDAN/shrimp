@@ -60,7 +60,7 @@ export function App() {
       setShortcutsOpen(true);
     } else if (section === "history") {
       go("home");
-    } else if (section === "dictionary" || section === "insights") {
+    } else if (section === "dictionary" || section === "insights" || section === "help") {
       go(section);
     } else if (section === "voiceProfile") {
       go("insights");

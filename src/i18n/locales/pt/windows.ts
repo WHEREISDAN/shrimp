@@ -43,6 +43,8 @@ export const windows: WindowsCatalog = {
       "O modo de privacidade está ativado, então só o Whisper neste PC e o Ollama funcionam. Sua escolha aqui volta a valer quando você desativá-lo.",
     neverBody:
       "Todas as transcrições, gravações e backups neste PC serão apagados agora, e novos ditados não serão guardados. Digite “delete all” para confirmar.",
+    deleteAllBody:
+      "Apaga todas as transcrições e gravações neste PC. As estatísticas, seu dicionário, os trechos e as configurações continuam.",
   },
   aiProvider: { ollamaNote: "O Ollama roda neste PC; nada sai dele." },
   apiKey: { saved: "Chave salva no Gerenciador de Credenciais do Windows" },

@@ -86,7 +86,8 @@ export const core = {
     launchAtLogin: "Launch at login",
     launchAtLoginBody: "Shrimp starts in the background when you log in, ready in the menu bar.",
     showInDock: "Show app in Dock",
-    showInDockBody: "When off, Shrimp lives only in the menu bar.",
+    showInDockBody:
+      "When off, Shrimp lives in the menu bar and shows in the Dock only while its window is open.",
     resetTitle: "Reset app",
     resetBody:
       "Deletes Shrimp's local data on this Mac and restarts it. Use it if Shrimp keeps misbehaving.",
@@ -206,6 +207,10 @@ export const core = {
       "Your settings and history are safe. If you were dictating, the recording was saved: recover it from History on Home.",
     crashDetails: "Details",
     continue: "Continue",
+    moveTitle: "Move Shrimp to the Applications folder",
+    moveBody: "Shrimp needs to be in the Applications folder to run and update.",
+    moveToApplications: "Move to Applications",
+    quit: "Quit",
   },
   home: {
     tagline: "Speech to text, anywhere.",
@@ -325,6 +330,7 @@ export const core = {
     statusFailed: "Transcription failed",
     statusEmpty: "No speech detected",
     statusInterrupted: "Recording interrupted. Recover it to transcribe what was said.",
+    statusCancelled: "Dictation cancelled. Recover it to transcribe what was said.",
     notPasted: "Not pasted",
     unformatted: "Unformatted",
     unformattedHint: "AI edits weren't applied: the raw transcript was inserted.",
@@ -382,5 +388,13 @@ export const core = {
       "Every transcript, recording and backup on this Mac is deleted now, and new dictations aren't stored. Type “delete all” to confirm.",
     neverField: "Confirmation",
     neverConfirm: "Delete all data",
+    transcriptsTitle: "Transcript history",
+    deleteAllBody:
+      "Deletes every transcript and recording on this Mac. Insights, your dictionary, snippets and settings stay.",
+    deleteAll: "Delete all transcripts",
+    deleteAllTitle: "Delete all transcripts?",
+    deleteAllWarning: "This will delete your entire transcription history.",
+    deleteAllConfirm: "Delete all",
+    deleteAllDone: "All transcripts deleted",
   },
 } as const;

@@ -89,7 +89,8 @@ export const core: CoreCatalog = {
     launchAtLoginBody:
       "O Shrimp abre em segundo plano quando você inicia a sessão, pronto na barra de menus.",
     showInDock: "Mostrar o app no Dock",
-    showInDockBody: "Quando desativado, o Shrimp fica só na barra de menus.",
+    showInDockBody:
+      "Quando desativado, o Shrimp fica na barra de menus e só aparece no Dock enquanto a janela dele está aberta.",
     resetTitle: "Redefinir o app",
     resetBody:
       "Apaga os dados locais do Shrimp neste Mac e o reinicia. Use se o Shrimp continuar com problemas.",
@@ -214,6 +215,10 @@ export const core: CoreCatalog = {
       "Seus ajustes e seu histórico estão seguros. Se você estava ditando, a gravação foi salva: recupere-a no Histórico, em Início.",
     crashDetails: "Detalhes",
     continue: "Continuar",
+    moveTitle: "Mova o Shrimp para a pasta Aplicativos",
+    moveBody: "O Shrimp precisa estar na pasta Aplicativos para funcionar e se atualizar.",
+    moveToApplications: "Mover para Aplicativos",
+    quit: "Encerrar",
   },
   home: {
     tagline: "Voz em texto, em qualquer lugar.",
@@ -336,6 +341,7 @@ export const core: CoreCatalog = {
     statusFailed: "Falha na transcrição",
     statusEmpty: "Nenhuma fala detectada",
     statusInterrupted: "Gravação interrompida. Recupere-a para transcrever o que foi dito.",
+    statusCancelled: "Ditado cancelado. Recupere-o para transcrever o que foi dito.",
     notPasted: "Não colado",
     unformatted: "Sem formatação",
     unformattedHint: "As edições da IA não foram aplicadas: a transcrição bruta foi inserida.",
@@ -394,5 +400,13 @@ export const core: CoreCatalog = {
       "Todas as transcrições, gravações e backups neste Mac serão apagados agora, e novos ditados não serão guardados. Digite “delete all” para confirmar.",
     neverField: "Confirmação",
     neverConfirm: "Apagar todos os dados",
+    transcriptsTitle: "Histórico de transcrições",
+    deleteAllBody:
+      "Apaga todas as transcrições e gravações neste Mac. As estatísticas, seu dicionário, os trechos e as configurações continuam.",
+    deleteAll: "Apagar todas as transcrições",
+    deleteAllTitle: "Apagar todas as transcrições?",
+    deleteAllWarning: "Isso apagará todo o seu histórico de transcrições.",
+    deleteAllConfirm: "Apagar tudo",
+    deleteAllDone: "Todas as transcrições apagadas",
   },
 };

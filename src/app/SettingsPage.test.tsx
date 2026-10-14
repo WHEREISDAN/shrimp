@@ -303,6 +303,30 @@ describe("SettingsPage data and privacy", () => {
     );
     await waitFor(() => expect(toggle).not.toBeChecked());
   });
+
+  it("deletes all transcripts after confirming, apart from Local data storage", async () => {
+    const { argsOf } = backend({ delete_all_history: () => null });
+    render(<SettingsPage target={at("privacy")} />);
+    fireEvent.click(await screen.findByRole("button", { name: "Delete all transcripts" }));
+    const dialog = screen.getByRole("dialog", { name: "Delete all transcripts?" });
+    expect(dialog).toHaveTextContent("This will delete your entire transcription history.");
+    fireEvent.click(within(dialog).getByRole("button", { name: "Cancel" }));
+    expect(argsOf("delete_all_history")).toEqual([]);
+
+    fireEvent.click(screen.getByRole("button", { name: "Delete all transcripts" }));
+    const again = screen.getByRole("dialog", { name: "Delete all transcripts?" });
+    fireEvent.click(within(again).getByRole("button", { name: "Delete all" }));
+    await waitFor(() => expect(argsOf("delete_all_history")).toEqual([{}]));
+    expect(await screen.findByText("All transcripts deleted")).toBeInTheDocument();
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(argsOf("set_history_storage")).toEqual([]);
+  });
+
+  it("has no transcripts to delete while history is never stored", async () => {
+    backend({}, { ...SETTINGS, privacy: { ...SETTINGS.privacy, history: "never" } });
+    render(<SettingsPage target={at("privacy")} />);
+    expect(await screen.findByRole("button", { name: "Delete all transcripts" })).toBeDisabled();
+  });
 });
 
 describe("SettingsPage notifications", () => {

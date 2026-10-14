@@ -200,6 +200,23 @@ fn copy_last_copies_the_last_transcript() {
     wait_until("the copy", || *h.fakes.copied.lock().unwrap() == [TEXT]);
 }
 
+/// The menu bar greys out Copy last transcript when there is no text (APP-10).
+#[test]
+fn a_cancelled_dictation_leaves_nothing_to_copy() {
+    let h = Harness::speech(5.0);
+    let reported = || h.fakes.last_transcript.lock().unwrap().last().copied();
+    h.hold(Action::PushToTalk, Duration::from_millis(700));
+    wait_until("insertion", || h.fakes.inserted() == [TEXT]);
+    wait_until("text to copy", || reported() == Some((true, true)));
+
+    h.shortcut(Action::PushToTalk, true);
+    std::thread::sleep(Duration::from_millis(300));
+    h.shortcut(Action::Cancel, true);
+    h.shortcut(Action::Cancel, false);
+    h.shortcut(Action::PushToTalk, false);
+    wait_until("audio only", || reported() == Some((true, false)));
+}
+
 #[test]
 fn flow_bar_clicks_start_stop_and_cancel() {
     let h = Harness::speech(5.0);

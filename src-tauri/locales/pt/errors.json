@@ -71,6 +71,7 @@
   "error.relaunch.noExecutable": "não foi possível encontrar o app: {details}",
   "error.relaunch.notBundled": "O Shrimp não está sendo executado a partir de um pacote de app",
   "error.relaunch.failed": "não foi possível reiniciar: {details}",
+  "error.install.copyFailed": "Não foi possível copiar o Shrimp para {folder}: {details}",
   "error.models.unknown": "Esse modelo não está no catálogo.",
   "error.models.inUse": "Mude para outro modelo antes de apagar este.",
   "error.models.deleteFailed": "Não foi possível apagar o modelo: {details}",

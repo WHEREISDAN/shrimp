@@ -14,7 +14,7 @@ use windows::Win32::UI::Shell::ShellExecuteW;
 use windows::Win32::UI::WindowsAndMessaging::SW_SHOWNORMAL;
 use windows::core::{HSTRING, PCSTR, PWSTR, w};
 
-use crate::platform::{Launcher, PlatformError};
+use crate::platform::{Launcher, PlatformError, RELAUNCH_ARG};
 use crate::t;
 
 /// No console window for helper processes.
@@ -72,14 +72,15 @@ pub fn open_storage_settings() -> Result<(), PlatformError> {
     open_settings_page("storagesense")
 }
 
-/// Opens Shrimp again once this process has exited; the caller exits next.
-/// Started before the exit, the new instance would only hand over to this
-/// one through the single-instance check.
+/// Opens Shrimp again with `RELAUNCH_ARG` once this process has exited; the
+/// caller exits next. Started before the exit, the new instance would only
+/// hand over to this one through the single-instance check.
 pub fn relaunch_after_exit() -> Result<(), PlatformError> {
     let executable = std::env::current_exe()
         .map_err(|err| PlatformError::Failed(t!("error.relaunch.noExecutable", details = err)))?;
     let script = format!(
-        "Wait-Process -Id {} -ErrorAction SilentlyContinue; Start-Process -FilePath '{}'",
+        "Wait-Process -Id {} -ErrorAction SilentlyContinue; \
+         Start-Process -FilePath '{}' -ArgumentList '{RELAUNCH_ARG}'",
         std::process::id(),
         executable.display().to_string().replace('\'', "''")
     );
@@ -99,6 +100,16 @@ pub fn relaunch_after_exit() -> Result<(), PlatformError> {
         .spawn()
         .map(|_| ())
         .map_err(|err| PlatformError::Failed(t!("error.relaunch.failed", details = err)))
+}
+
+/// Windows runs Shrimp from wherever its installer put it; only the Mac app
+/// asks to be moved into Applications (APP-11).
+pub fn outside_applications() -> bool {
+    false
+}
+
+pub fn move_to_applications() -> Result<bool, PlatformError> {
+    Err(PlatformError::Unsupported)
 }
 
 /// Free space on the volume holding `path`, for this user, in bytes (APP-09).

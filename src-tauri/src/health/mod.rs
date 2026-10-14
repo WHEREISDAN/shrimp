@@ -1,5 +1,6 @@
 //! Error screens (APP-09): a previous run that crashed, a damaged database
-//! and a full disk, each with a way out. Reset & restart (APP-08) and the
+//! and a full disk, each with a way out, and the Mac app running outside
+//! the Applications folders (APP-11). Reset & restart (APP-08) and the
 //! database repairs run at the next launch, before anything opens the files.
 
 use std::path::{Path, PathBuf};
@@ -28,6 +29,8 @@ pub struct AppHealth {
     /// The database couldn't be opened or failed its check.
     pub data: Option<DataProblem>,
     pub storage: Option<StorageProblem>,
+    /// The app runs outside the Applications folders and must move first (APP-11).
+    pub misplaced: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
@@ -103,7 +106,15 @@ impl Health {
     /// Whether anything needs the main window at launch.
     pub fn needs_attention(&self) -> bool {
         let health = self.lock();
-        health.crash.is_some() || health.data.is_some() || health.storage.is_some()
+        health.misplaced
+            || health.crash.is_some()
+            || health.data.is_some()
+            || health.storage.is_some()
+    }
+
+    /// This run is outside the Applications folders (APP-11).
+    pub fn outside_applications(&self) {
+        self.lock().misplaced = true;
     }
 
     pub fn dismiss_crash(&self) {
@@ -250,6 +261,24 @@ mod tests {
         assert!(after_crash.needs_attention());
         after_crash.dismiss_crash();
         assert!(!after_crash.needs_attention());
+    }
+
+    #[test]
+    fn serializes_for_the_error_screens() {
+        let dir = tempfile::tempdir().unwrap();
+        let health = Health::start(dir.path());
+        assert_eq!(
+            serde_json::to_value(health.get()).unwrap(),
+            serde_json::json!({"crash": null, "data": null, "storage": null, "misplaced": false})
+        );
+        health.outside_applications();
+        health.check_storage(Some(1_000));
+        assert!(health.needs_attention());
+        assert_eq!(
+            serde_json::to_value(health.get()).unwrap(),
+            serde_json::json!({"crash": null, "data": null,
+                "storage": {"freeBytes": 1_000}, "misplaced": true})
+        );
     }
 
     #[test]

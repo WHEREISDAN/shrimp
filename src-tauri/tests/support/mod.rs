@@ -92,6 +92,8 @@ pub struct Fakes {
     pub detected: Mutex<Option<(String, f32)>>,
     /// The provider each AI edit asked for.
     pub providers: Mutex<Vec<LlmProviderId>>,
+    /// Whether paste and copy last transcript had something, as reported.
+    pub last_transcript: Mutex<Vec<(bool, bool)>>,
 }
 
 impl Fakes {
@@ -456,6 +458,10 @@ impl DictationUi for FakeUi {
 
     fn shortcut_recording(&self, status: RecordingStatus) {
         self.0.recording_statuses.lock().unwrap().push(status);
+    }
+
+    fn last_transcript(&self, paste: bool, copy: bool) {
+        self.0.last_transcript.lock().unwrap().push((paste, copy));
     }
 }
 

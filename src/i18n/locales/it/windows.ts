@@ -42,6 +42,8 @@ export const windows: WindowsCatalog = {
       "La modalità privacy è attiva, quindi funzionano solo Whisper su questo PC e Ollama. La tua scelta qui torna valida quando la disattivi.",
     neverBody:
       "Ogni trascrizione, registrazione e backup su questo PC viene eliminato subito, e le nuove dettature non vengono salvate. Digita “delete all” per confermare.",
+    deleteAllBody:
+      "Elimina ogni trascrizione e registrazione su questo PC. Statistiche, dizionario, snippet e impostazioni restano.",
   },
   aiProvider: { ollamaNote: "Ollama funziona su questo PC; nulla esce dal PC." },
   apiKey: { saved: "Chiave salvata in Gestione credenziali di Windows" },

@@ -29,7 +29,7 @@ phase that adds it (phases are defined in [PARITY.md](PARITY.md)).
 | ------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Main window   | `main` webview: Home, Insights, Dictionary, Snippets, Style, Transforms, Settings, onboarding. Closing hides it **(built)**.                                                                                                                                                     |
 | Flow Bar      | `flow-bar` webview in a transparent, always-on-top window that never takes focus, on the bottom, left or right edge of the display under the cursor. On macOS it is a non-activating `NSPanel` (tauri-nspanel); on Windows a topmost `WS_EX_NOACTIVATE` tool window **(built)**. |
-| Tray          | Menu-bar / notification-area icon and menu: Open Shrimp, Shortcuts…, Check for updates…, Paste last transcript, Copy last transcript, Privacy mode, Quit **(built)**.                                                                                                            |
+| Tray          | Menu-bar / notification-area icon and menu: Open Shrimp, Shortcuts…, Check for updates…, Paste last transcript, Copy last transcript, Privacy mode, Restart Shrimp, Quit. On Windows a left click opens the main window **(built)**.                                             |
 | Hotkey thread | Owns the OS keyboard hook (a CGEventTap run loop on macOS, Shrimp's own `WH_KEYBOARD_LL` and `WH_MOUSE_LL` hooks on Windows) **(built)**.                                                                                                                                        |
 | Audio thread  | The cpal input stream callback, which only converts samples to f32 and sends them **(built)**.                                                                                                                                                                                   |
 | Async runtime | Tauri's tokio runtime: the dictation controller task, IPC commands, HTTP calls.                                                                                                                                                                                                  |
@@ -50,6 +50,8 @@ app/                    shell                                                   
   system.rs             startup: pending reset or repair, crash and storage checks,
                         launch at login, background start (APP-06..09)                (built)
   tray.rs               tray icon and menu                                             (built)
+  menu_bar.rs           the macOS menu bar: app menu, Edit, Dictation, Window, Help
+                        (APP-10)                                                       (built)
   updates.rs            update checks, download, install when idle (PKG-03, PKG-04)   (built)
   flow_bar.rs           Flow Bar window: sizing, hiding when empty, edge placement on
                         the cursor's display, dragging (BAR-04, BAR-05)                (built)
@@ -105,8 +107,9 @@ llm/                    LLM providers                                           
   catalog.rs            models offered per provider and engine, defaults               (built)
   http.rs               shared reqwest client, status and transport error mapping      (built)
   registry.rs           LlmSource: builds the chosen provider with its key             (built)
-health/                 error screens: crash marker, damaged database, low disk; Reset
-                        & restart and database repairs at the next launch (APP-08/09) (built)
+health/                 error screens: crash marker, damaged database, low disk, the
+                        app outside Applications; Reset & restart and database
+                        repairs at the next launch (APP-08, APP-09, APP-11)           (built)
 edit/                   AI edit pipeline                                               (built)
   pipeline.rs           Editor: pre-pass, LLM pass, post-pass, raw fallback            (built)
   prompts.rs            system prompt per cleanup level, style and category            (built)
@@ -126,10 +129,11 @@ edit/                   AI edit pipeline                                        
   tips.rs               formatting tips: list, email, backtrack (FMT-13)               (built)
   command.rs            Command Mode prompt, tagged reply parsing (CMD-01..03)         (built)
   transforms.rs         Polish, Prompt Engineer, custom transforms, auto-apply         (built)
-history/                transcript history (HIS-01..08)                                (built)
+history/                transcript history (HIS-01..10)                                (built)
   mod.rs                History: store a dictation and count its stats, list, Undo AI
-                        edit, delete, retry audio, Play and Extract audio, Local data
-                        storage, the hourly sweep and daily backup                     (built)
+                        edit, delete, retry audio, Play and Extract audio              (built)
+  retention.rs          Local data storage, Delete all transcripts, the hourly sweep
+                        and the daily backup (HIS-04, HIS-07..09)                      (built)
   journal.rs            the recording in progress saved as it arrives; leftovers of
                         a quit or crash become "Interrupted" entries (HIS-06)          (built)
   fixes.rs              words the AI edit removed or changed, for Insights             (built)
@@ -141,8 +145,9 @@ insights/               Insights (STA-01..05)                                   
 dictation/              orchestration                                                  (built)
   controller/           the dictation actor (state machine below); shortcuts.rs for
                         Press Enter and bindings, transforms.rs for transform runs,
-                        recording.rs for recording shortcuts, interrupts (CORE-12),
-                        Secure Keyboard Entry and the cancel notice's Undo (CORE-11),
+                        recording.rs for recording shortcuts, interrupts (CORE-12) and
+                        Secure Keyboard Entry, cancelled.rs for cancelled dictations
+                        (the notice, Undo, CORE-11, and History, HIS-10),
                         microphone.rs for the source and its warnings, language.rs
                         for the different-language card (LANG-04)                     (built)
   gestures.rs           hold / double-tap / short-tap / busy recognition, pure         (built)
@@ -173,7 +178,7 @@ platform/               OS integration behind traits (next section)             
                         lid, Caps Lock), core_audio (devices, output mute and volume),
                         media (mute, MediaRemote pause), insert, pasteboard, keymap,
                         focus, context, ax, permissions, sound, globe, flow_bar, login
-                        (launch at login)                                              (built)
+                        (launch at login), relaunch, install (Move to Applications)    (built)
   windows/              hook (keyboard and mouse hooks), hotkeys, keycode, input
                         (SendInput), clipboard, insert, process (foreground app,
                         elevation), uia, focus, context (UI Automation), audio
@@ -252,6 +257,7 @@ Built so far:
 | Phase 3  | `transform_action` (the changes view's Copy, Retry and Undo)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
 | Phase 4  | `get_shortcuts` (every action's bindings, the overlap warning, Secure Keyboard Entry), `record_shortcut` (records through the hooks; progress as `shortcuts://recording`), `cancel_shortcut_recording`, `remove_shortcut`, `reset_shortcuts`; `retry_model`, `download_model`, `delete_model`; `get_microphones`, `select_microphone`, `rank_microphone`, `forget_microphone`, `start_mic_preview`, `stop_mic_preview`; `get_languages`, `set_languages`, `set_active_language`; `flow_bar_drag`, `flow_bar_action` (the right-click menu)      |
 | Phase 4b | `get_app_health`, `dismiss_crash`, `check_storage`, `open_storage_settings`, `repair_data`, `reset_app` (both restart the app); `get_insights`, `get_voice_profile`, `generate_voice_profile` (rejects with `{kind}`), `copy_image` and `save_image` (a raw PNG request body; the file name in an `x-file-name` header); `list_history`, `copy_history`, `set_history_raw` (Undo/Redo AI edit), `retry_history`, `history_audio` (raw WAV bytes), `extract_history_audio`, `delete_history`, `set_history_storage` ("never" needs "delete all") |
+| Phase 6  | `delete_all_history` (Delete all transcripts); `move_to_applications`, `quit_app` (the Move to Applications screen)                                                                                                                                                                                                                                                                                                                                                                                                                             |
 | Phase 2  | `get_settings`, `update_settings`, `get_ai_options`, `get_api_keys`, `set_api_key`, `delete_api_key`, `list_ollama_models`, `test_ai_provider`; dictionary and snippet CRUD and imports (`list_dictionary`, `add_dictionary_entry`, `update_dictionary_entry`, `set_dictionary_pinned`, `delete_dictionary_entries`, `preview_dictionary_import`, `import_dictionary`, `list_snippets`, `add_snippet`, `update_snippet`, `delete_snippets`, `preview_snippet_import`, `import_snippets`)                                                        |
 | Dev only | `dev_get_audio_source`, `dev_set_audio_source`, `dev_set_app_category`, `dev_edit_text`, `dev_read_context`, `dev_set_microphones`, `dev_set_permissions` (debug builds; see DEVELOPMENT.md)                                                                                                                                                                                                                                                                                                                                                    |
 | Events   | `dictation://state`, `dictation://level` (Flow Bar only), `notify://notice`, `command://answer` and `transform://changes` (Flow Bar only), `models://status`, `app://navigate`, `settings://changed`, `shortcuts://recording`, `notify://dismiss` (a notice whose cause went away), `mic://devices`, `mic://level`, `flow-bar://hover` (Flow Bar only), `app://main-visible` (main window shown or closed to the tray)                                                                                                                          |
@@ -327,7 +333,8 @@ Processing ── any dictation shortcut ──▶ rejected, "Transcript current
 
 Every step in this diagram runs. The last dictation (its text, or its audio when it
 failed or was cancelled, and its History entry) is kept in memory for paste and copy last
-transcript; pasting a failed one updates its History entry instead of adding one.
+transcript; pasting a failed or cancelled one updates its History entry instead of adding
+one.
 
 Notes:
 
@@ -377,7 +384,9 @@ pub struct Platform {
     pub user_name: Option<String>,    // first name for Home's greeting (NSFullUserName)
     pub login_item: Arc<dyn LoginItem>,
 }
-// Also: platform::free_bytes(path) (statvfs) and open_storage_settings() for APP-09.
+// Also: platform::free_bytes(path) (statvfs) and open_storage_settings() for APP-09;
+// outside_applications() and move_to_applications() for APP-11 (Windows: false and
+// Unsupported); InertHotkeys, a backend that binds nothing.
 
 /// Global shortcuts with press and release: keys, Fn and modifier-only chords, mouse buttons.
 pub trait HotkeyBackend: Send {
@@ -1132,7 +1141,8 @@ Schema (migration 1 is phase 2, migration 2 phase 4):
 CREATE TABLE history (                                  -- P4
   id INTEGER PRIMARY KEY, created_at INTEGER NOT NULL,   -- unix ms
   mode TEXT NOT NULL,              -- 'dictation' (Command Mode and transforms aren't stored)
-  status TEXT NOT NULL,            -- inserted | copied | transcribed | failed | empty | interrupted
+  status TEXT NOT NULL,            -- inserted | copied | transcribed | failed | empty
+                                   --   | interrupted | cancelled
   app_id TEXT, app_name TEXT,
   raw_text TEXT NOT NULL DEFAULT '', final_text TEXT NOT NULL DEFAULT '',
   formatted INTEGER NOT NULL DEFAULT 1,   -- 0 when AI edits were off, skipped or failed (FMT-10)
@@ -1159,21 +1169,31 @@ History search is a `LIKE` over the final and raw text and the app name (with `%
 and `\` escaped), not FTS5: history stays small, and FTS5's tokenizer doesn't split
 Chinese or Japanese.
 
-### History (HIS-01..08)
+### History (HIS-01..10)
 
 Every finished dictation goes to `History::record` on the blocking pool, from the task
 that ran the pipeline, before the controller hears the result. The status comes from
 the outcome: pasted → inserted; on the clipboard or a failed paste → copied; failed STT
-→ failed; no speech → empty. Command Mode, transforms, cancelled dictations and
-"never mind" are not stored. A dictation with words is counted in the stats even with
-"Never store". History's Retry and Recover go through the controller (refused while
-recording: "Cannot retry while dictating."; while processing: "Transcript currently
-processing"), transcribe and edit the stored audio again and update the entry without
-pasting; Retry needs at least 5 s of audio under 14 days old, Recover any length. The
+→ failed; no speech → empty. Command Mode, transforms and "never mind" are not stored.
+A dictation cancelled after recording for at least 0.5 s (Esc, the Flow Bar's ✕, a
+third quick press, or another app's shortcut early in a hold, CORE-12) is stored as
+"cancelled" with its recording and offers Recover (HIS-10); a shorter one, or one with
+"Never store", is not. Undo on the cancel notice and paste last transcript (CORE-11)
+update that entry instead of adding one, as with a failed dictation. An interrupted
+start doesn't replace the last transcript, so paste last still pastes the one before.
+A dictation with words is counted in the stats even with "Never store". History's Retry
+and Recover go through the controller (refused while recording: "Cannot retry while
+dictating."; while processing: "Transcript currently processing"), transcribe and edit
+the stored audio again and update the entry without pasting; Retry needs at least 5 s of audio under 14 days old, Recover any length. The
 hourly sweep (also run at startup) forgets recordings older than 14 days, deletes
 entries older than 24 hours with Auto-delete, deletes stray recordings and makes the
 day's backup. "Never store" (typed confirmation "delete all") deletes every entry,
-recording, journal and backup at once.
+recording, journal and backup at once. Delete all transcripts (HIS-09, a separate row
+in Data and privacy confirmed with "This will delete your entire transcription
+history.", `delete_all_history`) deletes every entry and recording but leaves Local
+data storage as it is, keeps the stats, dictionary, snippets and settings, and makes
+today's backup again so no backup holds the deleted transcripts; a recording in
+progress keeps its journal.
 
 ### Settings (built)
 
@@ -1237,6 +1257,13 @@ or `<ul>` in the HTML), an email layout (an Email app and a blank line) or a bac
 The first of each gets an explanation, then up to 3 reminders, at most one tip a day
 (`notices.formattingTips`). Muted tips aren't counted.
 
+The cancel notice (CORE-11) is "Dictation cancelled" with Undo. When the cancelled
+dictation was stored in History (HIS-10), the same notice instead says "You can recover
+your cancelled transcript" with Undo and Open History, at most 3 times in all and once
+a day (`notices.cancelRecoverCount`, `notices.cancelRecoverDay`), as Wispr Flow's
+larger card does; the Flow Bar shows one notice at a time, so it replaces the short one
+rather than following it.
+
 French typography (`lang/french.rs`): when the dictation was in French and the app
 isn't a code editor or terminal, a narrow no-break space (U+202F) goes before `; : ! ?`,
 replacing a typed space; times (10:30), URLs, emails, paths and emoticons are left
@@ -1255,30 +1282,55 @@ alone.
   (`capture_rust_logs`), readable with `query_logs`. Release builds add a file logger in
   phase 4. Logs never contain transcripts, field text or keys at `info` level or above.
 
-## App shell (APP-04..09)
+## App shell (APP-04..12)
 
 - **Main window.** It starts hidden (`visible: false`) and setup shows it, unless the
   launch came from the login item (or `--background`) and nothing needs attention
-  (`app/system.rs`). The sidebar lists Home, Insights, Dictionary, Snippets, Style and
-  Transforms, with Settings and Help at the bottom. ⌘[ and ⌘] go back and forward
+  (`app/system.rs`); a launch by Shrimp's own restart (`--relaunched`) always shows
+  it. The sidebar lists Home, Insights, Dictionary, Snippets, Style and Transforms,
+  with Settings and Help at the bottom. ⌘[ and ⌘] go back and forward
   through the pages visited, ⌥↑/⌥↓ move through the sidebar (`usePageHistory`), and on
   Settings ⌥↑/⌥↓ move through its pages instead.
 - **Settings pages** (APP-05) are a vertical tab list: General (shortcuts, microphone,
   languages, app language), System (launch at login, Dock icon, sound, Flow Bar,
   notifications, Reset & restart), Data and privacy, Speech engine, AI provider,
   Experimental and Vibe coding. `app://navigate` targets a page and what to bring into
-  view (`settings`, `ai`, `microphone`, `languages`, `experimental`).
+  view (`settings`, `ai`, `microphone`, `languages`, `experimental`), or `history`,
+  `dictionary`, `insights`, `voiceProfile`, `help` and `shortcuts` (the dialog).
+- **Menu bar (APP-10, macOS).** While Shrimp is the active app, macOS shows its menu
+  bar (`app/menu_bar.rs`): the app menu (About Shrimp, Settings… ⌘, which opens
+  Settings, the tray's update item, Hide Shrimp, Hide Others, Show All, Quit Shrimp ⌘Q),
+  Edit (Undo, Redo, Cut, Copy, Paste, Select All, so text fields in the webview keep
+  their shortcuts), Dictation (Copy last transcript, greyed out while the last
+  transcript has no text; Wispr Flow has no Paste item there), Window (Minimize, Zoom,
+  Close, and the window list) and Help (Shortcuts, which opens the Shortcuts dialog,
+  and Shrimp Help, which opens the Help page; macOS adds its search field). Tauri hands
+  every menu's clicks to every menu handler, so the items it shares with the tray keep
+  the tray's ids and run through the tray's handler. It is built again whenever the
+  tray menu is (the interface language, the update status, what there is to copy).
+  Windows has no app menu, so the module is compiled only on macOS.
 - **Settings › System** lives in `settings.app` (`language`, `launchAtLogin`,
   `showInDock`). At startup the login item's real state wins over the saved switch (the
   user may have turned it off in System Settings); a failed change puts the switch back
-  with a notice. "Show app in Dock" calls Tauri's `set_dock_visibility`; Windows has no
-  Dock, so the switch is hidden there. The main window is created hidden and unfocused
+  with a notice. "Show app in Dock" sets the activation policy
+  (`window::update_dock`): Regular with the Dock icon and the app's menu bar, or
+  Accessory with only the menu bar icon. With it off, the Dock icon still shows while
+  the main window is open or minimized and goes when the window closes to the tray, as
+  Wispr Flow's does; the Flow Bar never brings it back. Windows has no Dock, so the
+  switch is hidden there. The main window is created hidden and unfocused
   (`focus: false`), so a background launch never takes focus (WebView2 would otherwise
   focus the hidden window); `show_main` focuses it when it is shown.
-- **Reset & restart (APP-08)** writes `reset-requested` and restarts with
-  `request_restart` (which runs the normal exit, so Whisper is unloaded). The next launch
+- **Reset & restart (APP-08)** writes `reset-requested` and restarts. The next launch
   deletes everything in the data folder except `models/` before opening anything, and
   removes the API keys from the keychain; onboarding then starts again.
+- **Restarting.** Every restart (Reset & restart, the repairs, an installed update, the
+  tray's Restart Shrimp) goes through `commands::system::restart`:
+  `platform::relaunch_after_exit` starts a small waiter (a shell on macOS that then runs
+  `open -n`, PowerShell on Windows) that opens the app with `--relaunched` once this
+  process has gone, and Shrimp quits normally (`RunEvent::Exit` runs `app::before_exit`:
+  Whisper unloads and the crash marker goes, so no crash screen follows). Restart Shrimp
+  (APP-12, Wispr Flow's Restart Flow) asks nothing first and the new instance shows its
+  main window.
 - **Error screens (APP-09).** `health/`: a `running` marker is written at launch and
   removed at a normal exit (`RunEvent::Exit`), so a leftover marker means the last run
   crashed or was killed; a panic hook saves the message for the screen's Details. The
@@ -1289,6 +1341,20 @@ alone.
   launch and every 10 minutes; under 200 MB the "Storage Full" screen offers Open Storage
   Settings and Check again (debug builds read `SHRIMP_FAKE_FREE_BYTES`). The main window
   shows the screen instead of the app, the most serious problem first.
+- **Move to Applications (APP-11, macOS).** A release running outside `/Applications`
+  and `~/Applications` (at any depth; for example on the mounted disk image, in
+  Downloads or under an App Translocation path) can't update itself, so `AppHealth`
+  says `misplaced`, the main window opens on "Move Shrimp to the Applications folder" /
+  "Shrimp needs to be in the Applications folder to run and update." before any other
+  screen, and the controller gets `InertHotkeys`, so no shortcut dictates in that run.
+  Move to Applications (`move_to_applications`) copies the bundle with
+  `ditto --noqtn` (keeping its signature, dropping the quarantine flag so the copy
+  isn't translocated again) into `/Applications`, or `~/Applications` when
+  `/Applications` isn't writable, replacing an older copy only once the new one is
+  complete; it then opens the copy with `--relaunched` once this process has quit
+  normally. A failure shows its message on the screen, which stays. Quit (`quit_app`)
+  quits. Debug builds skip the check unless `SHRIMP_PRETEND_OUTSIDE_APPLICATIONS=1`, and
+  their Move only logs what it would copy where. Windows never shows the screen.
 
 ## Updates (PKG-03, PKG-04)
 

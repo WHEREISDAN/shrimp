@@ -298,7 +298,7 @@ is closed; `{"devices": null}` goes back to the real devices:
 dictation uses them when the audio source is `mic` (the default). Tests use the same fakes
 through `FakeDevices`.
 
-### Permissions, login, disk space
+### Permissions, login, disk space, install location
 
 Debug builds can pretend states that are hard to produce for real:
 
@@ -308,6 +308,7 @@ Debug builds can pretend states that are hard to produce for real:
 | `SHRIMP_PRETEND_PERMISSIONS=accessibility=denied`     | The same from launch, so the check after an update runs with it (`microphone=notDetermined` too, comma-separated).                                                            |
 | `SHRIMP_LAUNCHED_AT_LOGIN=1`                          | The launch counts as one from the login item: the main window stays hidden.                                                                                                   |
 | `SHRIMP_FAKE_FREE_BYTES=52000000`                     | Reports that much free disk space, to show the "Storage Full" screen.                                                                                                         |
+| `SHRIMP_PRETEND_OUTSIDE_APPLICATIONS=1`               | macOS: shows "Move Shrimp to the Applications folder" and no shortcut dictates. Debug builds skip the real check; Move only logs what it would copy.                          |
 
 Set environment variables with `scripts/macos/dev-app.sh open --env NAME=value`. To test
 onboarding, quit the app and move `~/Library/Application Support/com.shrimp.desktop.dev`

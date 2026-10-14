@@ -29,7 +29,7 @@ use crate::mic::Microphones;
 use crate::notify::{Notice, NoticeAction};
 #[cfg(debug_assertions)]
 use crate::platform::SwitchablePermissions;
-use crate::platform::{self, CuePlayer, MainThread, Permissions};
+use crate::platform::{self, CuePlayer, HotkeyBackend, InertHotkeys, MainThread, Permissions};
 use crate::secrets::{Keychain, Secrets};
 use crate::settings::{Settings, SettingsStore};
 use crate::sounds::{SettingsCues, SoundingNotices};
@@ -154,8 +154,14 @@ pub fn setup(app: &mut App) -> Result<(), Box<dyn std::error::Error>> {
         &version,
         dictation_ui.as_ref(),
     );
+    // Until Shrimp is moved into Applications, no shortcut dictates (APP-11).
+    let hotkeys: Box<dyn HotkeyBackend> = if health.get().misplaced {
+        Box::new(InertHotkeys)
+    } else {
+        platform.hotkeys
+    };
     let controller = dictation::spawn(Services {
-        hotkeys: platform.hotkeys,
+        hotkeys,
         bindings: platform.default_bindings,
         label: platform.label,
         reserved: platform.reserved,
@@ -201,6 +207,8 @@ pub fn setup(app: &mut App) -> Result<(), Box<dyn std::error::Error>> {
     )));
 
     tray::create(&handle, &settings.get())?;
+    #[cfg(target_os = "macos")]
+    super::menu_bar::create(&handle)?;
     let tray_handle = handle.clone();
     let shown =
         |settings: &Settings| (settings.privacy.privacy_mode, settings.app.language.clone());

@@ -55,6 +55,20 @@ pub trait HotkeyBackend: Send {
     fn stop(&mut self);
 }
 
+/// Binds nothing, for a run in which no shortcut may dictate: while Shrimp
+/// asks to be moved into Applications (APP-11).
+pub struct InertHotkeys;
+
+impl HotkeyBackend for InertHotkeys {
+    fn start(&mut self, _: Box<dyn Fn(HotkeyEvent) + Send + Sync>) -> Result<(), PlatformError> {
+        Ok(())
+    }
+
+    fn set_bindings(&mut self, _: &[Binding]) {}
+
+    fn stop(&mut self) {}
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum InsertOutcome {
     Pasted,
@@ -424,15 +438,19 @@ pub fn native(main_thread: MainThread) -> Platform {
 
 #[cfg(target_os = "macos")]
 pub use macos::{
-    free_bytes, language_name, open_keyboard_settings, open_sound_settings, open_storage_settings,
-    relaunch_after_exit, set_own_field_focused,
+    free_bytes, language_name, move_to_applications, open_keyboard_settings, open_sound_settings,
+    open_storage_settings, outside_applications, relaunch_after_exit, set_own_field_focused,
 };
 
 #[cfg(target_os = "windows")]
 pub use windows::{
-    free_bytes, language_name, open_keyboard_settings, open_sound_settings, open_storage_settings,
-    relaunch_after_exit, set_own_field_focused,
+    free_bytes, language_name, move_to_applications, open_keyboard_settings, open_sound_settings,
+    open_storage_settings, outside_applications, relaunch_after_exit, set_own_field_focused,
 };
+
+/// What a restart passes the new instance, so it opens its main window even
+/// when the launch looks like one at login (APP-12).
+pub const RELAUNCH_ARG: &str = "--relaunched";
 
 /// The shortcut hints of the tray menu: paste last, copy last and Quit.
 pub const TRAY_ACCELERATORS: [Option<&str>; 3] = if cfg!(target_os = "windows") {
@@ -440,6 +458,11 @@ pub const TRAY_ACCELERATORS: [Option<&str>; 3] = if cfg!(target_os = "windows") 
 } else {
     [Some("Ctrl+Cmd+V"), Some("Ctrl+Cmd+C"), Some("CmdOrCtrl+Q")]
 };
+
+/// Whether a left click on the tray icon opens the main window, with the
+/// menu on a right click: Windows' notification area (Wispr Flow opens its
+/// Hub, article 2503460374). The macOS menu bar icon opens the menu.
+pub const TRAY_CLICK_OPENS_WINDOW: bool = cfg!(target_os = "windows");
 
 /// Whether "Mute while dictating" starts on: off on macOS, on on Windows
 /// (SND-03, WIN-08).

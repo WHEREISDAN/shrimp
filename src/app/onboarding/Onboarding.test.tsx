@@ -33,7 +33,7 @@ function backend(step: OnboardingStep, permissions: PermissionsInfo, completed =
       };
       return settings;
     },
-    get_app_health: () => ({ crash: null, data: null, storage: null }),
+    get_app_health: () => ({ crash: null, data: null, storage: null, misplaced: false }),
     get_permissions: () => state.permissions,
     open_permission_settings: () => null,
     get_shortcuts: () => SHORTCUTS,

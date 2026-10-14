@@ -88,7 +88,8 @@ export const core: CoreCatalog = {
     launchAtLogin: "Beim Anmelden öffnen",
     launchAtLoginBody: "Shrimp startet beim Anmelden im Hintergrund und wartet in der Menüleiste.",
     showInDock: "App im Dock anzeigen",
-    showInDockBody: "Ist dies aus, erscheint Shrimp nur in der Menüleiste.",
+    showInDockBody:
+      "Ist dies aus, erscheint Shrimp in der Menüleiste und nur im Dock, solange sein Fenster offen ist.",
     resetTitle: "App zurücksetzen",
     resetBody:
       "Löscht die lokalen Daten von Shrimp auf diesem Mac und startet die App neu. Hilft, wenn Shrimp immer wieder Probleme macht.",
@@ -216,6 +217,10 @@ export const core: CoreCatalog = {
       "Deine Einstellungen und dein Verlauf sind sicher. Falls du gerade diktiert hast, wurde die Aufnahme gesichert: Stell sie im Verlauf unter „Start“ wieder her.",
     crashDetails: "Details",
     continue: "Weiter",
+    moveTitle: "Shrimp in den Ordner „Programme“ verschieben",
+    moveBody: "Shrimp muss im Ordner „Programme“ liegen, um zu laufen und sich zu aktualisieren.",
+    moveToApplications: "In „Programme“ verschieben",
+    quit: "Beenden",
   },
   home: {
     tagline: "Sprache zu Text, überall.",
@@ -337,6 +342,7 @@ export const core: CoreCatalog = {
     statusEmpty: "Keine Sprache erkannt",
     statusInterrupted:
       "Aufnahme unterbrochen. Stell sie wieder her, um das Gesagte zu transkribieren.",
+    statusCancelled: "Diktat abgebrochen. Stell es wieder her, um das Gesagte zu transkribieren.",
     notPasted: "Nicht eingefügt",
     unformatted: "Unformatiert",
     unformattedHint: "Keine KI-Bearbeitung: Das Rohtranskript wurde eingefügt.",
@@ -395,5 +401,13 @@ export const core: CoreCatalog = {
       "Alle Transkripte, Aufnahmen und Backups auf diesem Mac werden jetzt gelöscht, und neue Diktate werden nicht gespeichert. Gib zur Bestätigung „delete all“ ein.",
     neverField: "Bestätigung",
     neverConfirm: "Alle Daten löschen",
+    transcriptsTitle: "Transkriptverlauf",
+    deleteAllBody:
+      "Löscht alle Transkripte und Aufnahmen auf diesem Mac. Statistiken, dein Wörterbuch, Textbausteine und Einstellungen bleiben erhalten.",
+    deleteAll: "Alle Transkripte löschen",
+    deleteAllTitle: "Alle Transkripte löschen?",
+    deleteAllWarning: "Dadurch wird dein gesamter Transkriptionsverlauf gelöscht.",
+    deleteAllConfirm: "Alle löschen",
+    deleteAllDone: "Alle Transkripte gelöscht",
   },
 };

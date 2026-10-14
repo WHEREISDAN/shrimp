@@ -102,6 +102,7 @@ pub fn run() {
                 commands::history::history_audio,
                 commands::history::extract_history_audio,
                 commands::history::delete_history,
+                commands::history::delete_all_history,
                 commands::history::set_history_storage,
                 commands::insights::get_insights,
                 commands::insights::get_voice_profile,
@@ -114,6 +115,8 @@ pub fn run() {
                 commands::system::open_storage_settings,
                 commands::system::repair_data,
                 commands::system::reset_app,
+                commands::system::move_to_applications,
+                commands::system::quit_app,
                 $($dev)*
             ]
         };

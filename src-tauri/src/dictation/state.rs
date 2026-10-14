@@ -55,8 +55,9 @@ pub trait DictationUi: Send + Sync {
     fn changes(&self, _view: TransformView) {}
     /// Progress of a shortcut being recorded (KEYS-01).
     fn shortcut_recording(&self, _status: RecordingStatus) {}
-    /// Paste last transcript has something to paste (WIN-09).
-    fn last_transcript(&self, _available: bool) {}
+    /// Paste last transcript has something to paste (WIN-09), and Copy
+    /// last transcript some text to copy (APP-10).
+    fn last_transcript(&self, _paste: bool, _copy: bool) {}
 }
 
 /// A shortcut being recorded, for the Shortcuts dialog. Mirrors
@@ -165,8 +166,12 @@ pub enum ControllerInput {
     SettingsChanged,
     /// The changes view's buttons and "See changes" (TRF-04).
     Transform(TransformAction),
-    /// A cancelled recording, kept so paste-last can transcribe it.
-    Cancelled(AudioClip),
+    /// A cancelled recording, kept so paste-last can transcribe it, and
+    /// the History entry it was stored as (HIS-10).
+    Cancelled {
+        clip: AudioClip,
+        history_id: Option<i64>,
+    },
     /// History's Retry or Recover for an entry (HIS-05, HIS-06).
     RetryHistory(i64),
     Processed(Box<Processed>),

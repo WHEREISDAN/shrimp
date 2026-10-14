@@ -287,6 +287,8 @@ export interface Settings {
     languageCardDay: string;
     languageCardOff: boolean;
     formattingTips: { list: number; email: number; backtrack: number; day: string };
+    cancelRecoverCount: number;
+    cancelRecoverDay: string;
   };
   transforms: TransformSettings;
   vibeCoding: { fileTagging: boolean };
@@ -474,7 +476,7 @@ export type HistoryStorage = "local" | "autoDelete" | "never";
 
 /** Mirrors `storage::HistoryStatus`. */
 export type HistoryStatus =
-  "inserted" | "copied" | "transcribed" | "failed" | "empty" | "interrupted";
+  "inserted" | "copied" | "transcribed" | "failed" | "empty" | "interrupted" | "cancelled";
 
 /** Mirrors `history::RetryKind`. */
 export type RetryKind = "retry" | "recover";
@@ -566,11 +568,13 @@ export type VoiceProfileError =
   | { kind: "notYet"; nextAt: number }
   | { kind: "failed"; message: string };
 
-/** Mirrors `health::AppHealth`: what the error screens show (APP-09). */
+/** Mirrors `health::AppHealth`: what the error screens show (APP-09, APP-11). */
 export interface AppHealth {
   crash: { details: string | null } | null;
   data: { backup: string | null } | null;
   storage: { freeBytes: number } | null;
+  /** The Mac app runs outside the Applications folders and must move first. */
+  misplaced: boolean;
 }
 
 /** Mirrors `health::Repair`. */
@@ -756,6 +760,9 @@ export const extractHistoryAudio = (id: number): Promise<string> =>
 
 export const deleteHistory = (id: number): Promise<void> => invoke("delete_history", { id });
 
+/** Delete all transcripts: every entry and recording; Insights and the rest stay. */
+export const deleteAllHistory = (): Promise<void> => invoke("delete_all_history");
+
 /** "never" needs `confirmation` to be "delete all". */
 export const setHistoryStorage = (
   storage: HistoryStorage,
@@ -791,6 +798,11 @@ export const repairData = (repair: Repair): Promise<void> => invoke("repair_data
 
 /** Reset & restart. */
 export const resetApp = (): Promise<void> => invoke("reset_app");
+
+/** Copies Shrimp into Applications, then quits and opens the copy (debug builds only log). */
+export const moveToApplications = (): Promise<void> => invoke("move_to_applications");
+
+export const quitApp = (): Promise<void> => invoke("quit_app");
 
 /** Event names emitted by src-tauri/src/app/events.rs. */
 export const EVENTS = {

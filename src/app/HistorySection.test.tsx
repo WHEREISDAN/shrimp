@@ -148,6 +148,21 @@ describe("HistorySection", () => {
     await waitFor(() => expect(argsOf("retry_history")).toEqual([{ id: 1 }, { id: 2 }]));
   });
 
+  it("recovers a cancelled dictation, also with Enter", async () => {
+    const { argsOf } = backend({
+      entries: [item({ id: 3, status: "cancelled", retry: "recover", finalText: "" })],
+      disabled: false,
+    });
+    render(<HistorySection />);
+    expect(
+      await screen.findByText("Dictation cancelled. Recover it to transcribe what was said."),
+    ).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Recover" }));
+    fireEvent.click(rows()[0] as HTMLElement);
+    await waitFor(() => expect(argsOf("retry_history")).toEqual([{ id: 3 }, { id: 3 }]));
+    expect(argsOf("copy_history")).toEqual([]);
+  });
+
   it("deletes a transcript after confirming", async () => {
     const { argsOf } = backend({ entries: [item({ id: 1 })], disabled: false });
     render(<HistorySection />);

@@ -154,8 +154,8 @@ impl DictationUi for SoundingNotices {
         self.inner.shortcut_recording(status);
     }
 
-    fn last_transcript(&self, available: bool) {
-        self.inner.last_transcript(available);
+    fn last_transcript(&self, paste: bool, copy: bool) {
+        self.inner.last_transcript(paste, copy);
     }
 }
 

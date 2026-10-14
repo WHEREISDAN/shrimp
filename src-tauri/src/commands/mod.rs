@@ -80,6 +80,7 @@ pub const NAMES: &[&str] = &[
     "history_audio",
     "extract_history_audio",
     "delete_history",
+    "delete_all_history",
     "set_history_storage",
     "get_insights",
     "get_voice_profile",
@@ -92,6 +93,8 @@ pub const NAMES: &[&str] = &[
     "open_storage_settings",
     "repair_data",
     "reset_app",
+    "move_to_applications",
+    "quit_app",
     #[cfg(debug_assertions)]
     "dev_get_audio_source",
     #[cfg(debug_assertions)]

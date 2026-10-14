@@ -1,13 +1,15 @@
-//! Transcript history (HIS-01..08): every dictation with its recording for
-//! 14 days, retries, crash recovery, the storage choice in Data and privacy,
-//! and a daily database backup. Usage stats are counted here too, apart
+//! Transcript history (HIS-01..10): every dictation with its recording for
+//! 14 days, retries, crash recovery, cancelled dictations, and what
+//! `retention` deletes and backs up. Usage stats are counted here too, apart
 //! from the transcripts, so they survive deletion (STA-05).
 
 pub mod fixes;
 pub mod journal;
+mod retention;
 
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
+use std::time::Duration;
 
 use chrono::{Datelike, Local, TimeZone, Timelike};
 use serde::Serialize;
@@ -18,8 +20,8 @@ use crate::llm::LlmProviderId;
 use crate::platform::AppIdentity;
 use crate::settings::{HistoryStorage, SettingsStore};
 use crate::storage::{
-    Database, HistoryEntry, HistoryStatus, NewEntry, Retranscribed, StorageError, backup, history,
-    now_ms, stats,
+    Database, HistoryEntry, HistoryStatus, NewEntry, Retranscribed, StorageError, history, now_ms,
+    stats,
 };
 use crate::stt::SttEngineId;
 use crate::t;
@@ -29,6 +31,9 @@ use journal::Journal;
 pub const AUDIO_DAYS: i64 = 14;
 /// Failed or empty entries need this much audio to be retried (HIS-05).
 pub const MIN_RETRY_MS: i64 = 5_000;
+/// Cancelled audio shorter than this is not stored (HIS-10, Wispr Flow's
+/// half second, article 4363488655).
+pub const MIN_CANCELLED_AUDIO: Duration = Duration::from_millis(500);
 const DAY_MS: i64 = 86_400_000;
 const LIST_LIMIT: usize = 1_000;
 
@@ -38,7 +43,7 @@ const LIST_LIMIT: usize = 1_000;
 pub enum RetryKind {
     /// A failed or empty transcription (HIS-05).
     Retry,
-    /// A recording interrupted by a quit or crash (HIS-06).
+    /// A recording interrupted by a quit or crash (HIS-06), or cancelled (HIS-10).
     Recover,
 }
 
@@ -158,10 +163,16 @@ impl History {
         self.settings.get().privacy.history
     }
 
+    /// Whether new dictations are stored ("Never store" is off).
+    pub fn stores_dictations(&self) -> bool {
+        self.storage() != HistoryStorage::Never
+    }
+
     /// Where the recording in progress is saved as it arrives (HIS-06);
     /// nothing is saved with "Never store".
     pub fn start_journal(&self) -> Option<Journal> {
-        (self.storage() != HistoryStorage::Never).then(|| Journal::new(&self.recordings, now_ms()))
+        self.stores_dictations()
+            .then(|| Journal::new(&self.recordings, now_ms()))
     }
 
     /// Stores a dictation and counts its words. Blocking: call from the
@@ -172,6 +183,19 @@ impl History {
             id: self.store(dictation, status),
             milestone,
         }
+    }
+
+    /// Stores a cancelled recording to recover later (HIS-10); its words
+    /// count once it is transcribed. Blocking: call from the blocking pool.
+    pub fn record_cancelled(&self, clip: &AudioClip, app: Option<AppIdentity>) -> Option<i64> {
+        let dictation = Dictation {
+            created_at: now_ms(),
+            app,
+            audio_ms: clip.duration().as_millis() as i64,
+            clip: Some(clip.clone()),
+            ..Dictation::default()
+        };
+        self.record(dictation, HistoryStatus::Cancelled).id
     }
 
     fn store(&self, dictation: Dictation, status: HistoryStatus) -> Option<i64> {
@@ -379,72 +403,6 @@ impl History {
             .ok_or(gone)
     }
 
-    /// Applies Data and privacy › Local data storage (HIS-07): "Never store"
-    /// deletes every transcript, recording and backup; "Auto-delete" deletes
-    /// what is older than 24 hours now.
-    pub fn apply_storage(&self) {
-        match self.storage() {
-            HistoryStorage::Never => self.delete_everything(),
-            HistoryStorage::AutoDelete => self.sweep(),
-            HistoryStorage::Local => {}
-        }
-    }
-
-    fn delete_everything(&self) {
-        match self.database.with(|db| history::delete_before(db, None)) {
-            Ok(audio) if !audio.is_empty() => self.delete_recordings(audio),
-            Ok(_) => {}
-            Err(error) => log::warn!("could not delete the history: {error}"),
-        }
-        self.delete_orphans();
-        journal::discard_all(&self.recordings);
-        backup::delete_all(&self.backups);
-        (self.changed)();
-    }
-
-    /// The hourly chores: recordings older than 14 days, entries older than
-    /// 24 hours with auto-delete, stray files, and the daily backup.
-    pub fn sweep(&self) {
-        let now = now_ms();
-        match self
-            .database
-            .with(|db| history::expire_audio(db, now - AUDIO_DAYS * DAY_MS))
-        {
-            Ok(audio) => self.delete_recordings(audio),
-            Err(error) => log::warn!("could not expire old recordings: {error}"),
-        }
-        if self.storage() == HistoryStorage::AutoDelete {
-            match self
-                .database
-                .with(|db| history::delete_before(db, Some(now - DAY_MS)))
-            {
-                Ok(audio) => {
-                    let deleted = !audio.is_empty();
-                    self.delete_recordings(audio);
-                    if deleted {
-                        (self.changed)();
-                    }
-                }
-                Err(error) => log::warn!("could not auto-delete the history: {error}"),
-            }
-        }
-        self.delete_orphans();
-        self.backup();
-    }
-
-    /// Today's backup, if it hasn't been made (HIS-08).
-    pub fn backup(&self) {
-        let today = Local::now().format("%Y-%m-%d").to_string();
-        match self
-            .database
-            .with(|db| backup::daily(db, &self.backups, &today))
-        {
-            Ok(Some(path)) => log::info!("backed up the database to {}", path.display()),
-            Ok(None) => {}
-            Err(error) => log::warn!("could not back up the database: {error}"),
-        }
-    }
-
     /// Turns recordings a quit or crash left behind into "Interrupted"
     /// entries (HIS-06). Returns how many were recovered.
     pub fn recover_interrupted(&self) -> usize {
@@ -470,46 +428,13 @@ impl History {
         }
         recovered
     }
-
-    fn delete_recordings(&self, names: Vec<String>) {
-        for name in names {
-            let path = self.recordings.join(&name);
-            if let Err(error) = std::fs::remove_file(&path)
-                && error.kind() != std::io::ErrorKind::NotFound
-            {
-                log::warn!("could not delete {}: {error}", path.display());
-            }
-        }
-    }
-
-    /// Recordings no entry names any more (a crash between saving and linking).
-    fn delete_orphans(&self) {
-        let Ok(known) = self.database.with(|db| history::audio_paths(db)) else {
-            return;
-        };
-        let Ok(files) = std::fs::read_dir(&self.recordings) else {
-            return;
-        };
-        let orphans = files
-            .filter_map(Result::ok)
-            .filter_map(|file| file.file_name().to_str().map(str::to_owned))
-            .filter(|name| is_recording_name(name) && !known.contains(name))
-            .collect();
-        self.delete_recordings(orphans);
-    }
-}
-
-/// `<id>.wav`; journals and anything else are left alone.
-fn is_recording_name(name: &str) -> bool {
-    name.strip_suffix(".wav")
-        .is_some_and(|id| !id.is_empty() && id.chars().all(|c| c.is_ascii_digit()))
 }
 
 fn item(entry: HistoryEntry, now: i64) -> HistoryItem {
     let has_audio = entry.audio_path.is_some() && now - entry.created_at < AUDIO_DAYS * DAY_MS;
     let retry = match entry.status {
         _ if !has_audio => None,
-        HistoryStatus::Interrupted => Some(RetryKind::Recover),
+        HistoryStatus::Interrupted | HistoryStatus::Cancelled => Some(RetryKind::Recover),
         HistoryStatus::Failed | HistoryStatus::Empty if entry.audio_ms >= MIN_RETRY_MS => {
             Some(RetryKind::Retry)
         }
@@ -537,14 +462,14 @@ mod tests {
     use super::*;
     use crate::settings::Settings;
 
-    struct Fixture {
-        history: Arc<History>,
-        settings: Arc<SettingsStore>,
-        changes: Arc<AtomicUsize>,
-        dir: tempfile::TempDir,
+    pub(super) struct Fixture {
+        pub(super) history: Arc<History>,
+        pub(super) settings: Arc<SettingsStore>,
+        pub(super) changes: Arc<AtomicUsize>,
+        pub(super) dir: tempfile::TempDir,
     }
 
-    fn fixture() -> Fixture {
+    pub(super) fn fixture() -> Fixture {
         let dir = tempfile::tempdir().unwrap();
         let database = Arc::new(Database::open(&dir.path().join("shrimp.db")).unwrap());
         let settings = Arc::new(SettingsStore::in_memory(Settings::default()));
@@ -566,7 +491,7 @@ mod tests {
         }
     }
 
-    fn dictation(text: &str, seconds: usize) -> Dictation {
+    pub(super) fn dictation(text: &str, seconds: usize) -> Dictation {
         Dictation {
             created_at: now_ms(),
             raw: format!("um {text}"),
@@ -583,7 +508,7 @@ mod tests {
         }
     }
 
-    fn total_words(history: &History) -> i64 {
+    pub(super) fn total_words(history: &History) -> i64 {
         history.database.with(|db| stats::total_words(db)).unwrap()
     }
 
@@ -629,69 +554,6 @@ mod tests {
     }
 
     #[test]
-    fn never_store_deletes_everything_but_keeps_counting() {
-        let f = fixture();
-        let id = f
-            .history
-            .record(dictation("one two", 1), HistoryStatus::Inserted)
-            .id
-            .unwrap();
-        f.history.backup();
-        f.settings
-            .update(&serde_json::json!({"privacy": {"history": "never"}}))
-            .unwrap();
-        f.history.apply_storage();
-        assert!(f.history.list("").unwrap().disabled);
-        assert!(matches!(f.history.audio(id), Err(HistoryError::NotFound)));
-        assert!(backup::copies(&f.dir.path().join("backups")).is_empty());
-        assert_eq!(
-            f.history
-                .record(dictation("three", 1), HistoryStatus::Inserted)
-                .id,
-            None
-        );
-        assert_eq!(total_words(&f.history), 3, "stats survive (STA-05)");
-        let recordings = std::fs::read_dir(f.dir.path().join("recordings")).unwrap();
-        assert_eq!(recordings.count(), 0);
-    }
-
-    #[test]
-    fn auto_delete_removes_entries_older_than_a_day() {
-        let f = fixture();
-        let mut old = dictation("old", 1);
-        old.created_at = now_ms() - 2 * DAY_MS;
-        f.history.record(old, HistoryStatus::Inserted);
-        f.history
-            .record(dictation("new", 1), HistoryStatus::Inserted);
-        f.settings
-            .update(&serde_json::json!({"privacy": {"history": "autoDelete"}}))
-            .unwrap();
-        f.history.apply_storage();
-        let list = f.history.list("").unwrap();
-        assert_eq!(list.entries.len(), 1);
-        assert_eq!(list.entries[0].entry.final_text, "new");
-    }
-
-    #[test]
-    fn recordings_expire_after_fourteen_days() {
-        let f = fixture();
-        let mut old = dictation("", 6);
-        old.created_at = now_ms() - 15 * DAY_MS;
-        let id = f.history.record(old, HistoryStatus::Failed).id.unwrap();
-        f.history.sweep();
-        let item = f.history.get(id).unwrap();
-        assert!(!item.has_audio);
-        assert!(matches!(
-            f.history.retry_clip(id),
-            Err(HistoryError::RetryAudioGone)
-        ));
-        assert!(matches!(
-            f.history.audio(id),
-            Err(HistoryError::PlayAudioGone)
-        ));
-    }
-
-    #[test]
     fn interrupted_recordings_are_recovered() {
         let f = fixture();
         let mut journal = f.history.start_journal().unwrap();
@@ -706,6 +568,30 @@ mod tests {
         assert_eq!(list.entries[0].entry.status, HistoryStatus::Interrupted);
         assert_eq!(list.entries[0].retry, Some(RetryKind::Recover));
         assert_eq!(f.history.recover_interrupted(), 0);
+    }
+
+    #[test]
+    fn cancelled_recordings_can_be_recovered_and_count_once_transcribed() {
+        let f = fixture();
+        let clip = AudioClip::from_mono_16k(vec![0.1; 8_000]);
+        let id = f.history.record_cancelled(&clip, None).unwrap();
+        let item = f.history.get(id).unwrap();
+        assert_eq!(item.entry.status, HistoryStatus::Cancelled);
+        assert_eq!(item.entry.audio_ms, 500);
+        assert_eq!(item.retry, Some(RetryKind::Recover), "any length");
+        assert_eq!(f.history.retry_clip(id).unwrap().samples().len(), 8_000);
+        assert_eq!(total_words(&f.history), 0);
+        let mut pasted = dictation("Pasted at last.", 1);
+        pasted.replaces = Some(id);
+        f.history.record(pasted, HistoryStatus::Inserted);
+        assert_eq!(total_words(&f.history), 3);
+        assert_eq!(f.history.list("").unwrap().entries.len(), 1);
+
+        f.settings
+            .update(&serde_json::json!({"privacy": {"history": "never"}}))
+            .unwrap();
+        assert!(!f.history.stores_dictations());
+        assert_eq!(f.history.record_cancelled(&clip, None), None);
     }
 
     #[test]

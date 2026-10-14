@@ -71,6 +71,7 @@
   "error.relaunch.noExecutable": "App nicht gefunden: {details}",
   "error.relaunch.notBundled": "Shrimp läuft nicht aus einem App-Bundle",
   "error.relaunch.failed": "Neustart nicht möglich: {details}",
+  "error.install.copyFailed": "Shrimp konnte nicht nach {folder} kopiert werden: {details}",
   "error.models.unknown": "Dieses Modell ist nicht im Katalog.",
   "error.models.inUse": "Wechsle zu einem anderen Modell, bevor du dieses löschst.",
   "error.models.deleteFailed": "Das Modell konnte nicht gelöscht werden: {details}",

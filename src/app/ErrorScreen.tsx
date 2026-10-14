@@ -4,7 +4,9 @@ import {
   checkStorage,
   dismissCrash,
   errorMessage,
+  moveToApplications,
   openStorageSettings,
+  quitApp,
   repairData,
   type AppHealth,
 } from "../lib/ipc";
@@ -13,15 +15,15 @@ interface ErrorScreenProps {
   health: AppHealth;
 }
 
-/** Whether the main window shows an error screen instead of the app (APP-09). */
+/** Whether the main window shows an error screen instead of the app (APP-09, APP-11). */
 export const hasProblem = (health: AppHealth | null): health is AppHealth =>
-  Boolean(health && (health.data || health.storage || health.crash));
+  Boolean(health && (health.misplaced || health.data || health.storage || health.crash));
 
-/** Which screen shows: a damaged database first, then a full disk, then a crash. */
+/** Which screen shows: the app outside Applications, a damaged database, a full disk, a crash. */
 export const problemKind = (health: AppHealth) =>
-  health.data ? "data" : health.storage ? "storage" : "crash";
+  health.misplaced ? "misplaced" : health.data ? "data" : health.storage ? "storage" : "crash";
 
-/** A damaged database, a full disk or a crash, each with its way out. */
+/** The app outside Applications, a damaged database, a full disk or a crash, each with its way out. */
 export function ErrorScreen({ health }: ErrorScreenProps) {
   const { t, i18n } = useTranslation();
   const [busy, setBusy] = useState(false);
@@ -43,7 +45,14 @@ export function ErrorScreen({ health }: ErrorScreenProps) {
   let body: string;
   let extra: string | null = null;
   let actions: { label: string; primary?: boolean; run: () => Promise<unknown> }[];
-  if (health.data) {
+  if (health.misplaced) {
+    title = t("errors.moveTitle");
+    body = t("errors.moveBody");
+    actions = [
+      { label: t("errors.quit"), run: quitApp },
+      { label: t("errors.moveToApplications"), primary: true, run: moveToApplications },
+    ];
+  } else if (health.data) {
     title = t("errors.dataTitle");
     body = t("errors.dataBody");
     const backup = health.data.backup;
