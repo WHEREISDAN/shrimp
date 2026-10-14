@@ -43,6 +43,8 @@ export const windows: WindowsCatalog = {
       "Der Datenschutzmodus ist an, daher laufen nur Whisper auf diesem PC und Ollama. Deine Auswahl hier gilt wieder, sobald du ihn ausschaltest.",
     neverBody:
       "Alle Transkripte, Aufnahmen und Backups auf diesem PC werden jetzt gelöscht, und neue Diktate werden nicht gespeichert. Gib zur Bestätigung „delete all“ ein.",
+    deleteAllBody:
+      "Löscht alle Transkripte und Aufnahmen auf diesem PC. Statistiken, dein Wörterbuch, Textbausteine und Einstellungen bleiben erhalten.",
   },
   aiProvider: { ollamaNote: "Ollama läuft auf diesem PC; nichts verlässt ihn." },
   apiKey: { saved: "Schlüssel in der Windows-Anmeldeinformationsverwaltung gespeichert" },

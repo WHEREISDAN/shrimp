@@ -395,5 +395,13 @@ export const core: CoreCatalog = {
       "Alle Transkripte, Aufnahmen und Backups auf diesem Mac werden jetzt gelöscht, und neue Diktate werden nicht gespeichert. Gib zur Bestätigung „delete all“ ein.",
     neverField: "Bestätigung",
     neverConfirm: "Alle Daten löschen",
+    transcriptsTitle: "Transkriptverlauf",
+    deleteAllBody:
+      "Löscht alle Transkripte und Aufnahmen auf diesem Mac. Statistiken, dein Wörterbuch, Textbausteine und Einstellungen bleiben erhalten.",
+    deleteAll: "Alle Transkripte löschen",
+    deleteAllTitle: "Alle Transkripte löschen?",
+    deleteAllWarning: "Dadurch wird dein gesamter Transkriptionsverlauf gelöscht.",
+    deleteAllConfirm: "Alle löschen",
+    deleteAllDone: "Alle Transkripte gelöscht",
   },
 };

@@ -126,10 +126,11 @@ edit/                   AI edit pipeline                                        
   tips.rs               formatting tips: list, email, backtrack (FMT-13)               (built)
   command.rs            Command Mode prompt, tagged reply parsing (CMD-01..03)         (built)
   transforms.rs         Polish, Prompt Engineer, custom transforms, auto-apply         (built)
-history/                transcript history (HIS-01..08)                                (built)
+history/                transcript history (HIS-01..09)                                (built)
   mod.rs                History: store a dictation and count its stats, list, Undo AI
-                        edit, delete, retry audio, Play and Extract audio, Local data
-                        storage, the hourly sweep and daily backup                     (built)
+                        edit, delete, retry audio, Play and Extract audio              (built)
+  retention.rs          Local data storage, Delete all transcripts, the hourly sweep
+                        and the daily backup (HIS-04, HIS-07..09)                      (built)
   journal.rs            the recording in progress saved as it arrives; leftovers of
                         a quit or crash become "Interrupted" entries (HIS-06)          (built)
   fixes.rs              words the AI edit removed or changed, for Insights             (built)
@@ -252,6 +253,7 @@ Built so far:
 | Phase 3  | `transform_action` (the changes view's Copy, Retry and Undo)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
 | Phase 4  | `get_shortcuts` (every action's bindings, the overlap warning, Secure Keyboard Entry), `record_shortcut` (records through the hooks; progress as `shortcuts://recording`), `cancel_shortcut_recording`, `remove_shortcut`, `reset_shortcuts`; `retry_model`, `download_model`, `delete_model`; `get_microphones`, `select_microphone`, `rank_microphone`, `forget_microphone`, `start_mic_preview`, `stop_mic_preview`; `get_languages`, `set_languages`, `set_active_language`; `flow_bar_drag`, `flow_bar_action` (the right-click menu)      |
 | Phase 4b | `get_app_health`, `dismiss_crash`, `check_storage`, `open_storage_settings`, `repair_data`, `reset_app` (both restart the app); `get_insights`, `get_voice_profile`, `generate_voice_profile` (rejects with `{kind}`), `copy_image` and `save_image` (a raw PNG request body; the file name in an `x-file-name` header); `list_history`, `copy_history`, `set_history_raw` (Undo/Redo AI edit), `retry_history`, `history_audio` (raw WAV bytes), `extract_history_audio`, `delete_history`, `set_history_storage` ("never" needs "delete all") |
+| Phase 6  | `delete_all_history` (Delete all transcripts)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
 | Phase 2  | `get_settings`, `update_settings`, `get_ai_options`, `get_api_keys`, `set_api_key`, `delete_api_key`, `list_ollama_models`, `test_ai_provider`; dictionary and snippet CRUD and imports (`list_dictionary`, `add_dictionary_entry`, `update_dictionary_entry`, `set_dictionary_pinned`, `delete_dictionary_entries`, `preview_dictionary_import`, `import_dictionary`, `list_snippets`, `add_snippet`, `update_snippet`, `delete_snippets`, `preview_snippet_import`, `import_snippets`)                                                        |
 | Dev only | `dev_get_audio_source`, `dev_set_audio_source`, `dev_set_app_category`, `dev_edit_text`, `dev_read_context`, `dev_set_microphones`, `dev_set_permissions` (debug builds; see DEVELOPMENT.md)                                                                                                                                                                                                                                                                                                                                                    |
 | Events   | `dictation://state`, `dictation://level` (Flow Bar only), `notify://notice`, `command://answer` and `transform://changes` (Flow Bar only), `models://status`, `app://navigate`, `settings://changed`, `shortcuts://recording`, `notify://dismiss` (a notice whose cause went away), `mic://devices`, `mic://level`, `flow-bar://hover` (Flow Bar only), `app://main-visible` (main window shown or closed to the tray)                                                                                                                          |
@@ -1159,7 +1161,7 @@ History search is a `LIKE` over the final and raw text and the app name (with `%
 and `\` escaped), not FTS5: history stays small, and FTS5's tokenizer doesn't split
 Chinese or Japanese.
 
-### History (HIS-01..08)
+### History (HIS-01..09)
 
 Every finished dictation goes to `History::record` on the blocking pool, from the task
 that ran the pipeline, before the controller hears the result. The status comes from
@@ -1173,7 +1175,12 @@ pasting; Retry needs at least 5 s of audio under 14 days old, Recover any length
 hourly sweep (also run at startup) forgets recordings older than 14 days, deletes
 entries older than 24 hours with Auto-delete, deletes stray recordings and makes the
 day's backup. "Never store" (typed confirmation "delete all") deletes every entry,
-recording, journal and backup at once.
+recording, journal and backup at once. Delete all transcripts (HIS-09, a separate row
+in Data and privacy confirmed with "This will delete your entire transcription
+history.", `delete_all_history`) deletes every entry and recording but leaves Local
+data storage as it is, keeps the stats, dictionary, snippets and settings, and makes
+today's backup again so no backup holds the deleted transcripts; a recording in
+progress keeps its journal.
 
 ### Settings (built)
 

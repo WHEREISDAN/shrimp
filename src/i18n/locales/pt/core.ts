@@ -394,5 +394,13 @@ export const core: CoreCatalog = {
       "Todas as transcrições, gravações e backups neste Mac serão apagados agora, e novos ditados não serão guardados. Digite “delete all” para confirmar.",
     neverField: "Confirmação",
     neverConfirm: "Apagar todos os dados",
+    transcriptsTitle: "Histórico de transcrições",
+    deleteAllBody:
+      "Apaga todas as transcrições e gravações neste Mac. As estatísticas, seu dicionário, os trechos e as configurações continuam.",
+    deleteAll: "Apagar todas as transcrições",
+    deleteAllTitle: "Apagar todas as transcrições?",
+    deleteAllWarning: "Isso apagará todo o seu histórico de transcrições.",
+    deleteAllConfirm: "Apagar tudo",
+    deleteAllDone: "Todas as transcrições apagadas",
   },
 };

@@ -382,5 +382,13 @@ export const core = {
       "Every transcript, recording and backup on this Mac is deleted now, and new dictations aren't stored. Type “delete all” to confirm.",
     neverField: "Confirmation",
     neverConfirm: "Delete all data",
+    transcriptsTitle: "Transcript history",
+    deleteAllBody:
+      "Deletes every transcript and recording on this Mac. Insights, your dictionary, snippets and settings stay.",
+    deleteAll: "Delete all transcripts",
+    deleteAllTitle: "Delete all transcripts?",
+    deleteAllWarning: "This will delete your entire transcription history.",
+    deleteAllConfirm: "Delete all",
+    deleteAllDone: "All transcripts deleted",
   },
 } as const;

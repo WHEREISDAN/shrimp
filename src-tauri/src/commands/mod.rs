@@ -80,6 +80,7 @@ pub const NAMES: &[&str] = &[
     "history_audio",
     "extract_history_audio",
     "delete_history",
+    "delete_all_history",
     "set_history_storage",
     "get_insights",
     "get_voice_profile",

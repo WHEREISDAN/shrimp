@@ -1,4 +1,4 @@
-//! Home's transcript history (HIS-01..07) and Undo/Redo AI edit (FMT-12).
+//! Home's transcript history (HIS-01..09) and Undo/Redo AI edit (FMT-12).
 
 use std::sync::Arc;
 
@@ -116,6 +116,13 @@ pub async fn extract_history_audio(
 #[tauri::command]
 pub async fn delete_history(id: i64, history: State<'_, Arc<History>>) -> Result<(), CommandError> {
     run(&history, move |history| history.delete(id)).await
+}
+
+/// Data and privacy › Delete all transcripts (HIS-09): every entry and its
+/// recording; Insights, the dictionary, snippets and settings stay.
+#[tauri::command]
+pub async fn delete_all_history(history: State<'_, Arc<History>>) -> Result<(), CommandError> {
+    run(&history, History::delete_all).await
 }
 
 /// Data and privacy › Local data storage (HIS-07). "Never store" deletes

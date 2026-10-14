@@ -394,5 +394,13 @@ export const core: CoreCatalog = {
       "Ogni trascrizione, registrazione e backup su questo Mac viene eliminato subito, e le nuove dettature non vengono salvate. Digita “delete all” per confermare.",
     neverField: "Conferma",
     neverConfirm: "Elimina tutti i dati",
+    transcriptsTitle: "Cronologia delle trascrizioni",
+    deleteAllBody:
+      "Elimina ogni trascrizione e registrazione su questo Mac. Statistiche, dizionario, snippet e impostazioni restano.",
+    deleteAll: "Elimina tutte le trascrizioni",
+    deleteAllTitle: "Eliminare tutte le trascrizioni?",
+    deleteAllWarning: "Verrà eliminata l'intera cronologia delle trascrizioni.",
+    deleteAllConfirm: "Elimina tutto",
+    deleteAllDone: "Tutte le trascrizioni eliminate",
   },
 };

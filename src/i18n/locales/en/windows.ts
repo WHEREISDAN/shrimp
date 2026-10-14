@@ -47,6 +47,8 @@ export const windows = {
       "Privacy mode is on, so only Whisper on this PC and Ollama run. Your choice here applies again when you turn it off.",
     neverBody:
       "Every transcript, recording and backup on this PC is deleted now, and new dictations aren't stored. Type “delete all” to confirm.",
+    deleteAllBody:
+      "Deletes every transcript and recording on this PC. Insights, your dictionary, snippets and settings stay.",
   },
   aiProvider: { ollamaNote: "Ollama runs on this PC; nothing leaves it." },
   apiKey: { saved: "Key saved in Windows Credential Manager" },

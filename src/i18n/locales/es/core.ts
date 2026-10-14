@@ -392,5 +392,13 @@ export const core: CoreCatalog = {
       "Se eliminan ahora todas las transcripciones, grabaciones y copias de seguridad de este Mac, y los dictados nuevos no se guardan. Escribe “delete all” para confirmar.",
     neverField: "Confirmación",
     neverConfirm: "Eliminar todos los datos",
+    transcriptsTitle: "Historial de transcripciones",
+    deleteAllBody:
+      "Elimina todas las transcripciones y grabaciones de este Mac. Las estadísticas, tu diccionario, los fragmentos y los ajustes se conservan.",
+    deleteAll: "Eliminar todas las transcripciones",
+    deleteAllTitle: "¿Eliminar todas las transcripciones?",
+    deleteAllWarning: "Se eliminará todo tu historial de transcripciones.",
+    deleteAllConfirm: "Eliminar todo",
+    deleteAllDone: "Todas las transcripciones eliminadas",
   },
 };

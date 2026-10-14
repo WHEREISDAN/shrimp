@@ -756,6 +756,9 @@ export const extractHistoryAudio = (id: number): Promise<string> =>
 
 export const deleteHistory = (id: number): Promise<void> => invoke("delete_history", { id });
 
+/** Delete all transcripts: every entry and recording; Insights and the rest stay. */
+export const deleteAllHistory = (): Promise<void> => invoke("delete_all_history");
+
 /** "never" needs `confirmation` to be "delete all". */
 export const setHistoryStorage = (
   storage: HistoryStorage,

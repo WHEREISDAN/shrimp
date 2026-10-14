@@ -102,6 +102,7 @@ pub fn run() {
                 commands::history::history_audio,
                 commands::history::extract_history_audio,
                 commands::history::delete_history,
+                commands::history::delete_all_history,
                 commands::history::set_history_storage,
                 commands::insights::get_insights,
                 commands::insights::get_voice_profile,

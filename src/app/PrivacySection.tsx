@@ -1,5 +1,6 @@
 import { useTranslation } from "react-i18next";
 import type { Settings, SettingsPatch } from "../lib/ipc";
+import { DeleteTranscriptsSetting } from "./DeleteTranscriptsSetting";
 import { HistoryStorageSetting } from "./HistoryStorageSetting";
 import { ToggleRow } from "./ToggleRow";
 
@@ -26,6 +27,7 @@ export function PrivacySection({ settings, update }: PrivacySectionProps) {
         onChange={(contextAwareness) => void update({ privacy: { contextAwareness } })}
       />
       <HistoryStorageSetting value={settings.privacy.history} />
+      <DeleteTranscriptsSetting disabled={settings.privacy.history === "never"} />
     </section>
   );
 }
