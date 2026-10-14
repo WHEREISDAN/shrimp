@@ -30,6 +30,7 @@ export type NoticeAction =
   | "openAiSettings"
   | "openExperimentalSettings"
   | "viewTransformChanges"
+  | "revealEdit"
   | "openDictionary"
   | "undoCancel"
   | "chooseMicrophone"

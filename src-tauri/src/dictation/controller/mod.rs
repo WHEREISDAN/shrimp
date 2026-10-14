@@ -671,6 +671,9 @@ impl Controller {
         for notice in processed.notices {
             self.ui.notice(notice);
         }
+        if let Some(run) = processed.transform {
+            self.last_transform = Some(*run);
+        }
         match &processed.outcome {
             Outcome::Inserted(_) if !self.gestures.is_command() => {
                 self.last_inserted_at = Some(Instant::now());

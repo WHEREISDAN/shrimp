@@ -71,6 +71,8 @@ pub enum NoticeAction {
     OpenExperimentalSettings,
     /// Shows what the last transform changed (TRF-04).
     ViewTransformChanges,
+    /// The same, after auto-apply changed a dictation (TRF-05).
+    RevealEdit,
     /// Opens the dictionary (words were learned, DIC-07).
     OpenDictionary,
     /// Transcribes the cancelled dictation and inserts it (CORE-11).
@@ -170,6 +172,9 @@ mod tests {
         assert_eq!(json["actions"], serde_json::json!(["copyLastTranscript"]));
         assert_eq!(json["category"], "status");
         assert!(json["id"].as_u64().unwrap() > 0);
+        let reveal: NoticeAction = serde_json::from_str("\"revealEdit\"").unwrap();
+        assert_eq!(reveal, NoticeAction::RevealEdit);
+        assert_eq!(serde_json::to_value(reveal).unwrap(), "revealEdit");
     }
 
     #[test]

@@ -135,7 +135,7 @@ pub fn run_notice_action(
             let _ = app.emit_to(window::MAIN_LABEL, NAVIGATE_EVENT, "dictionary");
             Ok(())
         }
-        NoticeAction::ViewTransformChanges => {
+        NoticeAction::ViewTransformChanges | NoticeAction::RevealEdit => {
             controller.send(ControllerInput::Transform(TransformAction::View));
             Ok(())
         }

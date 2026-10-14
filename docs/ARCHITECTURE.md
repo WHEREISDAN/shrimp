@@ -1025,6 +1025,12 @@ changes".
 Auto-apply runs the chosen transform inside the edit pipeline, before casing and
 spacing, unless the dictation raised a notice, held snippets or followed another within
 5 seconds; when it fails, the dictation is inserted as it was, with a notice (TRF-05).
+When it changed the dictation, "We polished your dictation" ("We applied Pirate to your
+dictation" for other transforms) offers Reveal edit, which opens the changes view on the
+dictation as it would have been pasted and as it was (`Edited::auto_applied`, kept as
+the last transform). Retry, the re-transforms and Undo then work on the pasted text
+where Accessibility can follow the field, and otherwise leave their text on the
+clipboard (Cmd+Z would take the dictation too).
 
 The "press enter" voice command (Settings › Experimental, CORE-16) strips a final "press
 enter" from the transcript before the edit and presses Enter 120 ms after a successful

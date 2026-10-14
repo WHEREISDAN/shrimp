@@ -7,14 +7,16 @@ use handy_keys::Modifiers;
 
 use super::learn::LearnTarget;
 use super::state::{Delivered, Outcome, Processed};
+use super::transform::TransformRun;
 use crate::audio::{AudioClip, level};
 use crate::context::{AppKind, DictationContext, PendingContext, apps};
 use crate::edit::tips::{self, Formatting};
+use crate::edit::transforms::Transform;
 use crate::edit::{CleanupLevel, Editor};
 use crate::history::{Dictation, History};
 use crate::insights;
 use crate::lang;
-use crate::notify::{Notice, NoticeCategory};
+use crate::notify::{Notice, NoticeAction, NoticeCategory};
 use crate::settings::SettingsStore;
 use crate::storage::{HistoryStatus, now_ms};
 use crate::t;
@@ -127,6 +129,24 @@ impl Pipeline {
         {
             notices.push(tip);
         }
+        let transform = match (&outcome, edited.auto_applied) {
+            (Outcome::Inserted(delivered), Some(applied))
+                if applied.original.trim() != delivered.text.plain.trim() =>
+            {
+                notices.push(auto_applied_notice(&applied.transform));
+                let field = context
+                    .readable_field()
+                    .and_then(|field| Some((field.field_id, field.selection?.start)));
+                Some(Box::new(TransformRun::auto_applied(
+                    applied.transform,
+                    &applied.original,
+                    &delivered.text.plain,
+                    context.app.clone(),
+                    field,
+                )))
+            }
+            _ => None,
+        };
         // A plain dictation in a text field the user may now correct (DIC-07).
         let learn = match (&outcome, context.readable_field()) {
             (Outcome::Inserted(delivered), Some(field))
@@ -144,6 +164,7 @@ impl Pipeline {
             learn,
             language_check,
             record: Some(record),
+            transform,
             ..outcome.into()
         }
     }
@@ -410,6 +431,15 @@ impl Pipeline {
             Err(error) => Outcome::InsertFailed(delivered, error.to_string()),
         }
     }
+}
+
+/// "We polished your dictation", with Reveal edit for the changes view (TRF-05).
+fn auto_applied_notice(transform: &Transform) -> Notice {
+    let message = match transform {
+        Transform::Polish(_) => t!("notice.transform.autoPolished"),
+        transform => t!("notice.transform.autoApplied", name = transform.name()),
+    };
+    Notice::info(message).with_action(NoticeAction::RevealEdit)
 }
 
 /// Why the cloud engine wasn't used, and that local Whisper was.

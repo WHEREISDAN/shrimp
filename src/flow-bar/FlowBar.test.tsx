@@ -122,6 +122,24 @@ describe("FlowBar", () => {
     await waitFor(() => expect(screen.queryByText(/No text field/)).not.toBeInTheDocument());
   });
 
+  it("reveals an auto-applied edit from its notice", async () => {
+    const calls = backend();
+    render(<FlowBar />);
+    await screen.findByRole("button", { name: "Start dictation" });
+    const notice: Notice = {
+      id: 11,
+      level: "info",
+      message: "We polished your dictation",
+      actions: ["revealEdit"],
+      category: "status",
+    };
+    await act(async () => emit(EVENTS.notice, notice));
+    fireEvent.click(screen.getByRole("button", { name: "Reveal edit" }));
+    await waitFor(() =>
+      expect(calls).toContainEqual({ cmd: "run_notice_action", args: { action: "revealEdit" } }),
+    );
+  });
+
   it("queues notices, and an error interrupts", async () => {
     backend();
     render(<FlowBar />);

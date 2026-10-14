@@ -205,6 +205,8 @@ pub struct Processed {
     pub history_id: Option<i64>,
     /// The recording saved as it happened, deleted once stored (HIS-06).
     pub journal: Option<JournalFiles>,
+    /// The transform auto-apply ran on the dictation, for the changes view (TRF-05).
+    pub transform: Option<Box<TransformRun>>,
 }
 
 impl From<Outcome> for Processed {
@@ -217,6 +219,7 @@ impl From<Outcome> for Processed {
             record: None,
             history_id: None,
             journal: None,
+            transform: None,
         }
     }
 }

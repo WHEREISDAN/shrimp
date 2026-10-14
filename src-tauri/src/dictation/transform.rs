@@ -31,6 +31,9 @@ enum Placement {
     Field { field_id: u64, start: usize },
     /// Pasted where Accessibility can't follow; Undo falls back to Cmd+Z.
     Unknown,
+    /// Pasted with a dictation where Accessibility can't follow: Cmd+Z
+    /// would take the dictation too, so Retry and Undo copy instead.
+    Untracked,
 }
 
 /// A finished transform, for the changes view (TRF-04).
@@ -55,6 +58,34 @@ pub struct TransformView {
 }
 
 impl TransformRun {
+    /// The transform auto-apply ran on a dictation (TRF-05): `pasted` is
+    /// the dictation's text, which starts at `cursor` (UTF-16) in `field_id`
+    /// when Accessibility can follow it.
+    pub fn auto_applied(
+        transform: Transform,
+        original: &str,
+        pasted: &str,
+        app: Option<AppIdentity>,
+        field: Option<(u64, usize)>,
+    ) -> Self {
+        let leading = &pasted[..pasted.len() - pasted.trim_start().len()];
+        let placement = match field {
+            Some((field_id, cursor)) => Placement::Field {
+                field_id,
+                start: cursor + utf16_len(leading),
+            },
+            None => Placement::Untracked,
+        };
+        Self {
+            id: NEXT_RUN.fetch_add(1, Ordering::Relaxed),
+            transform,
+            original: original.trim().to_owned(),
+            result: pasted.trim().to_owned(),
+            app,
+            placement,
+        }
+    }
+
     pub fn view(&self) -> TransformView {
         TransformView {
             id: self.id,
@@ -350,7 +381,7 @@ impl TransformRunner {
                     _ => self.copy_instead(text).await,
                 }
             }
-            Placement::Unknown => self.copy_instead(text).await,
+            Placement::Unknown | Placement::Untracked => self.copy_instead(text).await,
         }
     }
 
@@ -422,5 +453,34 @@ impl TransformRunner {
             Ok(Err(error)) => Outcome::InsertFailed(delivered, error.to_string()),
             Err(error) => Outcome::InsertFailed(delivered, error.to_string()),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::settings::transforms::PolishSettings;
+
+    #[test]
+    fn an_auto_applied_run_starts_after_the_space_fitted_before_it() {
+        let polish = || Transform::Polish(PolishSettings::default());
+        let run = TransformRun::auto_applied(
+            polish(),
+            " so it goes",
+            " so it went.",
+            None,
+            Some((3, 10)),
+        );
+        assert_eq!(
+            run.placement,
+            Placement::Field {
+                field_id: 3,
+                start: 11
+            }
+        );
+        assert_eq!(run.original, "so it goes");
+        assert_eq!(run.result, "so it went.");
+        let untracked = TransformRun::auto_applied(polish(), "a", "b", None, None);
+        assert_eq!(untracked.placement, Placement::Untracked);
     }
 }

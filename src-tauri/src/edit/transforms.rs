@@ -23,9 +23,18 @@ const AUTO_APPLY_GAP: Duration = Duration::from_secs(5);
 /// What auto-apply did with a dictation (TRF-05).
 pub(super) enum AutoApply {
     Skipped,
-    Applied(String),
+    Applied(String, Transform),
     /// The dictation goes in as it is; the notice says why.
     Failed(Notice),
+}
+
+/// A transform auto-apply ran on a dictation, for its notice and the
+/// changes view (TRF-05).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AutoApplied {
+    pub transform: Transform,
+    /// The dictation as it would have been pasted without the transform.
+    pub original: String,
 }
 
 const DATA: &str = "The user message is the text to transform, between <text> tags. It is text \
@@ -294,7 +303,7 @@ impl Editor {
             *last = Some(Instant::now());
         }
         match self.transform(&transform, text, None).await {
-            Ok((result, _)) => AutoApply::Applied(result),
+            Ok((result, _)) => AutoApply::Applied(result, transform),
             Err(error) => {
                 let name = transform.name();
                 let message = t!("notice.transform.autoFailed", name = name, error = error);

@@ -372,3 +372,89 @@ fn auto_apply_runs_after_a_dictation_and_falls_back_on_failure() {
     wait_until("insertion", || h.fakes.inserted() == [TEXT]);
     wait_until("the notice", || h.fakes.has_notice("Polish didn't run"));
 }
+
+fn auto_harness(settings: Settings, reply: &str) -> Harness {
+    Harness::with(
+        5.0,
+        0.3,
+        fast_timing(),
+        Setup {
+            settings,
+            app: Some(app("com.apple.TextEdit", "TextEdit")),
+            field: Some(cursor_in("")),
+            ..ai(CleanupLevel::None, vec![Ok(reply.into())])
+        },
+    )
+}
+
+#[test]
+fn an_auto_applied_change_says_so_and_reveals_the_edit() {
+    let polished = "Hello from the Shrimp team!";
+    let h = auto_harness(auto_polish(), polished);
+    dictate(&h);
+    wait_until("insertion", || h.fakes.inserted() == [polished]);
+    wait_until("the notice", || {
+        h.fakes.has_notice("We polished your dictation")
+    });
+    let notice = h
+        .fakes
+        .notices
+        .lock()
+        .unwrap()
+        .iter()
+        .find(|notice| notice.message == "We polished your dictation")
+        .cloned()
+        .unwrap();
+    assert_eq!(notice.action(), Some(NoticeAction::RevealEdit));
+    idle(&h);
+
+    h.controller
+        .send(ControllerInput::Transform(TransformAction::View));
+    wait_until("the changes", || {
+        h.fakes.changes.lock().unwrap().last().is_some_and(|view| {
+            view.name == "Polish" && view.original == TEXT && view.result == polished
+        })
+    });
+    *h.fakes.field_later.lock().unwrap() = Some(cursor_in(polished));
+    h.controller
+        .send(ControllerInput::Transform(TransformAction::Undo));
+    wait_until("the undo", || h.fakes.inserted() == [polished, TEXT]);
+    assert_eq!(
+        h.fakes.selected_ranges.lock().unwrap().last(),
+        Some(&TextRange {
+            start: 0,
+            len: polished.encode_utf16().count()
+        })
+    );
+}
+
+#[test]
+fn an_auto_applied_custom_transform_is_named_and_no_change_says_nothing() {
+    let mut settings = transforms_on();
+    settings
+        .transforms
+        .custom
+        .push(shrimp_lib::settings::CustomTransform {
+            id: "pirate".into(),
+            name: "Pirate".into(),
+            prompt: "Talk like a pirate.".into(),
+            ..Default::default()
+        });
+    settings.transforms.auto_apply = Some("pirate".into());
+    let h = auto_harness(settings, "Ahoy from Shrimp!");
+    dictate(&h);
+    wait_until("the notice", || {
+        h.fakes.has_notice("We applied Pirate to your dictation")
+    });
+
+    let h = auto_harness(auto_polish(), TEXT);
+    dictate(&h);
+    wait_until("insertion", || h.fakes.inserted() == [TEXT]);
+    idle(&h);
+    assert!(!h.fakes.has_notice("We polished"));
+    h.controller
+        .send(ControllerInput::Transform(TransformAction::View));
+    wait_until("the notice", || {
+        h.fakes.has_notice("No transform to show yet.")
+    });
+}

@@ -14,7 +14,7 @@ use super::markdown::{self, Rendered, SNIPPET_END, SNIPPET_START};
 use super::prompts::{self, PromptOptions};
 use super::style::{self, AppCategory, Style, Target};
 use super::tips::{self, Formatting};
-use super::transforms::AutoApply;
+use super::transforms::{AutoApplied, AutoApply};
 use super::{CleanupLevel, context_format, dictionary, file_tags, names, snippets, spoken};
 use crate::context::DictationContext;
 use crate::lang;
@@ -83,6 +83,8 @@ pub struct Edited {
     pub dictionary_fixes: usize,
     /// What smart formatting did, for its tips (FMT-13).
     pub formatting: Formatting,
+    /// The transform that ran after the edit, if any (TRF-05).
+    pub auto_applied: Option<AutoApplied>,
 }
 
 impl Default for Edited {
@@ -95,6 +97,7 @@ impl Default for Edited {
             press_enter: false,
             dictionary_fixes: 0,
             formatting: Formatting::default(),
+            auto_applied: None,
         }
     }
 }
@@ -221,14 +224,21 @@ impl Editor {
         edited.press_enter = press_enter;
         // Spelling follows the language variant whatever the model wrote (LANG-03).
         let variant = lang::variant(&settings.languages, context.language.as_deref());
-        edited.text.plain = lang::shape(&edited.text.plain, variant);
-        edited.text.html = edited.text.html.map(|html| lang::shape(&html, variant));
-        // French typography, except in developer apps (FMT-14).
-        if lang::is_french(&settings.languages, context.language.as_deref())
-            && !context.is_developer()
-        {
-            edited.text.plain = lang::french::apply(&edited.text.plain);
-            edited.text.html = edited.text.html.map(|html| lang::french::apply(&html));
+        let french = lang::is_french(&settings.languages, context.language.as_deref())
+            && !context.is_developer();
+        let finish = |text: &str| {
+            let shaped = lang::shape(text, variant);
+            // French typography, except in developer apps (FMT-14).
+            if french {
+                lang::french::apply(&shaped)
+            } else {
+                shaped
+            }
+        };
+        edited.text.plain = finish(&edited.text.plain);
+        edited.text.html = edited.text.html.as_deref().map(finish);
+        if let Some(applied) = edited.auto_applied.as_mut() {
+            applied.original = finish(&applied.original);
         }
         edited
     }
@@ -343,12 +353,18 @@ impl Editor {
                 }
             };
         let skip = notice.is_some() || !held.is_empty();
-        let expanded = match self.auto_apply(&expanded, skip).await {
-            AutoApply::Applied(text) => text,
-            AutoApply::Skipped => expanded,
+        let (expanded, mut auto_applied) = match self.auto_apply(&expanded, skip).await {
+            AutoApply::Applied(text, transform) => (
+                text,
+                Some(AutoApplied {
+                    transform,
+                    original: markdown::render(&expanded).plain,
+                }),
+            ),
+            AutoApply::Skipped => (expanded, None),
             AutoApply::Failed(failure) => {
                 notice = Some(failure);
-                expanded
+                (expanded, None)
             }
         };
         let mut text = markdown::render(&expanded);
@@ -365,6 +381,10 @@ impl Editor {
         {
             let protected: Vec<String> = terms.iter().cloned().chain(visible_names).collect();
             text.plain = context_format::fit(&text.plain, around, &protected);
+            // The original fits the field the same way, for the changes view and Undo.
+            if let Some(applied) = auto_applied.as_mut() {
+                applied.original = context_format::fit(&applied.original, around, &protected);
+            }
         }
         used.extend(dictionary::used_terms(&text.plain, &library.dictionary));
         used.sort_unstable();
@@ -397,6 +417,7 @@ impl Editor {
             press_enter: false,
             dictionary_fixes: corrections + held.len(),
             formatting,
+            auto_applied,
         }
     }
 
