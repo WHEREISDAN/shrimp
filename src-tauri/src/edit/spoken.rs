@@ -204,6 +204,10 @@ mod tests {
             "one\nTwo\nThree"
         );
         assert_eq!(line_breaks("Start a new paragraph. Hello"), "\n\nHello");
+        assert_eq!(
+            line_breaks("Thanks for coming. Start a new paragraph. The slides follow."),
+            "Thanks for coming.\n\nThe slides follow."
+        );
         assert_eq!(line_breaks("Hi skip a line bye"), "Hi\nBye");
     }
 
@@ -232,6 +236,8 @@ mod tests {
             "Done. See you!"
         );
         assert_eq!(punctuation("wait em dash really"), "wait—really");
+        assert_eq!(punctuation("wait em-dash really"), "wait—really");
+        assert_eq!(punctuation("wait emdash really"), "wait—really");
         assert_eq!(punctuation("Note colon Bring snacks"), "Note: Bring snacks");
     }
 

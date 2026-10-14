@@ -80,7 +80,7 @@ audio/                  audio input                                             
 lang/                   languages (LANG-01..05)                                        (built)
   catalog.rs            Whisper's languages plus English, Chinese, German variants     (built)
   spelling.rs           US/UK/Canadian spelling, ß→ss, Simplified/Traditional (hanconv) (built)
-  french.rs             narrow no-break spaces before ; : ! ? (FMT-14)                 (built)
+  french.rs             narrow no-break spaces before ; : ! ? » and after « (FMT-14) (built)
   mod.rs                what the engine is told, the variant, prompt rules            (built)
 mic/                    microphones (MIC-02..08)                                       (built)
   mod.rs                Microphones: choose, rank, hot-plug prompt, Bluetooth advice   (built)
@@ -1238,9 +1238,9 @@ The first of each gets an explanation, then up to 3 reminders, at most one tip a
 (`notices.formattingTips`). Muted tips aren't counted.
 
 French typography (`lang/french.rs`): when the dictation was in French and the app
-isn't a code editor or terminal, a narrow no-break space (U+202F) goes before `; : ! ?`,
-replacing a typed space; times (10:30), URLs, emails, paths and emoticons are left
-alone.
+isn't a code editor or terminal, a narrow no-break space (U+202F) goes before `; : ! ?`
+and `»` and after `«`, replacing a typed space; times (10:30), URLs, emails, paths and
+emoticons are left alone.
 
 ## Errors, logging and notices
 
