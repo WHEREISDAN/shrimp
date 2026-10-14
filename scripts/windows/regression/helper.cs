@@ -179,7 +179,9 @@ static class Helper
         if (key.Mouse != 0)
         {
             input.type = 0;
-            if (key.Mouse == 3) input.mi.dwFlags = down ? 0x0020u : 0x0040u;
+            if (key.Mouse == 1) input.mi.dwFlags = down ? 0x0002u : 0x0004u;
+            else if (key.Mouse == 2) input.mi.dwFlags = down ? 0x0008u : 0x0010u;
+            else if (key.Mouse == 3) input.mi.dwFlags = down ? 0x0020u : 0x0040u;
             else
             {
                 input.mi.dwFlags = down ? 0x0080u : 0x0100u;
@@ -526,8 +528,7 @@ static class Helper
 
     // MARK: Shrimp's tray icon
 
-    const uint WM_USER_TRAYICON = 6002;
-    const uint WM_LBUTTONUP = 0x0202, WM_RBUTTONUP = 0x0205, WM_CANCELMODE = 0x001F, WM_KEYDOWN = 0x0100;
+    const uint WM_CANCELMODE = 0x001F, WM_KEYDOWN = 0x0100;
 
     static uint ShrimpPid()
     {
@@ -552,16 +553,17 @@ static class Helper
     [DllImport("shell32.dll")] static extern int Shell_NotifyIconGetRect(ref NOTIFYICONIDENTIFIER icon, out RECT rect);
 
     /// <summary>
-    /// Whether Windows says where Shrimp's icon is. tray-icon only handles a
-    /// click when it does; for an icon hidden in the taskbar's overflow flyout
-    /// it answers S_FALSE until the flyout is open, which is Explorer's.
+    /// Where Windows shows Shrimp's icon, if it shows it. tray-icon only
+    /// handles a click when Windows can say this; for an icon hidden in the
+    /// taskbar's overflow flyout it answers S_FALSE until the flyout is open,
+    /// which is Explorer's.
     /// </summary>
-    static bool IconShown(IntPtr tray)
+    static bool IconRect(IntPtr tray, out RECT rect)
     {
+        rect = new RECT();
         for (uint id = 0; id < 8; id++)
         {
             var icon = new NOTIFYICONIDENTIFIER { cbSize = (uint)Marshal.SizeOf(typeof(NOTIFYICONIDENTIFIER)), hWnd = tray, uID = id };
-            RECT rect;
             var result = Shell_NotifyIconGetRect(ref icon, out rect);
             if (result == 0) return true;
             if (result == 1) return false;
@@ -569,28 +571,145 @@ static class Helper
         return false;
     }
 
+    // Native UI Automation: the .NET client has no proxy for the taskbar's
+    // toolbars, so it sees no icons there. Only the methods used are named;
+    // the others hold their places in the interfaces' tables.
+
+    [ComImport, Guid("ff48dba4-60ef-4201-aa87-54103eef594e")]
+    class CUIAutomation { }
+
+    [ComImport, Guid("30cbe57d-d9d0-452a-ab13-7ac5ac4825ee"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+    interface IUIAutomation
+    {
+        void CompareElements();
+        void CompareRuntimeIds();
+        void GetRootElement();
+        [PreserveSig] int ElementFromHandle(IntPtr hwnd, out IUIAutomationElement element);
+        void ElementFromPoint();
+        void GetFocusedElement();
+        void GetRootElementBuildCache();
+        void ElementFromHandleBuildCache();
+        void ElementFromPointBuildCache();
+        void GetFocusedElementBuildCache();
+        void CreateTreeWalker();
+        void get_ControlViewWalker();
+        void get_ContentViewWalker();
+        [PreserveSig] int get_RawViewWalker(out IUIAutomationTreeWalker walker);
+    }
+
+    [ComImport, Guid("4042c624-389c-4afc-a630-9df854a541fc"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+    interface IUIAutomationTreeWalker
+    {
+        void GetParentElement();
+        [PreserveSig] int GetFirstChildElement(IUIAutomationElement element, out IUIAutomationElement first);
+        void GetLastChildElement();
+        [PreserveSig] int GetNextSiblingElement(IUIAutomationElement element, out IUIAutomationElement next);
+    }
+
+    [ComImport, Guid("d22108aa-8ac5-49a5-837b-37bbb3d7591e"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+    interface IUIAutomationElement
+    {
+        void SetFocus();
+        void GetRuntimeId();
+        void FindFirst();
+        void FindAll();
+        void FindFirstBuildCache();
+        void FindAllBuildCache();
+        void BuildUpdatedCache();
+        [PreserveSig] int GetCurrentPropertyValue(int property, [MarshalAs(UnmanagedType.Struct)] out object value);
+    }
+
+    const int UIA_BoundingRectanglePropertyId = 30001, UIA_NamePropertyId = 30005;
+
+    /// <summary>The centre of the taskbar's button for Shrimp's icon (named by its tooltip), through UI Automation.</summary>
+    static bool IconButton(out int x, out int y)
+    {
+        x = y = 0;
+        var automation = (IUIAutomation)new CUIAutomation();
+        IUIAutomationElement root;
+        IUIAutomationTreeWalker walker;
+        if (automation.ElementFromHandle(FindWindow("Shell_TrayWnd", null), out root) != 0 || root == null) return false;
+        if (automation.get_RawViewWalker(out walker) != 0) return false;
+        var pending = new Stack<IUIAutomationElement>();
+        pending.Push(root);
+        for (var seen = 0; pending.Count > 0 && seen < 1000; seen++)
+        {
+            var element = pending.Pop();
+            object name, bounds;
+            element.GetCurrentPropertyValue(UIA_NamePropertyId, out name);
+            element.GetCurrentPropertyValue(UIA_BoundingRectanglePropertyId, out bounds);
+            var box = bounds as double[];
+            if (name is string && ((string)name).StartsWith("Shrimp") && box != null && box.Length == 4 && box[2] > 0 && box[3] > 0)
+            {
+                x = (int)(box[0] + box[2] / 2);
+                y = (int)(box[1] + box[3] / 2);
+                return true;
+            }
+            IUIAutomationElement child;
+            if (walker.GetFirstChildElement(element, out child) != 0) continue;
+            while (child != null)
+            {
+                pending.Push(child);
+                IUIAutomationElement next;
+                if (walker.GetNextSiblingElement(child, out next) != 0) break;
+                child = next;
+            }
+        }
+        return false;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    struct POINT { public int x, y; }
+
+    [DllImport("user32.dll")] static extern bool GetCursorPos(out POINT point);
+    [DllImport("user32.dll")] static extern bool SetCursorPos(int x, int y);
+
     const int HiddenIcon = 4;
 
     /// <summary>
-    /// What Explorer sends Shrimp when its notification-area icon is clicked,
-    /// posted straight to the icon's window. Exits with code 4 when the icon
-    /// is hidden in the overflow flyout, where tray-icon ignores the click.
+    /// Clicks Shrimp's taskbar icon as a person would, through Explorer:
+    /// found with UI Automation, checked against where Windows says the icon
+    /// is, and guarded like keys. The pointer goes back where it was. Exits
+    /// with code 4 when the icon is hidden in the overflow flyout.
     /// </summary>
+    static void ClickIcon(IntPtr tray, string button)
+    {
+        // Explorer places an icon a moment after a new instance adds it.
+        RECT shown;
+        var placed = Stopwatch.StartNew();
+        while (!IconRect(tray, out shown))
+        {
+            if (placed.ElapsedMilliseconds > 5000) Fail("Shrimp's tray icon is hidden in the taskbar's overflow flyout", HiddenIcon);
+            Thread.Sleep(250);
+        }
+        int x, y;
+        if (!IconButton(out x, out y)) Fail("UI Automation found no taskbar button for Shrimp's icon");
+        if (x < shown.left || x >= shown.right || y < shown.top || y >= shown.bottom)
+            Fail(string.Format("UI Automation's button ({0}, {1}) isn't where Windows shows Shrimp's icon", x, y));
+        Guard("clicking Shrimp's tray icon");
+        POINT before;
+        GetCursorPos(out before);
+        SetCursorPos(x, y);
+        Thread.Sleep(50);
+        var press = new Key { Mouse = button == "right" ? 2 : 1 };
+        Send(press, true);
+        Send(press, false);
+        Thread.Sleep(100);
+        SetCursorPos(before.x, before.y);
+    }
+
     static void TrayClick(string button)
     {
-        var hwnd = TrayWindow(ShrimpPid());
-        if (!IconShown(hwnd)) Fail("Shrimp's tray icon is hidden in the taskbar's overflow flyout", HiddenIcon);
-        PostMessage(hwnd, WM_USER_TRAYICON, IntPtr.Zero, new IntPtr(button == "right" ? WM_RBUTTONUP : WM_LBUTTONUP));
+        ClickIcon(TrayWindow(ShrimpPid()), button);
         Output(new Dictionary<string, object> { { "ok", true } });
     }
 
-    /// <summary>Opens the tray menu, lists its items, then invokes `item` or closes the menu.</summary>
+    /// <summary>Opens the tray menu with a right click, lists its items, then invokes `item` or closes the menu.</summary>
     static void Tray(string item)
     {
         var pid = ShrimpPid();
         var tray = TrayWindow(pid);
-        if (!IconShown(tray)) Fail("Shrimp's tray icon is hidden in the taskbar's overflow flyout", HiddenIcon);
-        PostMessage(tray, WM_USER_TRAYICON, IntPtr.Zero, new IntPtr(WM_RBUTTONUP));
+        ClickIcon(tray, "right");
         IntPtr menu = IntPtr.Zero;
         var deadline = Stopwatch.StartNew();
         while (menu == IntPtr.Zero && deadline.ElapsedMilliseconds < 3000)
