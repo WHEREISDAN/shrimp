@@ -30,9 +30,9 @@ pub use shrimp_lib::llm::{
 pub use shrimp_lib::mic::Microphones;
 pub use shrimp_lib::notify::{Notice, NoticeCategory};
 pub use shrimp_lib::platform::{
-    AppIdentity, ContextRequest, CuePlayer, FieldContext, FocusInspector, HotkeyBackend,
-    InsertOptions, InsertOutcome, InsertText, Launcher, MediaControl, Permission, PermissionStatus,
-    Permissions, PlatformError, Restore, SyntheticKey, TextInserter, TextRange,
+    AppIdentity, ContextRequest, CopyReason, CuePlayer, FieldContext, FocusInspector,
+    HotkeyBackend, InsertOptions, InsertOutcome, InsertText, Launcher, MediaControl, Permission,
+    PermissionStatus, Permissions, PlatformError, Restore, SyntheticKey, TextInserter, TextRange,
 };
 pub use shrimp_lib::settings::{OnboardingSettings, OnboardingStep, Settings, SettingsStore};
 pub use shrimp_lib::sounds::Cue;
@@ -53,6 +53,8 @@ pub struct Fakes {
     pub recording_shortcut: Mutex<bool>,
     pub recording_statuses: Mutex<Vec<RecordingStatus>>,
     pub inserted: Mutex<Vec<String>>,
+    /// What pasting returns; pasted when None.
+    pub insert_outcome: Mutex<Option<InsertOutcome>>,
     pub inserted_html: Mutex<Vec<Option<String>>>,
     pub insert_options: Mutex<Vec<InsertOptions>>,
     pub app: Mutex<Option<AppIdentity>>,
@@ -157,7 +159,12 @@ impl TextInserter for FakeInserter {
         self.0.insert_options.lock().unwrap().push(*options);
         self.0.inserted.lock().unwrap().push(text.plain.clone());
         self.0.inserted_html.lock().unwrap().push(text.html.clone());
-        Ok(InsertOutcome::Pasted)
+        Ok(self
+            .0
+            .insert_outcome
+            .lock()
+            .unwrap()
+            .unwrap_or(InsertOutcome::Pasted))
     }
 
     fn copy(&self, text: &InsertText) -> Result<(), PlatformError> {

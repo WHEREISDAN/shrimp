@@ -23,7 +23,9 @@ const TERMINALS: &[(&str, &str)] = &[
     ("net.kovidgoyal.kitty", "kitty"),
     ("org.alacritty", "Alacritty"),
     ("com.github.wez.wezterm", "WezTerm"),
+    ("wezterm-gui.exe", "WezTerm"),
     ("co.zeit.hyper", "Hyper"),
+    ("Hyper.exe", "Hyper"),
     ("com.raphaelamorim.rio", "Rio"),
     ("WindowsTerminal.exe", "Windows Terminal"),
     ("powershell.exe", "Windows PowerShell"),
@@ -41,10 +43,16 @@ const REMOTE_DESKTOPS: &[(&str, &str)] = &[
     ("com.apple.ScreenSharing", "Screen Sharing"),
     ("com.amazon.workspaces", "WorkSpaces"),
     ("com.teamviewer.TeamViewer", "TeamViewer"),
-    ("com.splashtop.business", "Splashtop Business"),
+    ("com.philandro.anydesk", "AnyDesk"),
+    ("com.splashtop.stb.macosx", "Splashtop Business"),
+    ("com.splashtop.stp.macosx", "Splashtop Personal"),
     ("com.parallels.client", "Parallels Client"),
     ("mstsc.exe", "Remote Desktop Connection"),
     ("msrdc.exe", "Remote Desktop"),
+    ("msrdcw.exe", "Remote Desktop"),
+    ("AnyDesk.exe", "AnyDesk"),
+    ("TeamViewer.exe", "TeamViewer"),
+    ("workspaces.exe", "Amazon WorkSpaces"),
     ("CDViewer.exe", "Citrix Workspace"),
     ("vmware-view.exe", "VMware Horizon Client"),
 ];
@@ -68,11 +76,17 @@ const BROWSERS: &[(&str, &str)] = &[
     ("app.zen-browser.zen", "Zen"),
     ("ru.yandex.desktop.yandex-browser", "Yandex"),
     ("com.pushplaylabs.sidekick", "Sidekick"),
-    ("com.tonsky.shift", "Shift"),
+    ("com.rdbrck.shift", "Shift"),
     ("chrome.exe", "Google Chrome"),
     ("msedge.exe", "Microsoft Edge"),
     ("firefox.exe", "Firefox"),
     ("brave.exe", "Brave"),
+    ("Arc.exe", "Arc"),
+    ("opera.exe", "Opera"),
+    ("vivaldi.exe", "Vivaldi"),
+    ("zen.exe", "Zen"),
+    ("browser.exe", "Yandex"),
+    ("Shift.exe", "Shift"),
 ];
 
 /// IDEs and code editors: developer apps for syntax-aware dictation.
@@ -217,6 +231,61 @@ mod tests {
             "com.microsoft.VSCode",
             "Code"
         ))));
+    }
+
+    #[test]
+    fn remote_desktops_terminals_and_browsers_on_both_platforms() {
+        let kind_of = |id: &str| kind(Some(&app(id, "")));
+        for id in [
+            "com.philandro.anydesk",
+            "com.teamviewer.TeamViewer",
+            "com.amazon.workspaces",
+            "com.splashtop.stb.macosx",
+            "com.splashtop.stp.macosx",
+            "mstsc.exe",
+            "msrdc.exe",
+            "msrdcw.exe",
+            "AnyDesk.exe",
+            "TeamViewer.exe",
+            "workspaces.exe",
+        ] {
+            assert_eq!(kind_of(id), AppKind::RemoteDesktop, "{id}");
+        }
+        for id in [
+            "co.zeit.hyper",
+            "Hyper.exe",
+            "com.github.wez.wezterm",
+            "wezterm-gui.exe",
+            "powershell.exe",
+            "pwsh.exe",
+        ] {
+            assert_eq!(kind_of(id), AppKind::Terminal, "{id}");
+        }
+        for id in [
+            "com.google.Chrome",
+            "com.apple.Safari",
+            "company.thebrowser.Browser",
+            "com.brave.Browser",
+            "com.microsoft.edgemac",
+            "org.mozilla.firefox",
+            "com.operasoftware.Opera",
+            "com.vivaldi.Vivaldi",
+            "app.zen-browser.zen",
+            "ru.yandex.desktop.yandex-browser",
+            "com.rdbrck.shift",
+            "chrome.exe",
+            "msedge.exe",
+            "firefox.exe",
+            "brave.exe",
+            "Arc.exe",
+            "opera.exe",
+            "vivaldi.exe",
+            "zen.exe",
+            "browser.exe",
+            "Shift.exe",
+        ] {
+            assert_eq!(kind_of(id), AppKind::Browser, "{id}");
+        }
     }
 
     #[test]

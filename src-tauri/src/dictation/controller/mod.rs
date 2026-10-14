@@ -338,6 +338,7 @@ impl Controller {
                 self.language_detected(code, probability);
             }
             ControllerInput::AddDetectedLanguage => self.add_detected_language(),
+            ControllerInput::AnswerPressEnter { enable } => self.answer_press_enter(enable),
             ControllerInput::SettingsChanged => self.refresh_bindings(),
             ControllerInput::Transform(action) => self.transform_action(action),
             ControllerInput::Bar(control) => self.gesture(Input::Bar(control)),
@@ -637,6 +638,9 @@ impl Controller {
     }
 
     fn processed(&mut self, processed: Processed) {
+        if matches!(processed.outcome, Outcome::Inserted(_)) {
+            self.sounds.play(Cue::Paste);
+        }
         self.gestures.reset();
         self.set_state(DictationState::Idle);
         for notice in processed.notices {

@@ -148,7 +148,33 @@ fn next_word_is(text: &str, end: usize, word: &str) -> bool {
 }
 
 /// The words that end a dictation with Enter (CORE-16).
-const PRESS_ENTER: &str = "press enter";
+pub const PRESS_ENTER: &str = "press enter";
+
+/// What a final "press enter" asks for; the phrase is cut off unless `No`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum PressEnter {
+    #[default]
+    No,
+    /// The command is on: Enter after the paste (CORE-16).
+    Press,
+    /// The command is off and this is its first detection in a dictation:
+    /// a one-time prompt offers to turn it on (CORE-17).
+    Ask,
+}
+
+/// Looks for a final "press enter" when the command is on, or, while it is
+/// off, when its one-time prompt may still show; returns the text before it.
+pub fn press_enter(text: &str, command: bool, may_ask: bool) -> (PressEnter, Option<String>) {
+    let suffix = (command || may_ask)
+        .then(|| press_enter_suffix(text))
+        .flatten();
+    let found = match (&suffix, command) {
+        (None, _) => PressEnter::No,
+        (Some(_), true) => PressEnter::Press,
+        (Some(_), false) => PressEnter::Ask,
+    };
+    (found, suffix)
+}
 
 /// Strips a final "press enter" and returns the text before it.
 pub fn press_enter_suffix(text: &str) -> Option<String> {
@@ -190,6 +216,21 @@ mod tests {
     }
 
     #[test]
+    fn press_enter_is_pressed_asked_about_or_left_as_words() {
+        let ship = "Ship it, press enter.";
+        assert_eq!(
+            press_enter(ship, true, false),
+            (PressEnter::Press, Some("Ship it".into()))
+        );
+        assert_eq!(
+            press_enter(ship, false, true),
+            (PressEnter::Ask, Some("Ship it".into()))
+        );
+        assert_eq!(press_enter(ship, false, false), (PressEnter::No, None));
+        assert_eq!(press_enter("Ship it.", true, true), (PressEnter::No, None));
+    }
+
+    #[test]
     fn line_and_paragraph_commands_insert_breaks() {
         assert_eq!(
             line_breaks("Hi Sam, new line. How are you?"),
@@ -204,6 +245,10 @@ mod tests {
             "one\nTwo\nThree"
         );
         assert_eq!(line_breaks("Start a new paragraph. Hello"), "\n\nHello");
+        assert_eq!(
+            line_breaks("Thanks for coming. Start a new paragraph. The slides follow."),
+            "Thanks for coming.\n\nThe slides follow."
+        );
         assert_eq!(line_breaks("Hi skip a line bye"), "Hi\nBye");
     }
 
@@ -232,6 +277,8 @@ mod tests {
             "Done. See you!"
         );
         assert_eq!(punctuation("wait em dash really"), "wait—really");
+        assert_eq!(punctuation("wait em-dash really"), "wait—really");
+        assert_eq!(punctuation("wait emdash really"), "wait—really");
         assert_eq!(punctuation("Note colon Bring snacks"), "Note: Bring snacks");
     }
 

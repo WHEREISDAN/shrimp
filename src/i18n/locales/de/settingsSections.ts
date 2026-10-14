@@ -69,9 +69,9 @@ export const settingsSections: SettingsSectionsCatalog = {
     title: "Ton",
     dictation: "Diktiertöne",
     dictationBody:
-      "Ein Ton, wenn ein Diktat startet, endet, in den Freihandmodus wechselt oder abgebrochen wird.",
+      "Ein Ton, wenn ein Diktat startet, endet, in den Freihandmodus wechselt, abgebrochen oder eingefügt wird.",
     notifications: "Mitteilungstöne",
-    notificationsBody: "Ein Ton bei Warnungen und Fehlern.",
+    notificationsBody: "Ein Ton bei Warnungen, Fehlern und Meilensteinen.",
     mute: "Audio beim Diktieren stummschalten",
     muteBody: "Läuft beim Start etwas, bleibt dein Mac stumm, bis du fertig bist.",
     pause: "Musik beim Diktieren pausieren",

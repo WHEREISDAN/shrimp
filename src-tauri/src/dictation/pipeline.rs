@@ -10,11 +10,11 @@ use super::state::{Delivered, Outcome, Processed};
 use crate::audio::{AudioClip, level};
 use crate::context::{AppKind, DictationContext, PendingContext, apps};
 use crate::edit::tips::{self, Formatting};
-use crate::edit::{CleanupLevel, Editor};
+use crate::edit::{CleanupLevel, Editor, PressEnter};
 use crate::history::{Dictation, History};
 use crate::insights;
 use crate::lang;
-use crate::notify::{Notice, NoticeCategory};
+use crate::notify::{Notice, NoticeAction, NoticeCategory};
 use crate::settings::SettingsStore;
 use crate::storage::{HistoryStatus, now_ms};
 use crate::t;
@@ -94,10 +94,13 @@ impl Pipeline {
             .then_some(settings.ai.provider);
         record.dictionary_fixes = edited.dictionary_fixes as i64;
         if edited.text.plain.trim().is_empty() {
-            let outcome = if edited.press_enter {
-                self.press_enter(paste_delay).await
-            } else {
-                Outcome::NothingToInsert
+            let outcome = match edited.press_enter {
+                PressEnter::Press => self.press_enter(paste_delay).await,
+                PressEnter::Ask => {
+                    notices.push(self.ask_press_enter());
+                    Outcome::PressEnterAsked
+                }
+                PressEnter::No => Outcome::NothingToInsert,
             };
             return Processed {
                 notices,
@@ -113,7 +116,11 @@ impl Pipeline {
         };
         let options = self.insert_options(&context);
         let mut outcome = self.insert(delivered, options, paste_delay).await;
-        if edited.press_enter && matches!(outcome, Outcome::Inserted(_)) {
+        let pasted = matches!(outcome, Outcome::Inserted(_));
+        if edited.press_enter == PressEnter::Ask && pasted {
+            notices.push(self.ask_press_enter());
+        }
+        if edited.press_enter == PressEnter::Press && pasted {
             // After the app has taken the paste (CORE-16).
             if let Outcome::InsertFailed(_, message) = self.press_enter(ENTER_AFTER_PASTE).await {
                 outcome = match outcome {
@@ -146,6 +153,19 @@ impl Pipeline {
             record: Some(record),
             ..outcome.into()
         }
+    }
+
+    /// The one-time prompt for the first "press enter" with the command off
+    /// (CORE-17); the phrase is already cut off. Great turns the command on
+    /// and presses Enter, Disable types the words back.
+    fn ask_press_enter(&self) -> Notice {
+        let seen = serde_json::json!({"experimental": {"pressEnterPromptSeen": true}});
+        if let Err(error) = self.settings.update(&seen) {
+            log::warn!("could not note the press enter prompt: {error}");
+        }
+        Notice::info(t!("notice.pressEnter.prompt"))
+            .with_action(NoticeAction::EnablePressEnter)
+            .with_action(NoticeAction::DisablePressEnter)
     }
 
     /// The formatting tip this dictation earns (FMT-13), counted when shown.

@@ -76,6 +76,7 @@ export const library = {
     bold: "Bold",
     italic: "Italic",
     link: "Link",
+    expansionTooLong: "This expansion is too long. Please shorten it and try again.",
     save: "Save",
     saveChanges: "Save changes",
   },

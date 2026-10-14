@@ -21,6 +21,25 @@ export const styleTransforms = {
       footnote:
         "Styles apply to new dictations. AI assistants such as ChatGPT and Claude get no style formatting.",
     },
+    appFormats: {
+      title: "Formatting per app",
+      body: "Choose how dictations into an app are formatted. Apps not listed here get automatic formatting.",
+      app: "App",
+      format: "Format",
+      add: "Add app",
+      remove: "Remove",
+      removeApp: "Remove {{app}}",
+      formatFor: "Format for {{app}}",
+      noApps: "Apps you dictate into appear here.",
+      footnote:
+        "Unformatted transcription skips the AI edit, spoken punctuation and casing; line breaks, dictionary corrections and snippets still apply. All lowercase affects the whole dictation, including sentence starts; snippets keep their own text.",
+      formats: {
+        automatic: "Automatic formatting",
+        unformatted: "Unformatted transcription",
+        properNouns: "Proper-noun capitals only",
+        lowercase: "All lowercase",
+      },
+    },
     // Each title is written in its own style: capitals and punctuation show the difference.
     options: {
       formal: { title: "Formal.", description: "Caps + punctuation." },

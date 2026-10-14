@@ -79,6 +79,7 @@ export const library: LibraryCatalog = {
     bold: "Grassetto",
     italic: "Corsivo",
     link: "Link",
+    expansionTooLong: "Questa espansione è troppo lunga. Accorciala e riprova.",
     save: "Salva",
     saveChanges: "Salva modifiche",
   },

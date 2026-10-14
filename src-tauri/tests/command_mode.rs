@@ -425,12 +425,15 @@ fn ending_a_dictation_with_press_enter_presses_it_after_the_paste() {
 }
 
 #[test]
-fn without_the_setting_press_enter_is_just_words() {
+fn without_the_setting_press_enter_is_just_words_once_the_prompt_was_shown() {
+    let mut settings = Settings::default();
+    settings.experimental.press_enter_prompt_seen = true;
     let h = Harness::with(
         5.0,
         0.3,
         fast_timing(),
         Setup {
+            settings,
             transcript: Some("Ship it, press enter.".into()),
             ..Setup::default()
         },

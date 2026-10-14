@@ -65,9 +65,10 @@ export const settingsSections = {
   sound: {
     title: "Sound",
     dictation: "Dictation sounds",
-    dictationBody: "A sound when dictation starts, stops, locks hands-free or is cancelled.",
+    dictationBody:
+      "A sound when dictation starts, stops, locks hands-free, is cancelled or is pasted.",
     notifications: "Notification sounds",
-    notificationsBody: "A sound with warnings and errors.",
+    notificationsBody: "A sound with warnings, errors and milestones.",
     mute: "Mute audio while dictating",
     muteBody: "If something is playing when you start, your Mac stays muted until you finish.",
     pause: "Pause music while dictating",

@@ -70,7 +70,7 @@ pub fn report(outcome: Outcome, ui: &dyn DictationUi) -> Option<LastDictation> {
             );
             remember(LastStatus::Failed, Some(text), None)
         }
-        Outcome::EnterPressed | Outcome::Searched => None,
+        Outcome::EnterPressed | Outcome::PressEnterAsked | Outcome::Searched => None,
         Outcome::Answered(answer) => {
             let text = Delivered {
                 text: InsertText::plain(answer.text.clone()),

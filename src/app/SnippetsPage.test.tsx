@@ -127,6 +127,22 @@ describe("SnippetsPage", () => {
     );
   });
 
+  it("says when formatting would make the expansion too long", async () => {
+    const { argsOf } = backend();
+    render(<SnippetsPage />);
+    const { dialog, expansion } = await openEditor();
+    fireEvent.change(expansion, { target: { value: "x".repeat(3999) } });
+    expansion.setSelectionRange(0, 3999);
+    fireEvent.keyDown(expansion, { key: "b", metaKey: true });
+    expect(expansion).toHaveValue("x".repeat(3999));
+    expect(within(dialog).getByRole("alert")).toHaveTextContent(
+      "This expansion is too long. Please shorten it and try again.",
+    );
+    fireEvent.change(expansion, { target: { value: "short" } });
+    expect(within(dialog).queryByRole("alert")).not.toBeInTheDocument();
+    expect(argsOf("add_snippet")).toEqual([]);
+  });
+
   it("turns the selection into a link with Cmd+K and selects the address", async () => {
     backend();
     render(<SnippetsPage />);

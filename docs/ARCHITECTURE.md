@@ -46,7 +46,8 @@ lib.rs                  Tauri builder: plugins, commands, setup                 
 app/                    shell                                                          (built)
   mod.rs                run-loop events (Dock reopen)                                  (built)
   setup.rs              builds the services at startup, managed state                  (built)
-  window.rs             main window show/hide, close-to-tray, the Dock icon            (built)
+  window.rs             main window show/hide, close-to-tray, the Dock icon, the app
+                        in front before the window opened (FMT-15)                    (built)
   system.rs             startup: pending reset or repair, crash and storage checks,
                         launch at login, background start (APP-06..09)                (built)
   tray.rs               tray icon and menu                                             (built)
@@ -82,7 +83,7 @@ audio/                  audio input                                             
 lang/                   languages (LANG-01..05)                                        (built)
   catalog.rs            Whisper's languages plus English, Chinese, German variants     (built)
   spelling.rs           US/UK/Canadian spelling, ß→ss, Simplified/Traditional (hanconv) (built)
-  french.rs             narrow no-break spaces before ; : ! ? (FMT-14)                 (built)
+  french.rs             narrow no-break spaces before ; : ! ? » and after « (FMT-14) (built)
   mod.rs                what the engine is told, the variant, prompt rules            (built)
 mic/                    microphones (MIC-02..08)                                       (built)
   mod.rs                Microphones: choose, rank, hot-plug prompt, Bluetooth advice   (built)
@@ -119,6 +120,7 @@ edit/                   AI edit pipeline                                        
   snippets.rs           trigger matching and expansion                                 (built)
   dictionary.rs         corrections, vocabulary hints, usage counting                  (built)
   style.rs              app category, casing and trailing-period rules                 (built)
+  format.rs             per-app formats: proper-noun capitals, all lowercase (FMT-15) (built)
   markdown.rs           plain text plus HTML for lists and rich snippets               (built)
   library.rs            Library: the dictionary and snippets a dictation reads         (built)
   context_format.rs     casing and spacing from the text around the cursor (FMT-11)    (built)
@@ -194,10 +196,12 @@ storage/                SQLite                                                  
   stats.rs              daily, per-app, hourly and speed counts; key-value meta        (built)
   backup.rs             daily `VACUUM INTO` copy, newest two kept                      (built)
 settings/               typed Settings, JSON file, merge-patch updates, change events;
-                        shortcuts.rs for the bindings per action                      (built)
+                        shortcuts.rs for the bindings per action, app_formats.rs for
+                        the format per app (FMT-15)                                    (built)
 secrets/                API keys in the OS keychain (keyring), cached in memory        (built)
-sounds/                 start/stop/lock/cancel/warning/notice cues, synthesised;
-                        SettingsCues and SoundingNotices follow Settings › Sound      (built)
+sounds/                 start/stop/lock/cancel/warning/paste cues and the notice and
+                        achievement sounds, synthesised; SettingsCues and
+                        SoundingNotices follow Settings › Sound                        (built)
 notify/                 notices shown next to the Flow Bar, with their category        (built)
 ```
 
@@ -259,6 +263,7 @@ Built so far:
 | Phase 4b | `get_app_health`, `dismiss_crash`, `check_storage`, `open_storage_settings`, `repair_data`, `reset_app` (both restart the app); `get_insights`, `get_voice_profile`, `generate_voice_profile` (rejects with `{kind}`), `copy_image` and `save_image` (a raw PNG request body; the file name in an `x-file-name` header); `list_history`, `copy_history`, `set_history_raw` (Undo/Redo AI edit), `retry_history`, `history_audio` (raw WAV bytes), `extract_history_audio`, `delete_history`, `set_history_storage` ("never" needs "delete all") |
 | Phase 6  | `delete_all_history` (Delete all transcripts); `move_to_applications`, `quit_app` (the Move to Applications screen)                                                                                                                                                                                                                                                                                                                                                                                                                             |
 | Phase 2  | `get_settings`, `update_settings`, `get_ai_options`, `get_api_keys`, `set_api_key`, `delete_api_key`, `list_ollama_models`, `test_ai_provider`; dictionary and snippet CRUD and imports (`list_dictionary`, `add_dictionary_entry`, `update_dictionary_entry`, `set_dictionary_pinned`, `delete_dictionary_entries`, `preview_dictionary_import`, `import_dictionary`, `list_snippets`, `add_snippet`, `update_snippet`, `delete_snippets`, `preview_snippet_import`, `import_snippets`)                                                        |
+| Phase 6  | `get_format_apps` (the apps Style › Formatting per app offers: the app in front before Shrimp's window opened, then the apps dictated into, most words first)                                                                                                                                                                                                                                                                                                                                                                                   |
 | Dev only | `dev_get_audio_source`, `dev_set_audio_source`, `dev_set_app_category`, `dev_edit_text`, `dev_read_context`, `dev_set_microphones`, `dev_set_permissions` (debug builds; see DEVELOPMENT.md)                                                                                                                                                                                                                                                                                                                                                    |
 | Events   | `dictation://state`, `dictation://level` (Flow Bar only), `notify://notice`, `command://answer` and `transform://changes` (Flow Bar only), `models://status`, `app://navigate`, `settings://changed`, `shortcuts://recording`, `notify://dismiss` (a notice whose cause went away), `mic://devices`, `mic://level`, `flow-bar://hover` (Flow Bar only), `app://main-visible` (main window shown or closed to the tray)                                                                                                                          |
 
@@ -310,6 +315,7 @@ so transparent margins never sit over other apps.
                            │    (raw fallback with a notice on any failure)
                            ├─ platform.inserter.insert(text, InsertOptions for the app)
                            ├─ storage: history row + daily stats; recording WAV
+                           ├─ sound: paste cue (only when pasted)
                            └─ state → Idle                          ─ history://added ─▶ Home
 ```
 
@@ -489,7 +495,9 @@ kinds (terminals, remote desktops, browsers, code editors) are decided in portab
 and paste long text in parts of at most 700 characters and 2 line breaks, 150 ms apart,
 because Claude Code collapses a paste over 800 characters or 2 line breaks into
 "[Pasted text #1 +N lines]" and Codex one over 1,000 characters (INS-09, INS-11); remote
-desktops skip the field check and hold the clipboard for 5 s (INS-10).
+desktops skip the field check and hold the clipboard for 5 s (INS-10). The lists cover
+macOS bundle IDs and Windows executable names; the commits that add entries name their
+sources.
 
 Bindings, their validation rules and the per-platform defaults live in `hotkeys/`. Gesture
 recognition (hold, double-tap, short tap) lives in `dictation/gestures.rs`. Both are platform
@@ -660,7 +668,8 @@ for usage.
   detected" with Open Sound Settings; a selected device that can't be used gives
   "Selected microphone is unavailable" and the next one is used.
 - **Bluetooth advice.** Recording from a Bluetooth microphone shows advice with Switch
-  microphone and Don't show again, at most 3 times and once a week.
+  microphone and Don't show again when the dictation starts, at most once an hour (as
+  Wispr's AirPods tip); Don't show again is permanent.
 - **Hot-plug** is a 2 s poll of the device list and the lid. The picker's level meter
   opens the device a dictation would use and reports `mic://level` about 20 times a
   second while Settings shows it. Closing the main window to the tray stops it and sends
@@ -886,11 +895,30 @@ settings, the dictionary and snippets (`Library`, read from SQLite per dictation
    selection keeps its lowercase start, its surrounding spaces and a final `,`, `?` or
    `!`; Chinese and Japanese join without spaces. This runs on the device whatever the
    context awareness setting.
-9. **Rendering.** `edit/markdown.rs` produces plain text always and HTML when the text has
-   lists or snippet formatting (INS-08, SNP-03). Inline markup is read only inside snippet
-   expansions, so dictated `snake_case` stays literal. Dictionary terms found in the final
-   text count as uses (DIC-04).
-10. **Language variant (LANG-03).** The user's variant for the transcript's language
+9. **Formatting per app (FMT-15).** Style › Formatting per app (`settings.appFormats`, a
+   list of `{appId, appName, format}` keyed by the bundle ID on macOS and the executable
+   name on Windows, at most 100) gives an app one of Wispr's four formats; apps not listed
+   get Automatic formatting, today's pipeline. **Unformatted transcription** skips the
+   AI edit, the developer pass, spoken punctuation words, the style rules, auto-applied
+   transforms, file tagging, French typography and context casing (only the spaces around
+   the dictation are fitted). Following Wispr's help, which says line break and paragraph
+   commands work whatever the formatting setting, line commands still apply, and so do
+   dictionary corrections, names respelled from the screen, snippets and "press enter",
+   which are not formatting. **Proper-noun capitals only** and **All lowercase** run the
+   whole pipeline, then recase the text outside snippet expansions (`edit/format.rs`):
+   proper-noun capitals keeps a capitalised word only when it is "I", has capitals inside
+   (acronyms, iPhone, McDonald's), is a dictionary term, a name on screen, a word Whisper
+   capitalised mid-sentence, a weekday or month, a very common first name, a famous name,
+   or not an everyday English word; all lowercase lowercases everything, sentence starts, names and
+   "I" included. URLs, paths, emails and code keep their case in both. The Style page
+   offers the app that was in front when Shrimp's window opened from the tray, the Flow
+   Bar or a notice (`window::PreviousApp`, never Shrimp itself), then the apps dictated
+   into (`stats::apps`).
+10. **Rendering.** `edit/markdown.rs` produces plain text always and HTML when the text has
+    lists or snippet formatting (INS-08, SNP-03). Inline markup is read only inside snippet
+    expansions, so dictated `snake_case` stays literal. Dictionary terms found in the final
+    text count as uses (DIC-04).
+11. **Language variant (LANG-03).** The user's variant for the transcript's language
     (the Flow Bar's choice, or the selected language with that Whisper code) adds a rule
     to the prompt ("Use British English spelling…") and, whatever the model wrote, shapes
     the text deterministically: US, UK or Canadian spelling for about 45 common words,
@@ -1027,7 +1055,13 @@ spacing, unless the dictation raised a notice, held snippets or followed another
 
 The "press enter" voice command (Settings › Experimental, CORE-16) strips a final "press
 enter" from the transcript before the edit and presses Enter 120 ms after a successful
-paste; "press enter" alone just presses Enter.
+paste; "press enter" alone just presses Enter. With the command off, the first dictation
+into an app that ends with it (not History's Retry) also loses the phrase, presses
+nothing, and, once pasted, shows a one-time prompt (CORE-17,
+`experimental.pressEnterPromptSeen`): Great turns the command on and presses Enter now;
+Disable pastes " press enter" back and keeps the command off, so the words stay text from
+then on; ignoring it leaves the command off too. Mid-sentence and Command Mode
+occurrences stay text.
 
 ### Dictionary auto-learn
 
@@ -1037,11 +1071,14 @@ paste the field's text is read (it must contain the dictation), then once a seco
 minute, until the next recording starts. When the text has changed and then stayed the
 same for a second, the changed span is found by its common prefix and suffix, widened
 to whole words, and accepted only inside the dictation: one to three words replaced by
-one, or as many words for as many. The new word is learned unless it has digits or
-symbols (paths, URLs, domains, emails, code, hashes, emoji, markdown), is an everyday
-English word, a very common first name or an everyday acronym, is already in the
-dictionary, or was deleted from it before (`dictionary_rejected`; adding it by hand
-forgives it). A casing fix of an unusual word ("tauri" → "Tauri") counts. Learned
+one, or as many words for as many. The new word is learned unless it or the text that
+replaced it has digits or symbols (paths, URLs, domains, partial email addresses, code,
+markdown, emoji), it looks generated (a key, hash or ID: 8 or more hex letters, case that
+switches three times, more than 8 capitals, or no vowels in 5 letters or more), it is a
+weekday or month (dates), an everyday English word, a very common first name, a globally
+famous name (a curated list of about 50 people and brands in `context/words.rs`) or an
+everyday acronym, it is already in the dictionary, or it was deleted from it before
+(`dictionary_rejected`; adding it by hand forgives it). A casing fix of an unusual word ("tauri" → "Tauri") counts. Learned
 entries are marked `learned` (a "Learned" badge) and announced in one notice with View.
 Field text is read and compared on the device only.
 
@@ -1211,8 +1248,9 @@ the next one.
 
 Built sections: `stt` (engine, the local Whisper model, OpenAI and Groq models), `ai`
 (provider, cleanup level, model per provider, Ollama model and address), `styles` (one per
-category, Formal by default), `privacy` (`contextAwareness`, on by default),
-`experimental` (`commandMode`, `commandModeIntroSeen`, `pressEnterCommand`), `privacy.history`
+category, Formal by default), `appFormats` (the format per app, FMT-15), `privacy` (`contextAwareness`, on by default),
+`experimental` (`commandMode`, `commandModeIntroSeen`, `pressEnterCommand`,
+`pressEnterPromptSeen`), `privacy.history`
 (`local`, `autoDelete` or `never`, HIS-07), `shortcuts`
 (`bindings` per action, see Shortcuts), `notices` (how often one-off notices were shown),
 `transforms`, `vibeCoding` (`fileTagging`, on by default) and `dictionary` (`autoLearn`, on
@@ -1246,7 +1284,9 @@ dictation did) always show; Suggestions (usage tips such as the short-tap tip, B
 advice, the different-language card), Announcements (formatting tips) and Milestones
 (word counts, the voice profile) follow Settings › Notifications (`settings.notifications`).
 `MutedNotices` wraps the notice chain (`MutedNotices` → `SoundingNotices` → `TauriUi`), so a
-muted notice neither sounds nor shows. The Flow Bar shows one notice at a time: an error
+muted notice neither sounds nor shows. Warnings and errors come with the notice sound and
+milestones with the achievement sound, both under Settings › Sound › Notification sounds;
+the paste cue after a successful paste is a dictation sound (SND-01). The Flow Bar shows one notice at a time: an error
 replaces what shows (which waits to come back), others wait their turn
 (`flow-bar/noticeQueue.ts`); a pressed action shows ✓ for 0.7 s before the notice goes.
 The panel never takes focus.
@@ -1265,9 +1305,9 @@ larger card does; the Flow Bar shows one notice at a time, so it replaces the sh
 rather than following it.
 
 French typography (`lang/french.rs`): when the dictation was in French and the app
-isn't a code editor or terminal, a narrow no-break space (U+202F) goes before `; : ! ?`,
-replacing a typed space; times (10:30), URLs, emails, paths and emoticons are left
-alone.
+isn't a code editor or terminal, a narrow no-break space (U+202F) goes before `; : ! ?`
+and `»` and after `«`, replacing a typed space; times (10:30), URLs, emails, paths and
+emoticons are left alone.
 
 ## Errors, logging and notices
 

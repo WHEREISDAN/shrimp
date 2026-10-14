@@ -198,6 +198,12 @@ pub fn run_notice_action(
             updates::restart_when_idle(&app);
             Ok(())
         }
+        NoticeAction::EnablePressEnter | NoticeAction::DisablePressEnter => {
+            controller.send(ControllerInput::AnswerPressEnter {
+                enable: action == NoticeAction::EnablePressEnter,
+            });
+            Ok(())
+        }
     }
 }
 

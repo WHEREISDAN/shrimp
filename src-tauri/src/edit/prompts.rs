@@ -43,7 +43,8 @@ used as fillers), stutters, false starts and accidental repeats.
 - Fix punctuation, capitalization, spacing and obvious grammar slips.
 - Spoken punctuation becomes the symbol when used as a command: \"period\" or \"full stop\" (.), \
 \"comma\" (,), \"question mark\" (?), \"exclamation point\" (!), \"colon\" (:), \"semicolon\" (;), \
-\"em dash\" (—). Keep the word when it is content (\"the trial period\", \"remove the comma\").
+\"em dash\", \"em-dash\" or \"emdash\" (—). Keep the word when it is content \
+(\"the trial period\", \"remove the comma\").
 - Never add an em dash (—) the speaker did not say.
 - Write numbers, times, dates, amounts and units in digits where natural (\"four forty five pm\" \
 → \"4:45 PM\", \"a thousand dollars\" → \"$1,000\").

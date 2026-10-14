@@ -1,4 +1,5 @@
 import { useTranslation } from "react-i18next";
+import { AppFormatsSection } from "./AppFormatsSection";
 import { CleanupSection } from "./CleanupSection";
 import { Page } from "./Page";
 import { StylesSection } from "./StylesSection";
@@ -24,6 +25,10 @@ export function StylePage() {
           <StylesSection
             styles={settings.styles}
             onChange={(category, style) => void update({ styles: { [category]: style } })}
+          />
+          <AppFormatsSection
+            formats={settings.appFormats}
+            onChange={(appFormats) => void update({ appFormats })}
           />
         </>
       ) : (

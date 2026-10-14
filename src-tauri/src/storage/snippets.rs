@@ -96,8 +96,8 @@ pub fn get(db: &Connection, id: i64) -> Result<Snippet, StorageError> {
     .ok_or(StorageError::NotFound)
 }
 
-/// Rejects a trigger that is already a snippet (any case) or exactly a
-/// dictionary word.
+/// Rejects a trigger that is already a snippet, or a dictionary word or
+/// misspelling, in any case (SNP-01).
 fn check_unique(db: &Connection, trigger: &str, id: Option<i64>) -> Result<(), StorageError> {
     let snippet: Option<i64> = db
         .query_row(
@@ -114,7 +114,8 @@ fn check_unique(db: &Connection, trigger: &str, id: Option<i64>) -> Result<(), S
     }
     let word: Option<i64> = db
         .query_row(
-            "SELECT id FROM dictionary WHERE term = ?1 COLLATE BINARY AND misspelling IS NULL",
+            "SELECT id FROM dictionary
+             WHERE term = ?1 COLLATE NOCASE OR misspelling = ?1 COLLATE NOCASE",
             [trigger],
             |row| row.get(0),
         )
@@ -346,7 +347,23 @@ mod tests {
                 misspelling: None,
             };
             dictionary::add(db, &word, EntrySource::Manual).unwrap();
-            assert!(add(db, &input("Shrimp", "x")).is_err());
+            let correction = DictionaryInput {
+                term: "Kubernetes".into(),
+                misspelling: Some("cooper netties".into()),
+            };
+            dictionary::add(db, &correction, EntrySource::Manual).unwrap();
+            let rejected = |trigger: &str| add(db, &input(trigger, "x")).unwrap_err().to_string();
+            assert_eq!(
+                rejected("Shrimp"),
+                "\"Shrimp\" already exists in your personal dictionary"
+            );
+            assert_eq!(
+                rejected(" shrimp "),
+                "\"shrimp\" already exists in your personal dictionary"
+            );
+            assert!(add(db, &input("kubernetes", "x")).is_err());
+            assert!(add(db, &input("Cooper Netties", "x")).is_err());
+            assert!(add(db, &input("shrimp fried rice", "x")).is_ok());
         });
     }
 

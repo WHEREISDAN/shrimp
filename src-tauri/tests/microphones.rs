@@ -305,7 +305,7 @@ fn a_microphone_slow_to_open_is_reported_after_8_seconds_until_it_opens() {
 }
 
 #[test]
-fn bluetooth_microphones_get_advice_at_most_once_a_week() {
+fn bluetooth_microphones_get_advice_at_most_once_an_hour() {
     let (h, _fakes) = harness(vec![mic(
         "pods",
         "Dan's AirPods",
@@ -334,7 +334,7 @@ fn bluetooth_microphones_get_advice_at_most_once_a_week() {
         .filter(|message| message.contains("Bluetooth microphones like"))
         .count();
     assert_eq!(count, 1);
-    assert_eq!(h.settings.get().notices.bluetooth_advice_count, 1);
+    assert!(h.settings.get().notices.bluetooth_advice_at > 0);
     h.microphones
         .as_ref()
         .unwrap()

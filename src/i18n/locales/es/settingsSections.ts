@@ -70,9 +70,9 @@ export const settingsSections: SettingsSectionsCatalog = {
     title: "Sonido",
     dictation: "Sonidos de dictado",
     dictationBody:
-      "Un sonido cuando el dictado empieza, termina, pasa a manos libres o se cancela.",
+      "Un sonido cuando el dictado empieza, termina, pasa a manos libres, se cancela o se pega.",
     notifications: "Sonidos de notificación",
-    notificationsBody: "Un sonido con los avisos y los errores.",
+    notificationsBody: "Un sonido con los avisos, los errores y los hitos.",
     mute: "Silenciar el audio al dictar",
     muteBody:
       "Si algo se está reproduciendo al empezar, el Mac queda en silencio hasta que termines.",

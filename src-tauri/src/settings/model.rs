@@ -3,6 +3,7 @@
 
 use serde::{Deserialize, Serialize};
 
+use super::app_formats::{self, AppFormat};
 use super::audio::{MediaSettings, MicrophoneSettings, SoundSettings};
 use super::flow_bar::FlowBarSettings;
 use super::languages::LanguageSettings;
@@ -27,6 +28,8 @@ pub struct Settings {
     pub stt: SttSettings,
     pub ai: AiSettings,
     pub styles: StyleSettings,
+    /// Formatting per app (FMT-15); apps not listed are formatted automatically.
+    pub app_formats: Vec<AppFormat>,
     pub privacy: PrivacySettings,
     pub experimental: ExperimentalSettings,
     pub shortcuts: ShortcutSettings,
@@ -52,6 +55,7 @@ impl Default for Settings {
             stt: SttSettings::default(),
             ai: AiSettings::default(),
             styles: StyleSettings::default(),
+            app_formats: Vec::new(),
             privacy: PrivacySettings::default(),
             experimental: ExperimentalSettings::default(),
             shortcuts: ShortcutSettings::default(),
@@ -175,6 +179,9 @@ pub struct ExperimentalSettings {
     pub command_mode_intro_seen: bool,
     /// Ending a dictation with "press enter" presses Enter (CORE-16).
     pub press_enter_command: bool,
+    /// The one-time prompt for the first "press enter" with the command off
+    /// has been shown (CORE-17).
+    pub press_enter_prompt_seen: bool,
 }
 
 /// The Dictionary page's settings.
@@ -213,9 +220,8 @@ pub struct NoticeSettings {
     pub command_mode_off_count: u32,
     /// The local date it was last shown, YYYY-MM-DD.
     pub command_mode_off_day: String,
-    /// Bluetooth microphone advice: at most 3 times, at most weekly (MIC-08).
-    pub bluetooth_advice_count: u32,
-    /// When it was last shown, in seconds since 1970.
+    /// When the Bluetooth microphone advice was last shown, in seconds since
+    /// 1970; it shows at most once an hour (MIC-08).
     pub bluetooth_advice_at: u64,
     /// "Don't show again".
     pub bluetooth_advice_off: bool,
@@ -423,6 +429,7 @@ impl Settings {
                 model = self.stt.local_model
             ));
         }
+        app_formats::validate(&self.app_formats)?;
         self.shortcuts.validate(&self.transforms)?;
         self.microphone.validate()?;
         self.media.validate()?;
@@ -471,6 +478,7 @@ mod tests {
         assert_eq!(json["shortcuts"]["bindings"], serde_json::json!({}));
         assert_eq!(json["notices"]["cancelRecoverCount"], 0);
         assert_eq!(json["notices"]["cancelRecoverDay"], "");
+        assert_eq!(json["appFormats"], serde_json::json!([]));
     }
 
     #[test]

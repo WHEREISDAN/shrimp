@@ -1,15 +1,17 @@
 //! French typography (FMT-14): a narrow no-break space (U+202F) before
-//! `;`, `:`, `!` and `?`, replacing any plain or no-break space there.
-//! Developer apps are left alone, and so are marks that aren't
-//! punctuation: times and ratios (10:30), URLs (https://, ?q=), emoticons.
+//! `;`, `:`, `!`, `?` and `»` and after `«`, replacing any plain or
+//! no-break space there. Developer apps are left alone, and so are marks
+//! that aren't punctuation: times and ratios (10:30), URLs (https://, ?q=),
+//! emoticons.
 
 const NARROW_NO_BREAK_SPACE: char = '\u{202F}';
 const MARKS: [char; 4] = [';', ':', '!', '?'];
 
-/// Puts the narrow space before every high punctuation mark, replacing a
-/// space typed before it: "Bonjour !" and "Bonjour!" both become
-/// "Bonjour\u{202F}!".
+/// Puts the narrow space before every high punctuation mark and inside
+/// guillemets, replacing a space typed there: "Bonjour !" and "Bonjour!"
+/// both become "Bonjour\u{202F}!", "« Oui »" becomes "«\u{202F}Oui\u{202F}»".
 pub fn apply(text: &str) -> String {
+    let text = guillemets(text);
     let chars: Vec<char> = text.chars().collect();
     let spaced: String = chars
         .iter()
@@ -33,6 +35,37 @@ pub fn apply(text: &str) -> String {
         .split_inclusive(char::is_whitespace)
         .map(word)
         .collect()
+}
+
+/// The narrow space after `«` and before `»`, unless the line starts or
+/// ends there.
+fn guillemets(text: &str) -> String {
+    let mut out = String::with_capacity(text.len() + 8);
+    let mut chars = text.chars().peekable();
+    while let Some(c) = chars.next() {
+        match c {
+            '«' => {
+                out.push(c);
+                while chars.next_if(|next| is_inline_space(*next)).is_some() {}
+                if chars.peek().is_some_and(|next| !next.is_whitespace()) {
+                    out.push(NARROW_NO_BREAK_SPACE);
+                }
+            }
+            '»' => {
+                out.truncate(out.trim_end_matches(is_inline_space).len());
+                if !(out.is_empty() || out.ends_with('\n')) {
+                    out.push(NARROW_NO_BREAK_SPACE);
+                }
+                out.push(c);
+            }
+            _ => out.push(c),
+        }
+    }
+    out
+}
+
+fn is_inline_space(c: char) -> bool {
+    matches!(c, ' ' | '\u{00A0}' | NARROW_NO_BREAK_SPACE)
 }
 
 /// One whitespace-separated word, with its trailing whitespace.
@@ -115,7 +148,21 @@ mod tests {
         );
         assert_eq!(apply("Vraiment ?!"), format!("Vraiment{N}?!"));
         assert_eq!(apply("Vraiment?!"), format!("Vraiment{N}?!"));
-        assert_eq!(apply("« Oui ! »"), format!("« Oui{N}! »"));
+        assert_eq!(apply("« Oui ! »"), format!("«{N}Oui{N}!{N}»"));
+    }
+
+    #[test]
+    fn puts_a_narrow_space_inside_guillemets() {
+        assert_eq!(
+            apply("Il a dit « bonjour » hier."),
+            format!("Il a dit «{N}bonjour{N}» hier.")
+        );
+        assert_eq!(
+            apply("Il a dit «bonjour» hier."),
+            format!("Il a dit «{N}bonjour{N}» hier.")
+        );
+        assert_eq!(apply("«\u{00A0}Oui\u{00A0}» ?"), format!("«{N}Oui{N}»{N}?"));
+        assert_eq!(apply("Citation :\n«\n»"), format!("Citation{N}:\n«\n»"));
     }
 
     #[test]
@@ -130,7 +177,7 @@ mod tests {
 
     #[test]
     fn is_idempotent() {
-        let once = apply("Pourquoi ? Parce que !");
+        let once = apply("Pourquoi ? Parce que ! « Voilà »");
         assert_eq!(apply(&once), once);
     }
 }

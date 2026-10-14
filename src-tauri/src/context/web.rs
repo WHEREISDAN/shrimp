@@ -120,6 +120,40 @@ mod tests {
     }
 
     #[test]
+    fn google_products_by_domain() {
+        assert_eq!(
+            category("https://mail.google.com/mail/u/0/#inbox"),
+            Some(AppCategory::Email)
+        );
+        assert_eq!(
+            category("https://mail.google.com/chat/u/0/#chat/home"),
+            Some(AppCategory::Work)
+        );
+        assert_eq!(
+            category("https://chat.google.com/room/AAA"),
+            Some(AppCategory::Work)
+        );
+        assert!(
+            target_for_url("https://gemini.google.com/app")
+                .unwrap()
+                .ai_app
+        );
+        assert!(
+            target_for_url("https://aistudio.google.com/prompts/new_chat")
+                .unwrap()
+                .ai_app
+        );
+        for other in [
+            "https://docs.google.com/document/d/1/edit",
+            "https://calendar.google.com/calendar/r",
+            "https://meet.google.com/abc-defg-hij",
+            "https://drive.google.com/drive/my-drive",
+        ] {
+            assert_eq!(category(other), None, "{other} is Other");
+        }
+    }
+
+    #[test]
     fn parses_hosts() {
         assert_eq!(
             host_and_path("https://User@App.Slack.com:443/client?x=1"),

@@ -64,6 +64,7 @@ function backend(settings: Settings = SETTINGS) {
     get_app_health: () => ({ crash: null, data: null, storage: null, misplaced: false }),
     get_settings: () => settings,
     update_settings: () => settings,
+    get_format_apps: () => [{ id: "com.apple.Notes", name: "Notes" }],
     get_permissions: () => ({ microphone: "granted", accessibility: "granted" }),
     get_models: () => MODELS,
     get_shortcuts: () => SHORTCUTS,

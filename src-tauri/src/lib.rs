@@ -76,6 +76,7 @@ pub fn run() {
                 commands::permissions::open_permission_settings,
                 commands::settings::get_settings,
                 commands::settings::update_settings,
+                commands::settings::get_format_apps,
                 commands::ai::get_ai_options,
                 commands::ai::get_api_keys,
                 commands::ai::set_api_key,

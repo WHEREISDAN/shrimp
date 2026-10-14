@@ -39,6 +39,8 @@ export const core = {
       seeVoiceProfile: "See profile",
       updateVoiceProfile: "Update profile",
       restartToUpdate: "Restart now",
+      enablePressEnter: "Great",
+      disablePressEnter: "Disable",
     },
   },
   bar: {

@@ -76,6 +76,7 @@
   "notice.paste.needAccessibility": "Shrimp necesita Accesibilidad para pegar. Tu transcripción está en el portapapeles.",
   "notice.paste.noTextField": "No hay ningún campo de texto activo. Tu transcripción está en el portapapeles.",
   "notice.pressEnterFailed": "No se pudo pulsar Enter: {error}",
+  "notice.pressEnter.prompt": "Shrimp omitió “press enter” al final. ¿Pulsar Enter cada vez que un dictado termine así?",
   "notice.quoted": "“{text}”",
   "notice.secureInput.anotherApp": "otra app",
   "notice.setup.globeKey": "Pulsar fn también {conflict}. En Ajustes del Sistema › Teclado, cambia “Pulsar la tecla 🌐 para” a “No hacer nada”.",

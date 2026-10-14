@@ -97,6 +97,18 @@ pub fn setup(app: &mut App) -> Result<(), Box<dyn std::error::Error>> {
 
     #[cfg(debug_assertions)]
     app.manage(crate::commands::dev::DevFocus(Arc::clone(&platform.focus)));
+    let own_exe = std::env::current_exe().ok().and_then(|path| {
+        path.file_name()
+            .map(|name| name.to_string_lossy().into_owned())
+    });
+    let own_ids = [Some(app.config().identifier.clone()), own_exe]
+        .into_iter()
+        .flatten()
+        .collect();
+    app.manage(super::window::PreviousApp::new(
+        Arc::clone(&platform.focus),
+        own_ids,
+    ));
     // Sounds follow Settings › Sound, and warnings come with the notice sound (SND-02).
     let cues: Arc<dyn CuePlayer> =
         Arc::new(SettingsCues::new(platform.sounds, Arc::clone(&settings)));

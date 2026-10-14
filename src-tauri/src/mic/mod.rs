@@ -27,8 +27,8 @@ use crate::t;
 
 /// How often connected devices are checked (hot-plug).
 pub const POLL_INTERVAL: Duration = Duration::from_secs(2);
-const BLUETOOTH_ADVICE_LIMIT: u32 = 3;
-const WEEK: u64 = 7 * 24 * 60 * 60;
+/// The Bluetooth advice shows at most once an hour (MIC-08).
+const BLUETOOTH_ADVICE_EVERY: u64 = 60 * 60;
 
 type OnList = Box<dyn Fn(&MicrophoneList) + Send + Sync>;
 
@@ -173,23 +173,21 @@ impl Microphones {
         }
     }
 
-    /// Advice to use another microphone than a Bluetooth one, at most 3
-    /// times and once a week, until "Don't show again" (MIC-08).
+    /// Advice to use another microphone than a Bluetooth one when a
+    /// dictation starts, at most once an hour, until "Don't show again" (MIC-08).
     fn bluetooth_advice(&self, device: &InputDevice) {
         let notices = self.settings.get().notices;
         let now = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .map_or(0, |elapsed| elapsed.as_secs());
-        if notices.bluetooth_advice_off
-            || notices.bluetooth_advice_count >= BLUETOOTH_ADVICE_LIMIT
-            || now.saturating_sub(notices.bluetooth_advice_at) < WEEK
-        {
+        if !bluetooth_advice_due(
+            notices.bluetooth_advice_off,
+            notices.bluetooth_advice_at,
+            now,
+        ) {
             return;
         }
-        let patch = json!({"notices": {
-            "bluetoothAdviceCount": notices.bluetooth_advice_count + 1,
-            "bluetoothAdviceAt": now,
-        }});
+        let patch = json!({"notices": {"bluetoothAdviceAt": now}});
         if let Err(error) = self.settings.update(&patch) {
             log::warn!("could not count the advice: {error}");
         }
@@ -361,6 +359,28 @@ impl Microphones {
     }
 }
 
+/// Whether the Bluetooth advice may show, `last` and `now` in seconds since 1970.
+fn bluetooth_advice_due(off: bool, last: u64, now: u64) -> bool {
+    !off && now.saturating_sub(last) >= BLUETOOTH_ADVICE_EVERY
+}
+
 fn lock<T>(mutex: &Mutex<T>) -> std::sync::MutexGuard<'_, T> {
     mutex.lock().unwrap_or_else(|err| err.into_inner())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn bluetooth_advice_shows_at_most_hourly_until_turned_off() {
+        let now = 1_000_000;
+        assert!(bluetooth_advice_due(false, 0, now), "never shown");
+        assert!(!bluetooth_advice_due(false, now - 59 * 60, now));
+        assert!(bluetooth_advice_due(false, now - 60 * 60, now));
+        assert!(
+            !bluetooth_advice_due(true, 0, now),
+            "Don't show again is permanent"
+        );
+    }
 }

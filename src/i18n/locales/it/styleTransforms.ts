@@ -23,6 +23,25 @@ export const styleTransforms: StyleTransformsCatalog = {
       footnote:
         "Gli stili valgono per le nuove dettature. Gli assistenti IA come ChatGPT e Claude non ricevono formattazione di stile.",
     },
+    appFormats: {
+      title: "Formattazione per app",
+      body: "Scegli come vengono formattate le dettature in un'app. Le app non elencate ricevono la formattazione automatica.",
+      app: "App",
+      format: "Formato",
+      add: "Aggiungi app",
+      remove: "Rimuovi",
+      removeApp: "Rimuovi {{app}}",
+      formatFor: "Formato per {{app}}",
+      noApps: "Qui compaiono le app in cui detti.",
+      footnote:
+        "La trascrizione non formattata salta la modifica con l'IA, la punteggiatura dettata e le maiuscole; a capo, correzioni del dizionario e snippet restano attivi. Tutto minuscolo vale per l'intera dettatura, inizi di frase compresi; gli snippet mantengono il loro testo.",
+      formats: {
+        automatic: "Formattazione automatica",
+        unformatted: "Trascrizione non formattata",
+        properNouns: "Maiuscole solo per i nomi propri",
+        lowercase: "Tutto minuscolo",
+      },
+    },
     // Each title is written in its own style: capitals and punctuation show the difference.
     options: {
       formal: { title: "Formale.", description: "Maiuscole + punteggiatura." },

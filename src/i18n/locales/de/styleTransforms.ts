@@ -23,6 +23,25 @@ export const styleTransforms: StyleTransformsCatalog = {
       footnote:
         "Stile gelten für neue Diktate. KI-Assistenten wie ChatGPT und Claude erhalten keine Stilformatierung.",
     },
+    appFormats: {
+      title: "Formatierung pro App",
+      body: "Lege fest, wie Diktate in einer App formatiert werden. Nicht aufgeführte Apps werden automatisch formatiert.",
+      app: "App",
+      format: "Format",
+      add: "App hinzufügen",
+      remove: "Entfernen",
+      removeApp: "{{app}} entfernen",
+      formatFor: "Format für {{app}}",
+      noApps: "Apps, in die du diktierst, erscheinen hier.",
+      footnote:
+        "Unformatierte Transkription lässt die KI-Bearbeitung, gesprochene Satzzeichen und die Groß- und Kleinschreibung weg; Zeilenumbrüche, Wörterbuchkorrekturen und Textbausteine gelten weiter. Alles klein betrifft das ganze Diktat, auch Satzanfänge; Textbausteine behalten ihren eigenen Text.",
+      formats: {
+        automatic: "Automatische Formatierung",
+        unformatted: "Unformatierte Transkription",
+        properNouns: "Großschreibung nur für Eigennamen",
+        lowercase: "Alles klein",
+      },
+    },
     // Each title is written in its own style: capitals and punctuation show the difference.
     options: {
       formal: { title: "Formell.", description: "Großschreibung + Satzzeichen." },

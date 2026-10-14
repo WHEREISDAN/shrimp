@@ -8,20 +8,22 @@ use std::time::{Duration, Instant};
 
 use super::code::{self, DevPass};
 use super::failure::Failure;
+use super::format::{self, ProperNouns, TranscriptFormat};
 use super::guard::{self, Rejection};
 use super::library::{Library, Snapshot};
 use super::markdown::{self, Rendered, SNIPPET_END, SNIPPET_START};
 use super::prompts::{self, PromptOptions};
+use super::spoken::{self, PressEnter};
 use super::style::{self, AppCategory, Style, Target};
 use super::tips::{self, Formatting};
 use super::transforms::AutoApply;
-use super::{CleanupLevel, context_format, dictionary, file_tags, names, snippets, spoken};
+use super::{CleanupLevel, context_format, dictionary, file_tags, names, snippets};
 use crate::context::DictationContext;
 use crate::lang;
 use crate::llm::{LlmError, LlmProviderId, LlmRequest, LlmSource, http};
 use crate::notify::Notice;
 use crate::platform::FieldKind;
-use crate::settings::{Settings, SettingsStore};
+use crate::settings::{Settings, SettingsStore, app_formats};
 use crate::t;
 
 /// Ends every notice about a failed AI edit.
@@ -77,8 +79,8 @@ pub struct Edited {
     pub formatted: bool,
     pub notice: Option<Notice>,
     pub llm_ms: Option<u64>,
-    /// The dictation ended with "press enter" (CORE-16).
-    pub press_enter: bool,
+    /// The dictation ended with "press enter" (CORE-16, CORE-17).
+    pub press_enter: PressEnter,
     /// Dictionary corrections and snippets applied, for Insights (STA-01).
     pub dictionary_fixes: usize,
     /// What smart formatting did, for its tips (FMT-13).
@@ -92,7 +94,7 @@ impl Default for Edited {
             formatted: true,
             notice: None,
             llm_ms: None,
-            press_enter: false,
+            press_enter: PressEnter::No,
             dictionary_fixes: 0,
             formatting: Formatting::default(),
         }
@@ -210,22 +212,23 @@ impl Editor {
 
     pub async fn edit(&self, raw: &str, context: &DictationContext) -> Edited {
         let settings = self.settings();
-        let suffix = settings
-            .experimental
-            .press_enter_command
-            .then(|| spoken::press_enter_suffix(raw))
-            .flatten();
-        let press_enter = suffix.is_some();
+        let experimental = settings.experimental;
+        // A dictation into an app, not History's Retry, can prompt (CORE-17).
+        let may_ask = !experimental.press_enter_prompt_seen && context.app.is_some();
+        let (press_enter, suffix) =
+            spoken::press_enter(raw, experimental.press_enter_command, may_ask);
         let raw = suffix.as_deref().unwrap_or(raw);
-        let mut edited = self.edit_text(raw, context, &settings).await;
+        let format = app_formats::format_for(&settings.app_formats, context.app.as_ref());
+        let mut edited = self.edit_text(raw, context, &settings, format).await;
         edited.press_enter = press_enter;
         // Spelling follows the language variant whatever the model wrote (LANG-03).
         let variant = lang::variant(&settings.languages, context.language.as_deref());
         edited.text.plain = lang::shape(&edited.text.plain, variant);
         edited.text.html = edited.text.html.map(|html| lang::shape(&html, variant));
-        // French typography, except in developer apps (FMT-14).
+        // French typography, except in developer apps and unformatted ones (FMT-14).
         if lang::is_french(&settings.languages, context.language.as_deref())
             && !context.is_developer()
+            && format != TranscriptFormat::Unformatted
         {
             edited.text.plain = lang::french::apply(&edited.text.plain);
             edited.text.html = edited.text.html.map(|html| lang::french::apply(&html));
@@ -238,6 +241,7 @@ impl Editor {
         raw: &str,
         context: &DictationContext,
         settings: &Settings,
+        format: TranscriptFormat,
     ) -> Edited {
         if raw.trim().is_empty() {
             return Edited::default();
@@ -262,7 +266,9 @@ impl Editor {
         let (prepared, mut used) = dictionary::correct(&prepared, &library.dictionary);
         let corrections = used.len();
         let prepared = names::respell(&prepared, &visible_names, &terms);
-        let dev = DevPass::new(context);
+        // Unformatted apps get the transcript as heard (FMT-15).
+        let unformatted = format == TranscriptFormat::Unformatted;
+        let dev = DevPass::new(context).filter(|_| !unformatted);
         let prepared = match &dev {
             Some(dev) => dev.apply(&prepared),
             None => prepared,
@@ -279,7 +285,11 @@ impl Editor {
             .map(|&index| library.snippets[index].trigger.clone())
             .collect();
         let screen_terms = self.context_terms(context);
-        let level = settings.ai.cleanup;
+        let level = if unformatted {
+            CleanupLevel::None
+        } else {
+            settings.ai.cleanup
+        };
 
         let started = Instant::now();
         let edited = match level {
@@ -315,6 +325,8 @@ impl Editor {
                     && cancels_everything(raw);
                 let body = if intended_empty {
                     String::new()
+                } else if unformatted {
+                    prepared.clone()
                 } else {
                     spoken::punctuation(&prepared)
                 };
@@ -342,7 +354,7 @@ impl Editor {
                     (expanded.unwrap_or(fallback), false)
                 }
             };
-        let skip = notice.is_some() || !held.is_empty();
+        let skip = notice.is_some() || !held.is_empty() || unformatted;
         let expanded = match self.auto_apply(&expanded, skip).await {
             AutoApply::Applied(text) => text,
             AutoApply::Skipped => expanded,
@@ -351,11 +363,18 @@ impl Editor {
                 expanded
             }
         };
+        let expanded = if format.recases() {
+            let proper_nouns = ProperNouns::new(raw, &terms, &visible_names);
+            format::apply_case(&expanded, format, &proper_nouns)
+        } else {
+            expanded
+        };
         let mut text = markdown::render(&expanded);
         // Any dictionary or snippet substitution turns tagging off (DEV-01).
         if text.html.is_none()
             && used.is_empty()
             && held.is_empty()
+            && !unformatted
             && file_tags::applies(context, &settings)
         {
             text.plain = file_tags::tag_files(&text.plain, &context.file_names());
@@ -363,8 +382,12 @@ impl Editor {
         if text.html.is_none()
             && let Some(around) = context.surroundings()
         {
-            let protected: Vec<String> = terms.iter().cloned().chain(visible_names).collect();
-            text.plain = context_format::fit(&text.plain, around, &protected);
+            text.plain = if unformatted {
+                context_format::space(&text.plain, around)
+            } else {
+                let protected: Vec<String> = terms.iter().cloned().chain(visible_names).collect();
+                context_format::fit(&text.plain, around, &protected)
+            };
         }
         used.extend(dictionary::used_terms(&text.plain, &library.dictionary));
         used.sort_unstable();
@@ -394,7 +417,7 @@ impl Editor {
             formatted,
             notice,
             llm_ms,
-            press_enter: false,
+            press_enter: PressEnter::No,
             dictionary_fixes: corrections + held.len(),
             formatting,
         }
@@ -444,7 +467,7 @@ impl Editor {
             log::debug!("rejected ({rejection:?}): {:?}", response.text);
         }
         reviewed
-            .map(|edited| restore_breaks(text, &edited))
+            .map(|edited| guard::restore_breaks(text, &edited))
             .map_err(Failure::Rejected)
     }
 
@@ -473,70 +496,7 @@ impl Editor {
     }
 }
 
-/// Puts back the dictated line and paragraph breaks when the model kept the
-/// lines but merged the separators (a paragraph turned into a line break).
-fn restore_breaks(prepared: &str, edited: &str) -> String {
-    let wanted = separators(prepared);
-    if wanted.iter().all(|separator| *separator == 1) || edited.contains("\n\n") {
-        return edited.to_owned();
-    }
-    let lines: Vec<&str> = edited
-        .split('\n')
-        .filter(|line| !line.trim().is_empty())
-        .collect();
-    if lines.len() != wanted.len() + 1 {
-        return edited.to_owned();
-    }
-    let mut out = String::from(lines[0]);
-    for (line, breaks) in lines[1..].iter().zip(&wanted) {
-        out.push_str(&"\n".repeat(*breaks));
-        out.push_str(line);
-    }
-    out
-}
-
-/// How many line breaks separate each pair of non-empty lines.
-fn separators(text: &str) -> Vec<usize> {
-    let mut separators = Vec::new();
-    let mut breaks = 0;
-    let mut seen_text = false;
-    for line in text.split('\n') {
-        if line.trim().is_empty() {
-            breaks += 1;
-            continue;
-        }
-        if seen_text {
-            separators.push(breaks + 1);
-        }
-        seen_text = true;
-        breaks = 0;
-    }
-    separators
-}
-
 fn cancels_everything(raw: &str) -> bool {
     let lower = raw.to_lowercase();
     CANCEL_PHRASES.iter().any(|phrase| lower.contains(phrase))
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn restores_paragraphs_the_model_merged() {
-        assert_eq!(
-            restore_breaks(
-                "first part\n\nsecond part\nthird",
-                "First part.\nSecond part.\nThird."
-            ),
-            "First part.\n\nSecond part.\nThird."
-        );
-        assert_eq!(restore_breaks("one\ntwo", "One.\nTwo."), "One.\nTwo.");
-        assert_eq!(
-            restore_breaks("a\n\nb", "A list:\n1. b\n2. c"),
-            "A list:\n1. b\n2. c",
-            "a different shape is left alone"
-        );
-    }
 }

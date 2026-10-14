@@ -79,6 +79,7 @@ export const library: LibraryCatalog = {
     bold: "Fett",
     italic: "Kursiv",
     link: "Link",
+    expansionTooLong: "Dieser Text ist zu lang. Kürze ihn und versuch es noch einmal.",
     save: "Speichern",
     saveChanges: "Änderungen speichern",
   },

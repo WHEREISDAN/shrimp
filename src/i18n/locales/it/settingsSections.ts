@@ -68,9 +68,9 @@ export const settingsSections: SettingsSectionsCatalog = {
     title: "Suono",
     dictation: "Suoni di dettatura",
     dictationBody:
-      "Un suono quando la dettatura inizia, si ferma, passa a mani libere o viene annullata.",
+      "Un suono quando la dettatura inizia, si ferma, passa a mani libere, viene annullata o incollata.",
     notifications: "Suoni di notifica",
-    notificationsBody: "Un suono con avvisi ed errori.",
+    notificationsBody: "Un suono con avvisi, errori e traguardi.",
     mute: "Silenzia l'audio durante la dettatura",
     muteBody:
       "Se qualcosa è in riproduzione quando inizi, il Mac resta silenziato finché non finisci.",

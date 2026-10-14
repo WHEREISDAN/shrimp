@@ -29,7 +29,7 @@ fn hold_to_talk_records_transcribes_and_inserts() {
         h.fakes.last_state() == Some(DictationState::Idle)
     });
 
-    assert_eq!(h.fakes.cues(), [Cue::Start, Cue::Stop]);
+    assert_eq!(h.fakes.cues(), [Cue::Start, Cue::Stop, Cue::Paste]);
     let states = h.fakes.states.lock().unwrap().clone();
     assert!(states.contains(&DictationState::Processing));
     let bindings = h.fakes.bindings.lock().unwrap().clone();
@@ -70,7 +70,11 @@ fn double_tap_locks_hands_free_until_the_next_press() {
     );
     h.hold(Action::PushToTalk, Duration::from_millis(50));
     wait_until("insertion", || h.fakes.inserted() == [TEXT]);
-    assert_eq!(h.fakes.cues(), [Cue::Start, Cue::Lock, Cue::Stop]);
+    wait_until("the paste cue", || h.fakes.cues().contains(&Cue::Paste));
+    assert_eq!(
+        h.fakes.cues(),
+        [Cue::Start, Cue::Lock, Cue::Stop, Cue::Paste]
+    );
 }
 
 #[test]
@@ -131,7 +135,11 @@ fn the_session_limit_warns_then_stops_and_inserts() {
     wait_until("the warning", || h.fakes.has_notice("Dictation stops in"));
     assert_eq!(h.fakes.cues(), [Cue::Start, Cue::Warning]);
     wait_until("insertion", || h.fakes.inserted() == [TEXT]);
-    assert_eq!(h.fakes.cues(), [Cue::Start, Cue::Warning, Cue::Stop]);
+    wait_until("the paste cue", || h.fakes.cues().contains(&Cue::Paste));
+    assert_eq!(
+        h.fakes.cues(),
+        [Cue::Start, Cue::Warning, Cue::Stop, Cue::Paste]
+    );
 }
 
 #[test]
