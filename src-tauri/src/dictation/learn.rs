@@ -211,7 +211,11 @@ async fn read(focus: &Arc<dyn FocusInspector>, field_id: u64) -> Option<String> 
         .await
         .ok()
         .flatten()?;
-    (field.field_id == field_id).then_some(field.text).flatten()
+    // Fields on Windows hold "\r\n" where the pasted text had "\n".
+    (field.field_id == field_id)
+        .then_some(field.text)
+        .flatten()
+        .map(|text| text.replace("\r\n", "\n"))
 }
 
 fn added(words: &[String]) -> Notice {

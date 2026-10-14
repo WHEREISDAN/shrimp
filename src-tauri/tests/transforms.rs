@@ -184,6 +184,27 @@ fn undo_puts_the_original_back_where_the_result_is() {
 }
 
 #[test]
+fn undo_finds_a_list_the_field_holds_with_windows_line_breaks() {
+    let h = harness(
+        Some(selection("eggs milk")),
+        vec![Ok("- Eggs\n- Milk".into())],
+    );
+    press(&h, Action::Polish);
+    wait_until("insertion", || h.fakes.inserted() == ["- Eggs\n- Milk"]);
+    idle(&h);
+    *h.fakes.field_later.lock().unwrap() = Some(cursor_in("- Eggs\r\n- Milk"));
+    h.controller
+        .send(ControllerInput::Transform(TransformAction::Undo));
+    wait_until("the undo", || {
+        h.fakes.inserted() == ["- Eggs\n- Milk", "eggs milk"]
+    });
+    assert_eq!(
+        h.fakes.selected_ranges.lock().unwrap().last(),
+        Some(&TextRange { start: 0, len: 14 })
+    );
+}
+
+#[test]
 fn undo_after_the_text_changed_leaves_the_original_on_the_clipboard() {
     let h = harness(Some(selection("teh plan")), vec![Ok("The plan.".into())]);
     press(&h, Action::Polish);

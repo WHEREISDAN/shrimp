@@ -25,7 +25,18 @@ fn field(text: &str) -> FieldContext {
 }
 
 fn harness(settings: Settings, edited: &str) -> Harness {
-    let dictated = "Please ask when to review the draft.";
+    harness_for(
+        "Please ask when to review the draft.",
+        settings,
+        &[
+            field(""),
+            field("Please ask when to review the draft."),
+            field(edited),
+        ],
+    )
+}
+
+fn harness_for(dictated: &str, settings: Settings, fields: &[FieldContext]) -> Harness {
     let h = Harness::with(
         5.0,
         0.3,
@@ -37,7 +48,7 @@ fn harness(settings: Settings, edited: &str) -> Harness {
             ..Setup::default()
         },
     );
-    *h.fakes.field_sequence.lock().unwrap() = vec![field(""), field(dictated), field(edited)];
+    *h.fakes.field_sequence.lock().unwrap() = fields.to_vec();
     h
 }
 
@@ -71,4 +82,20 @@ fn everyday_words_and_the_switch_off_teach_nothing() {
     wait_until("insertion", || !h.fakes.inserted().is_empty());
     std::thread::sleep(Duration::from_millis(800));
     assert!(h.library.learned().is_empty());
+}
+
+#[test]
+fn a_field_with_windows_line_breaks_still_finds_the_dictation() {
+    // The paste had "\n"; a Windows edit control holds "\r\n".
+    let h = harness_for(
+        "Please ask when to review the draft. New line. Thanks.",
+        Settings::default(),
+        &[
+            field(""),
+            field("Please ask when to review the draft.\r\nThanks."),
+            field("Please ask Nguyen to review the draft.\r\nThanks."),
+        ],
+    );
+    dictate(&h);
+    wait_until("the word", || h.library.learned() == ["Nguyen"]);
 }

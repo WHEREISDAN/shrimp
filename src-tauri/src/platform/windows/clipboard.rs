@@ -139,6 +139,22 @@ fn utf16_bytes(text: &str) -> Vec<u8> {
         .collect()
 }
 
+/// Line breaks as Windows' text formats have them, "\r\n": a classic edit
+/// control (Notepad before Windows 10 1809, WinForms text boxes, many
+/// dialogs) shows a lone "\n" as nothing and runs the lines together.
+fn crlf(text: &str) -> String {
+    let mut out = String::with_capacity(text.len() + text.matches('\n').count());
+    let mut previous = None;
+    for c in text.chars() {
+        if c == '\n' && previous != Some('\r') {
+            out.push('\r');
+        }
+        out.push(c);
+        previous = Some(c);
+    }
+    out
+}
+
 /// Marks the open clipboard's content as Shrimp's own: not for clipboard
 /// history, cloud clipboard or clipboard managers.
 fn mark_private() -> Result<(), PlatformError> {
@@ -197,7 +213,7 @@ pub fn write_text(text: &InsertText, private: bool) -> Result<u32, PlatformError
         let _open = Open::new()?;
         unsafe { EmptyClipboard() }
             .map_err(|err| PlatformError::Failed(format!("clipboard: {err}")))?;
-        set(CF_UNICODETEXT, &utf16_bytes(&text.plain))?;
+        set(CF_UNICODETEXT, &utf16_bytes(&crlf(&text.plain)))?;
         if let Some(html) = &text.html {
             set(register(w!("HTML Format")), cf_html(html).as_bytes())?;
         }
@@ -357,6 +373,13 @@ mod tests {
     }
 
     #[test]
+    fn lines_end_with_crlf() {
+        assert_eq!(crlf("one\ntwo\n\nthree"), "one\r\ntwo\r\n\r\nthree");
+        assert_eq!(crlf("kept\r\nalready"), "kept\r\nalready");
+        assert_eq!(crlf("no breaks"), "no breaks");
+    }
+
+    #[test]
     fn a_snapshot_keeps_one_memory_image_and_no_handles() {
         let text = (CF_UNICODETEXT, Vec::new());
         assert!(keeps(CF_DIB, std::slice::from_ref(&text)));
@@ -375,14 +398,14 @@ mod tests {
         };
         let written = write_text(
             &InsertText {
-                plain: "Shrimp test".into(),
-                html: Some("<b>Shrimp</b> test".into()),
+                plain: "Shrimp\ntest".into(),
+                html: Some("<b>Shrimp</b><br>test".into()),
             },
             true,
         )
         .unwrap();
         assert_eq!(sequence(), written, "nothing changed since the write");
-        assert_eq!(read_text().as_deref(), Some("Shrimp test"));
+        assert_eq!(read_text().as_deref(), Some("Shrimp\r\ntest"));
         let snapshot = snapshot().unwrap();
         let names: Vec<u32> = snapshot.formats.iter().map(|(format, _)| *format).collect();
         assert!(names.contains(&register(w!("CanIncludeInClipboardHistory"))));

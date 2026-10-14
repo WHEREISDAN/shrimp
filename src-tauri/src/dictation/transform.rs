@@ -351,18 +351,29 @@ impl TransformRunner {
         }
         match run.placement {
             Placement::Field { field_id, start } => {
-                let range = TextRange {
-                    start,
-                    len: utf16_len(&run.result),
-                };
-                let still_there = self.read_full().await.is_some_and(|(id, full)| {
+                // Windows fields hold the pasted "\n" as "\r\n".
+                let forms = [run.result.clone(), run.result.replace('\n', "\r\n")];
+                let range = self.read_full().await.and_then(|(id, full)| {
                     let units: Vec<u16> = full.encode_utf16().collect();
-                    id == field_id
-                        && units
-                            .get(range.start..range.end())
-                            .is_some_and(|slice| String::from_utf16_lossy(slice) == run.result)
+                    (id == field_id)
+                        .then(|| {
+                            forms.iter().find_map(|form| {
+                                let range = TextRange {
+                                    start,
+                                    len: utf16_len(form),
+                                };
+                                units
+                                    .get(range.start..range.end())
+                                    .is_some_and(|slice| String::from_utf16_lossy(slice) == *form)
+                                    .then_some(range)
+                            })
+                        })
+                        .flatten()
                 });
-                if !still_there || !self.select(field_id, range).await {
+                let Some(range) = range else {
+                    return self.copy_instead(text).await;
+                };
+                if !self.select(field_id, range).await {
                     return self.copy_instead(text).await;
                 }
                 match self.paste(text, &context).await {
