@@ -194,7 +194,53 @@ fn icon(privacy: bool) -> Image<'static> {
             }
         }
     }
+    // Windows shrinks a larger icon to the taskbar's size by sampling pixels,
+    // which frays the mark and the rounded corners.
+    #[cfg(target_os = "windows")]
+    if let Some(size) = crate::platform::small_icon_size().filter(|size| *size < width)
+        && width == height
+    {
+        return Image::new_owned(shrink(&rgba, width, size), size, size);
+    }
     Image::new_owned(rgba, width, height)
+}
+
+/// Shrinks a square RGBA image to `size` x `size`, each pixel the average of
+/// the source area it covers, its colour weighted by alpha so transparent
+/// pixels darken nothing.
+#[cfg_attr(not(target_os = "windows"), allow(dead_code))]
+fn shrink(rgba: &[u8], from: u32, size: u32) -> Vec<u8> {
+    let scale = from as f32 / size as f32;
+    let span = |at: u32| (at as f32 * scale, (at + 1) as f32 * scale);
+    let mut out = vec![0; (size * size * 4) as usize];
+    for y in 0..size {
+        let (top, bottom) = span(y);
+        for x in 0..size {
+            let (left, right) = span(x);
+            let (mut colour, mut alpha, mut area) = ([0f32; 3], 0f32, 0f32);
+            for sy in top.floor() as u32..(bottom.ceil() as u32).min(from) {
+                let high = bottom.min(sy as f32 + 1.0) - top.max(sy as f32);
+                for sx in left.floor() as u32..(right.ceil() as u32).min(from) {
+                    let weight = high * (right.min(sx as f32 + 1.0) - left.max(sx as f32));
+                    let at = ((sy * from + sx) * 4) as usize;
+                    let opacity = f32::from(rgba[at + 3]) / 255.0 * weight;
+                    for (sum, channel) in colour.iter_mut().zip(&rgba[at..at + 3]) {
+                        *sum += f32::from(*channel) * opacity;
+                    }
+                    alpha += opacity;
+                    area += weight;
+                }
+            }
+            let at = ((y * size + x) * 4) as usize;
+            if alpha > 0.0 {
+                for (target, sum) in out[at..at + 3].iter_mut().zip(colour) {
+                    *target = (sum / alpha).round() as u8;
+                }
+            }
+            out[at + 3] = (alpha / area * 255.0).round() as u8;
+        }
+    }
+    out
 }
 
 fn toggle_privacy_mode<R: Runtime>(app: &AppHandle<R>) {
@@ -227,5 +273,46 @@ fn send<R: Runtime>(app: &AppHandle<R>, action: Action) {
     match app.try_state::<ControllerHandle>() {
         Some(controller) => controller.send(ControllerInput::Menu(action)),
         None => log::warn!("dictation is not running"),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn pixel(rgba: &[u8], width: u32, x: u32, y: u32) -> [u8; 4] {
+        let at = ((y * width + x) * 4) as usize;
+        rgba[at..at + 4].try_into().unwrap()
+    }
+
+    #[test]
+    fn shrinking_averages_without_darkening_edges() {
+        // 4 x 4: the left half opaque coral, the right half transparent black.
+        let coral = [240, 90, 56, 255];
+        let rgba: Vec<u8> = (0..16)
+            .flat_map(|i| if i % 4 < 2 { coral } else { [0, 0, 0, 0] })
+            .collect();
+        let half = shrink(&rgba, 4, 2);
+        assert_eq!(pixel(&half, 2, 0, 0), coral);
+        assert_eq!(pixel(&half, 2, 1, 1)[3], 0);
+
+        // Thirds: the middle pixel covers both halves equally, still coral.
+        let third = shrink(&rgba, 4, 3);
+        let [r, g, b, a] = pixel(&third, 3, 1, 1);
+        assert_eq!([r, g, b], [240, 90, 56]);
+        assert!((127..=128).contains(&a), "{a}");
+        assert_eq!(pixel(&third, 3, 0, 2), coral);
+    }
+
+    #[test]
+    fn the_windows_tray_icon_shrinks_to_a_taskbar_size() {
+        let image: Image<'_> = include_image!("icons/tray-windows.png");
+        for size in [16, 20, 24] {
+            let small = shrink(image.rgba(), image.width(), size);
+            assert_eq!(small.len(), (size * size * 4) as usize);
+            // The coral square fills the middle; its rounded corners stay clear.
+            assert_eq!(pixel(&small, size, size / 2, size - 2)[3], 255);
+            assert!(pixel(&small, size, 0, 0)[3] < 64);
+        }
     }
 }

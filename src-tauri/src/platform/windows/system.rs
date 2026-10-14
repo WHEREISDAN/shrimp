@@ -13,8 +13,9 @@ use windows::Win32::Globalization::{
 use windows::Win32::Security::Authentication::Identity::{GetUserNameExW, NameDisplay};
 use windows::Win32::Storage::FileSystem::GetDiskFreeSpaceExW;
 use windows::Win32::System::Registry::{HKEY_LOCAL_MACHINE, RRF_RT_REG_SZ, RegGetValueW};
+use windows::Win32::UI::HiDpi::{GetDpiForSystem, GetSystemMetricsForDpi};
 use windows::Win32::UI::Shell::ShellExecuteW;
-use windows::Win32::UI::WindowsAndMessaging::SW_SHOWNORMAL;
+use windows::Win32::UI::WindowsAndMessaging::{SM_CXSMICON, SW_SHOWNORMAL};
 use windows::core::{HSTRING, PCSTR, PWSTR, w};
 
 use crate::platform::{Launcher, PlatformError, RELAUNCH_ARG};
@@ -54,6 +55,13 @@ impl Launcher for WinLauncher {
         }
         open(url)
     }
+}
+
+/// The size of small icons, such as the taskbar's notification icons, at the
+/// display scale Windows started Shrimp with: 16 px at 100 %.
+pub fn small_icon_size() -> Option<u32> {
+    let size = unsafe { GetSystemMetricsForDpi(SM_CXSMICON, GetDpiForSystem()) };
+    u32::try_from(size).ok().filter(|size| *size > 0)
 }
 
 /// Windows 11 (build 22000 or later), the first with Mica.
@@ -264,6 +272,12 @@ mod tests {
         assert_eq!(language_name("fr", "de").as_deref(), Some("Französisch"));
         assert_eq!(language_name("es", "it").as_deref(), Some("Spagnolo"));
         assert_eq!(language_name("de", "en").as_deref(), Some("German"));
+    }
+
+    #[test]
+    fn small_icons_follow_the_display_scale() {
+        let size = small_icon_size().unwrap();
+        assert!((16..=64).contains(&size), "{size}");
     }
 
     #[test]
