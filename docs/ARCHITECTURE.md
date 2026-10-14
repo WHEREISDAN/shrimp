@@ -191,8 +191,9 @@ storage/                SQLite                                                  
 settings/               typed Settings, JSON file, merge-patch updates, change events;
                         shortcuts.rs for the bindings per action                      (built)
 secrets/                API keys in the OS keychain (keyring), cached in memory        (built)
-sounds/                 start/stop/lock/cancel/warning/notice cues, synthesised;
-                        SettingsCues and SoundingNotices follow Settings › Sound      (built)
+sounds/                 start/stop/lock/cancel/warning/paste cues and the notice and
+                        achievement sounds, synthesised; SettingsCues and
+                        SoundingNotices follow Settings › Sound                        (built)
 notify/                 notices shown next to the Flow Bar, with their category        (built)
 ```
 
@@ -304,6 +305,7 @@ so transparent margins never sit over other apps.
                            │    (raw fallback with a notice on any failure)
                            ├─ platform.inserter.insert(text, InsertOptions for the app)
                            ├─ storage: history row + daily stats; recording WAV
+                           ├─ sound: paste cue (only when pasted)
                            └─ state → Idle                          ─ history://added ─▶ Home
 ```
 
@@ -1230,7 +1232,9 @@ dictation did) always show; Suggestions (usage tips such as the short-tap tip, B
 advice, the different-language card), Announcements (formatting tips) and Milestones
 (word counts, the voice profile) follow Settings › Notifications (`settings.notifications`).
 `MutedNotices` wraps the notice chain (`MutedNotices` → `SoundingNotices` → `TauriUi`), so a
-muted notice neither sounds nor shows. The Flow Bar shows one notice at a time: an error
+muted notice neither sounds nor shows. Warnings and errors come with the notice sound and
+milestones with the achievement sound, both under Settings › Sound › Notification sounds;
+the paste cue after a successful paste is a dictation sound (SND-01). The Flow Bar shows one notice at a time: an error
 replaces what shows (which waits to come back), others wait their turn
 (`flow-bar/noticeQueue.ts`); a pressed action shows ✓ for 0.7 s before the notice goes.
 The panel never takes focus.

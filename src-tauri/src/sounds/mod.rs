@@ -1,11 +1,11 @@
-//! Dictation cues (SND-01), synthesised in code so no audio assets ship:
-//! short sine tones with soft attack and release.
+//! Dictation and notification cues (SND-01), synthesised in code so no
+//! audio assets ship: short sine tones with soft attack and release.
 
 use std::io::Cursor;
 use std::sync::Arc;
 
 use crate::dictation::{Answer, DictationState, DictationUi, RecordingStatus, TransformView};
-use crate::notify::Notice;
+use crate::notify::{Notice, NoticeCategory};
 use crate::platform::CuePlayer;
 use crate::settings::SettingsStore;
 
@@ -25,15 +25,19 @@ pub enum Cue {
     Cancel,
     /// The session is about to hit its time limit (CORE-08).
     Warning,
+    /// The dictation was pasted.
+    Paste,
     /// A warning or error notice appeared.
     Notice,
+    /// A word-count or voice-profile milestone (STA-04).
+    Achievement,
 }
 
 impl Cue {
     /// Dictation cues follow Settings › Sound › Dictation sounds; the notice
-    /// sound follows Notification sounds (SND-02).
+    /// and achievement sounds follow Notification sounds (SND-02).
     pub fn is_dictation(self) -> bool {
-        self != Self::Notice
+        !matches!(self, Self::Notice | Self::Achievement)
     }
 }
 
@@ -51,7 +55,14 @@ fn notes(cue: Cue) -> &'static [Note] {
         ],
         Cue::Cancel => &[Note(392.0, 0.08, 0.0), Note(293.66, 0.14, 0.0)],
         Cue::Warning => &[Note(880.0, 0.12, 0.08), Note(880.0, 0.12, 0.0)],
+        Cue::Paste => &[Note(1174.66, 0.04, 0.0), Note(1567.98, 0.07, 0.0)],
         Cue::Notice => &[Note(1046.5, 0.05, 0.03), Note(784.0, 0.09, 0.0)],
+        Cue::Achievement => &[
+            Note(523.25, 0.05, 0.0),
+            Note(659.25, 0.05, 0.0),
+            Note(783.99, 0.05, 0.0),
+            Note(1046.5, 0.14, 0.0),
+        ],
     }
 }
 
@@ -110,7 +121,8 @@ impl CuePlayer for SettingsCues {
     }
 }
 
-/// Plays the notice sound with every warning and error notice (SND-02).
+/// Plays the notice sound with every warning and error notice, and the
+/// achievement sound with milestones (SND-01, SND-02).
 pub struct SoundingNotices {
     inner: Arc<dyn DictationUi>,
     cues: Arc<dyn CuePlayer>,
@@ -132,7 +144,9 @@ impl DictationUi for SoundingNotices {
     }
 
     fn notice(&self, notice: Notice) {
-        if notice.sound {
+        if notice.category == NoticeCategory::Milestone {
+            self.cues.play(Cue::Achievement);
+        } else if notice.sound {
             self.cues.play(Cue::Notice);
         }
         self.inner.notice(notice);
@@ -188,13 +202,15 @@ pub fn wav_bytes(cue: Cue) -> Vec<u8> {
 mod tests {
     use super::*;
 
-    const ALL: [Cue; 6] = [
+    const ALL: [Cue; 8] = [
         Cue::Start,
         Cue::Stop,
         Cue::Lock,
         Cue::Cancel,
         Cue::Warning,
+        Cue::Paste,
         Cue::Notice,
+        Cue::Achievement,
     ];
 
     #[test]
@@ -211,6 +227,13 @@ mod tests {
                 assert_ne!(a, b);
             }
         }
+    }
+
+    #[test]
+    fn paste_is_a_dictation_sound_and_achievement_a_notification_sound() {
+        assert!(Cue::Paste.is_dictation());
+        assert!(!Cue::Achievement.is_dictation());
+        assert!(!Cue::Notice.is_dictation());
     }
 
     #[test]

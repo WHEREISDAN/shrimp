@@ -28,9 +28,9 @@ pub struct KnownMicrophone {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", default)]
 pub struct SoundSettings {
-    /// Start, stop, lock and cancel cues.
+    /// Start, stop, lock, cancel and paste cues.
     pub dictation: bool,
-    /// The sound that comes with a warning or error notice.
+    /// The sounds that come with a warning or error notice and with milestones.
     pub notifications: bool,
 }
 

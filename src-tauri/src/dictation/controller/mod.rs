@@ -666,6 +666,9 @@ impl Controller {
     }
 
     fn processed(&mut self, processed: Processed) {
+        if matches!(processed.outcome, Outcome::Inserted(_)) {
+            self.sounds.play(Cue::Paste);
+        }
         self.gestures.reset();
         self.set_state(DictationState::Idle);
         for notice in processed.notices {

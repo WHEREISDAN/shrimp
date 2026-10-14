@@ -28,6 +28,45 @@ fn dictation_sounds_can_be_turned_off() {
 }
 
 #[test]
+fn the_paste_cue_follows_a_paste_but_not_a_failed_one() {
+    let h = Harness::speech(1.5);
+    dictate(&h);
+    wait_until("idle", || {
+        h.fakes.inserted().len() == 1 && h.fakes.last_state() == Some(DictationState::Idle)
+    });
+    assert_eq!(h.fakes.cues(), [Cue::Start, Cue::Stop, Cue::Paste]);
+
+    let h = Harness::speech(1.5);
+    *h.fakes.insert_outcome.lock().unwrap() = Some(InsertOutcome::Copied(CopyReason::NoTextField));
+    dictate(&h);
+    wait_until("the copy notice", || h.fakes.has_notice("text field"));
+    wait_until("idle", || {
+        h.fakes.last_state() == Some(DictationState::Idle)
+    });
+    assert!(!h.fakes.cues().contains(&Cue::Paste));
+}
+
+#[test]
+fn milestones_come_with_the_achievement_sound_unless_notification_sounds_are_off() {
+    let cues = |notifications: bool| {
+        let fakes = Arc::new(Fakes::default());
+        let mut settings = Settings::default();
+        settings.sounds.notifications = notifications;
+        let store = Arc::new(SettingsStore::in_memory(settings));
+        let player: Arc<dyn CuePlayer> = Arc::new(SettingsCues::new(
+            Arc::new(FakeSounds(Arc::clone(&fakes))),
+            store,
+        ));
+        let ui = SoundingNotices::new(Arc::new(FakeUi(Arc::clone(&fakes))), player);
+        ui.notice(Notice::info("You've dictated 1,000 words").in_category(NoticeCategory::Milestone));
+        ui.notice(Notice::info("Copied"));
+        fakes.cues()
+    };
+    assert_eq!(cues(true), [Cue::Achievement]);
+    assert!(cues(false).is_empty());
+}
+
+#[test]
 fn warnings_come_with_the_notice_sound_unless_it_is_off() {
     let h = Harness::speech(1.0);
     h.shortcut(Action::PushToTalk, true);
