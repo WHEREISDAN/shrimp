@@ -197,6 +197,18 @@ describe("StylePage", () => {
     );
   });
 
+  it("offers the app in front when the window opens again", async () => {
+    let apps = [{ id: "com.apple.Terminal", name: "Terminal" }];
+    mockBackend({ get_settings: () => SETTINGS, get_format_apps: () => apps });
+    render(<StylePage />);
+    const app = await screen.findByRole("combobox", { name: "App" });
+    apps = [{ id: "com.apple.Notes", name: "Notes" }, ...apps];
+    await act(async () => {
+      await emit(EVENTS.mainVisible, true);
+    });
+    await waitFor(() => expect(app).toHaveValue("com.apple.Notes"));
+  });
+
   it("says where apps come from before any dictation", async () => {
     mockBackend({ get_settings: () => SETTINGS, get_format_apps: () => [] });
     render(<StylePage />);

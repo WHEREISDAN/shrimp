@@ -1,6 +1,13 @@
-import { useEffect, useId, useState } from "react";
+import { useCallback, useEffect, useId, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { getFormatApps, type AppFormat, type KnownApp, type TranscriptFormat } from "../lib/ipc";
+import {
+  EVENTS,
+  getFormatApps,
+  type AppFormat,
+  type KnownApp,
+  type TranscriptFormat,
+} from "../lib/ipc";
+import { useTauriEvent } from "../lib/useTauriEvent";
 
 const FORMATS: TranscriptFormat[] = ["automatic", "unformatted", "properNouns", "lowercase"];
 
@@ -18,15 +25,18 @@ export function AppFormatsSection({ formats, onChange }: AppFormatsSectionProps)
   const [picked, setPicked] = useState("");
   const [format, setFormat] = useState<TranscriptFormat>("unformatted");
 
-  useEffect(() => {
-    let cancelled = false;
+  const load = useCallback(() => {
     getFormatApps()
-      .then((apps) => !cancelled && setKnown(apps))
+      .then(setKnown)
       .catch(() => undefined);
-    return () => {
-      cancelled = true;
-    };
   }, []);
+  useEffect(load, [load]);
+  // The window may have been opened from another app, which the list now offers first.
+  useTauriEvent<boolean>(EVENTS.mainVisible, (shown) => {
+    if (shown) {
+      load();
+    }
+  });
 
   const listed = (id: string) =>
     formats.some((entry) => entry.appId.toLowerCase() === id.toLowerCase());
