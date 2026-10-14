@@ -1,5 +1,8 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
+import { Group, Note, Section } from "@/components/settings";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import type { PolishRules, Settings, SettingsPatch } from "../lib/ipc";
 import { ShortcutRecorder } from "./ShortcutRecorder";
 import { ToggleRow } from "./ToggleRow";
@@ -49,73 +52,85 @@ export function PolishCard({ settings, update }: PolishCardProps) {
   };
 
   return (
-    <section className="card stack" aria-labelledby="polish-heading">
-      <div className="row">
-        <h2 id="polish-heading">{t("transforms.polish.title")}</h2>
-        <button
-          type="button"
-          onClick={() => void update({ transforms: { polish: { rules: null } } })}
-        >
+    <Section
+      headingId="polish-heading"
+      title={t("transforms.polish.title")}
+      action={
+        <Button size="sm" onClick={() => void update({ transforms: { polish: { rules: null } } })}>
           {t("transforms.reset")}
-        </button>
-      </div>
-      <p className="muted">{t("transforms.polish.body")}</p>
-      <ShortcutRecorder action="polish" label={t("transforms.polish.title")} />
-      {RULES.map((rule) => (
-        <ToggleRow
-          key={rule}
-          label={t(`transforms.polish.${rule}`)}
-          description={t(`transforms.polish.${rule}Body`)}
-          checked={polish.rules[rule]}
-          onChange={(on) => void update({ transforms: { polish: { rules: { [rule]: on } } } })}
-        />
-      ))}
-      <h3 className="subheading">{t("transforms.polish.instructions")}</h3>
-      <ul className="rows">
-        {polish.instructions.map((instruction, index) => (
-          <li key={instruction} className="row">
-            <span>{instruction}</span>
-            <button
-              type="button"
-              aria-label={t("transforms.polish.removeInstruction", { instruction })}
-              onClick={() =>
-                void update({
-                  transforms: {
-                    polish: { instructions: polish.instructions.filter((_, i) => i !== index) },
-                  },
-                })
-              }
-            >
-              {t("transforms.polish.remove")}
-            </button>
-          </li>
-        ))}
-      </ul>
-      {polish.instructions.length < MAX_INSTRUCTIONS && (
-        <form
-          className="row"
-          onSubmit={(event) => {
-            event.preventDefault();
-            add();
-          }}
-        >
-          <input
-            type="text"
-            aria-label={t("transforms.polish.newInstruction")}
-            placeholder={t("transforms.polish.placeholder")}
-            value={draft}
-            onChange={(event) => setDraft(event.target.value)}
+        </Button>
+      }
+    >
+      <Note>{t("transforms.polish.body")}</Note>
+      <Group>
+        <div className="flex min-h-(--row-min-h) flex-col justify-center px-4 py-2.5">
+          <ShortcutRecorder action="polish" label={t("transforms.polish.title")} />
+        </div>
+        {RULES.map((rule) => (
+          <ToggleRow
+            key={rule}
+            label={t(`transforms.polish.${rule}`)}
+            description={t(`transforms.polish.${rule}Body`)}
+            checked={polish.rules[rule]}
+            onChange={(on) => void update({ transforms: { polish: { rules: { [rule]: on } } } })}
           />
-          <button type="submit" disabled={!draft.trim()}>
-            {t("transforms.polish.add")}
-          </button>
-        </form>
-      )}
+        ))}
+      </Group>
+      <h3 className="mt-3 px-1 text-sm font-medium text-muted-foreground">
+        {t("transforms.polish.instructions")}
+      </h3>
+      <Group>
+        <ul className="flex flex-col divide-y divide-separator empty:hidden">
+          {polish.instructions.map((instruction, index) => (
+            <li
+              key={instruction}
+              className="flex min-h-(--row-min-h) items-center justify-between gap-3 px-4 py-2.5"
+            >
+              <span className="min-w-0 [overflow-wrap:anywhere]">{instruction}</span>
+              <Button
+                variant="ghost"
+                size="sm"
+                aria-label={t("transforms.polish.removeInstruction", { instruction })}
+                onClick={() =>
+                  void update({
+                    transforms: {
+                      polish: { instructions: polish.instructions.filter((_, i) => i !== index) },
+                    },
+                  })
+                }
+              >
+                {t("transforms.polish.remove")}
+              </Button>
+            </li>
+          ))}
+        </ul>
+        {polish.instructions.length < MAX_INSTRUCTIONS && (
+          <form
+            className="flex items-center gap-2 px-4 py-2.5"
+            onSubmit={(event) => {
+              event.preventDefault();
+              add();
+            }}
+          >
+            <Input
+              type="text"
+              className="flex-1"
+              aria-label={t("transforms.polish.newInstruction")}
+              placeholder={t("transforms.polish.placeholder")}
+              value={draft}
+              onChange={(event) => setDraft(event.target.value)}
+            />
+            <Button type="submit" disabled={!draft.trim()}>
+              {t("transforms.polish.add")}
+            </Button>
+          </form>
+        )}
+      </Group>
       {problem && (
-        <p className="error" role="alert">
+        <p className="px-1 text-sm text-destructive" role="alert">
           {problem}
         </p>
       )}
-    </section>
+    </Section>
   );
 }

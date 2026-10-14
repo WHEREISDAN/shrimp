@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import {
   copyImage,
   errorMessage,
@@ -8,7 +10,7 @@ import {
   type Insights,
   type ShareNetwork,
 } from "../lib/ipc";
-import { Dialog } from "./Dialog";
+import { Dialog, DialogFooter } from "./Dialog";
 import { CARD_HEIGHT, CARD_WIDTH, drawShareCard, pngBytes } from "./shareCard";
 
 /** The networks' own names, which aren't translated. */
@@ -51,28 +53,31 @@ export function ShareDialog({ insights, onClose }: ShareDialogProps) {
     <Dialog title={t("share.title")} onClose={onClose} wide>
       <canvas
         ref={canvasRef}
-        className="share-card"
+        className="block h-auto w-full rounded-lg border bg-muted"
         width={CARD_WIDTH}
         height={CARD_HEIGHT}
         role="img"
         aria-label={t("share.preview")}
       />
       {drawn === false && (
-        <p className="error" role="alert">
+        <p className="text-sm text-destructive" role="alert">
           {t("share.drawFailed")}
         </p>
       )}
-      <p className={status?.error ? "error" : "muted"} role="status">
+      <p
+        className={cn(
+          "min-h-4 text-sm wrap-break-word",
+          status?.error ? "text-destructive" : "text-muted-foreground",
+        )}
+        role="status"
+      >
         {status?.text}
       </p>
-      <div className="dialog-actions">
-        <button type="button" onClick={onClose}>
-          {t("common.close")}
-        </button>
+      <DialogFooter>
+        <Button onClick={onClose}>{t("common.close")}</Button>
         {NETWORKS.map(([network, name]) => (
-          <button
+          <Button
             key={network}
-            type="button"
             disabled={!drawn}
             aria-label={t("share.shareOn", { network: name })}
             onClick={() =>
@@ -80,10 +85,9 @@ export function ShareDialog({ insights, onClose }: ShareDialogProps) {
             }
           >
             {name}
-          </button>
+          </Button>
         ))}
-        <button
-          type="button"
+        <Button
           disabled={!drawn}
           onClick={() =>
             run((png) =>
@@ -92,16 +96,15 @@ export function ShareDialog({ insights, onClose }: ShareDialogProps) {
           }
         >
           {t("share.download")}
-        </button>
-        <button
-          type="button"
-          className="primary"
+        </Button>
+        <Button
+          variant="default"
           disabled={!drawn}
           onClick={() => run((png) => copyImage(png).then(() => t("share.copied")))}
         >
           {t("share.copy")}
-        </button>
-      </div>
+        </Button>
+      </DialogFooter>
     </Dialog>
   );
 }

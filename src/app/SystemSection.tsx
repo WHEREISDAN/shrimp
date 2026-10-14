@@ -1,5 +1,7 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
+import { Group, Row, RowText, Section } from "@/components/settings";
+import { Button } from "@/components/ui/button";
 import { resetApp, type Settings, type SettingsPatch } from "../lib/ipc";
 import { ConfirmDialog } from "./ConfirmDialog";
 import { ToggleRow } from "./ToggleRow";
@@ -15,31 +17,29 @@ export function SystemSection({ settings, update }: SystemSectionProps) {
   const { t } = useTranslation();
   const [resetting, setResetting] = useState(false);
   return (
-    <section className="card stack" aria-labelledby="system-heading">
-      <h2 id="system-heading">{t("system.title")}</h2>
-      <ToggleRow
-        label={t("system.launchAtLogin")}
-        description={t("system.launchAtLoginBody")}
-        checked={settings.app.launchAtLogin}
-        onChange={(launchAtLogin) => void update({ app: { launchAtLogin } })}
-      />
-      {!IS_WINDOWS && (
+    <Section headingId="system-heading" title={t("system.title")}>
+      <Group>
         <ToggleRow
-          label={t("system.showInDock")}
-          description={t("system.showInDockBody")}
-          checked={settings.app.showInDock}
-          onChange={(showInDock) => void update({ app: { showInDock } })}
+          label={t("system.launchAtLogin")}
+          description={t("system.launchAtLoginBody")}
+          checked={settings.app.launchAtLogin}
+          onChange={(launchAtLogin) => void update({ app: { launchAtLogin } })}
         />
-      )}
-      <div className="toggle-row">
-        <div className="toggle-text">
-          <p className="card-title">{t("system.resetTitle")}</p>
-          <p className="muted">{t("system.resetBody")}</p>
-        </div>
-        <button type="button" className="danger" onClick={() => setResetting(true)}>
-          {t("system.reset")}
-        </button>
-      </div>
+        {!IS_WINDOWS && (
+          <ToggleRow
+            label={t("system.showInDock")}
+            description={t("system.showInDockBody")}
+            checked={settings.app.showInDock}
+            onChange={(showInDock) => void update({ app: { showInDock } })}
+          />
+        )}
+        <Row>
+          <RowText title={t("system.resetTitle")} description={t("system.resetBody")} />
+          <Button variant="destructive" size="sm" onClick={() => setResetting(true)}>
+            {t("system.reset")}
+          </Button>
+        </Row>
+      </Group>
       {resetting && (
         <ConfirmDialog
           title={t("system.resetConfirmTitle")}
@@ -49,6 +49,6 @@ export function SystemSection({ settings, update }: SystemSectionProps) {
           onConfirm={resetApp}
         />
       )}
-    </section>
+    </Section>
   );
 }

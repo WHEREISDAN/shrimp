@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
+import { Group, Section } from "@/components/settings";
 import type { Settings, SettingsPatch } from "../lib/ipc";
 import { ToggleRow } from "./ToggleRow";
 
@@ -34,27 +35,32 @@ export function ExperimentalSection({
   }, [reveal]);
 
   return (
-    <section className="card stack" id="experimental" aria-labelledby="experimental-heading">
-      <h2 id="experimental-heading" ref={headingRef} tabIndex={-1}>
-        {t("experimental.title")}
-      </h2>
-      <ToggleRow
-        label={t("experimental.commandMode")}
-        description={t("experimental.commandModeBody", { shortcut: commandShortcut })}
-        checked={settings.experimental.commandMode}
-        onChange={(commandMode) => {
-          void update({ experimental: { commandMode } });
-          if (commandMode && !settings.experimental.commandModeIntroSeen) {
-            onCommandModeOn();
-          }
-        }}
-      />
-      <ToggleRow
-        label={t("experimental.pressEnter")}
-        description={t("experimental.pressEnterBody")}
-        checked={settings.experimental.pressEnterCommand}
-        onChange={(pressEnterCommand) => void update({ experimental: { pressEnterCommand } })}
-      />
-    </section>
+    <Section
+      id="experimental"
+      headingId="experimental-heading"
+      headingRef={headingRef}
+      focusableHeading
+      title={t("experimental.title")}
+    >
+      <Group>
+        <ToggleRow
+          label={t("experimental.commandMode")}
+          description={t("experimental.commandModeBody", { shortcut: commandShortcut })}
+          checked={settings.experimental.commandMode}
+          onChange={(commandMode) => {
+            void update({ experimental: { commandMode } });
+            if (commandMode && !settings.experimental.commandModeIntroSeen) {
+              onCommandModeOn();
+            }
+          }}
+        />
+        <ToggleRow
+          label={t("experimental.pressEnter")}
+          description={t("experimental.pressEnterBody")}
+          checked={settings.experimental.pressEnterCommand}
+          onChange={(pressEnterCommand) => void update({ experimental: { pressEnterCommand } })}
+        />
+      </Group>
+    </Section>
   );
 }

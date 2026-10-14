@@ -1,3 +1,13 @@
+import {
+  AudioLines,
+  CodeXml,
+  FlaskConical,
+  Lock,
+  Monitor,
+  SlidersHorizontal,
+  Sparkles,
+  type LucideIcon,
+} from "lucide-react";
 import { useEffect, useState, type KeyboardEvent, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import {
@@ -36,6 +46,16 @@ export const SETTINGS_SECTIONS = [
   "vibeCoding",
 ] as const;
 export type SettingsSection = (typeof SETTINGS_SECTIONS)[number];
+
+const SECTION_ICONS: Record<SettingsSection, LucideIcon> = {
+  general: SlidersHorizontal,
+  system: Monitor,
+  privacy: Lock,
+  speech: AudioLines,
+  ai: Sparkles,
+  experimental: FlaskConical,
+  vibeCoding: CodeXml,
+};
 
 /** Where Settings opens and what it brings into view. */
 export interface SettingsTarget {
@@ -229,43 +249,53 @@ export function SettingsPage({
         )
       }
     >
-      <div className="settings-layout">
+      <div className="settings-layout grid grid-cols-[10.5rem_minmax(0,1fr)] items-start gap-7 max-[800px]:grid-cols-1 max-[800px]:gap-5">
         <div
-          className="settings-nav"
+          className="settings-nav sticky top-(--toolbar-h) flex flex-col gap-0.5 max-[800px]:static max-[800px]:flex-row max-[800px]:flex-wrap max-[800px]:gap-1"
           role="tablist"
           aria-orientation="vertical"
           aria-label={t("settings.sections")}
           onKeyDown={onTabKeyDown}
         >
-          {SETTINGS_SECTIONS.map((id) => (
-            <button
-              key={id}
-              id={`settings-tab-${id}`}
-              type="button"
-              role="tab"
-              className="settings-tab"
-              aria-selected={id === section}
-              aria-controls="settings-panel"
-              tabIndex={id === section ? 0 : -1}
-              onClick={() => setSection(id)}
-            >
-              {t(`settings.${id}`)}
-            </button>
-          ))}
-          <p className="muted settings-hint">{t("settings.pageHint")}</p>
+          {SETTINGS_SECTIONS.map((id) => {
+            const Icon = SECTION_ICONS[id];
+            return (
+              <button
+                key={id}
+                id={`settings-tab-${id}`}
+                type="button"
+                role="tab"
+                className="settings-tab group flex min-h-7 items-center gap-2 rounded-md px-2 py-1 text-left text-base leading-tight text-foreground/90 transition-colors duration-100 outline-none hover:bg-accent focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring/70 aria-selected:bg-foreground/[0.07] aria-selected:font-medium aria-selected:text-foreground max-[800px]:min-h-6 max-[800px]:gap-1.5 max-[800px]:rounded-full max-[800px]:border max-[800px]:bg-card max-[800px]:px-2.5 max-[800px]:py-0.5 max-[800px]:text-sm max-[800px]:aria-selected:border-transparent windows:min-h-9"
+                aria-selected={id === section}
+                aria-controls="settings-panel"
+                tabIndex={id === section ? 0 : -1}
+                onClick={() => setSection(id)}
+              >
+                <Icon
+                  aria-hidden="true"
+                  strokeWidth={1.75}
+                  className="size-4 shrink-0 text-muted-foreground group-aria-selected:text-brand max-[800px]:size-3.5"
+                />
+                {t(`settings.${id}`)}
+              </button>
+            );
+          })}
+          <p className="settings-hint mt-3 px-2 text-xs text-muted-foreground max-[800px]:hidden">
+            {t("settings.pageHint")}
+          </p>
         </div>
         <div
           id="settings-panel"
-          className="settings-panel"
+          className="settings-panel flex min-w-0 flex-col gap-7"
           role="tabpanel"
           aria-labelledby={`settings-tab-${section}`}
         >
           {problem && (
-            <p className="error" role="alert">
+            <p className="text-sm text-destructive" role="alert">
               {problem}
             </p>
           )}
-          {content ?? (!problem && <p className="muted">{t("common.loading")}</p>)}
+          {content ?? (!problem && <p className="text-muted-foreground">{t("common.loading")}</p>)}
         </div>
       </div>
     </Page>

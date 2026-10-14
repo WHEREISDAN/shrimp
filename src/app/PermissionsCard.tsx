@@ -1,5 +1,8 @@
 import { useEffect, useState } from "react";
+import { CircleCheck } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { Group, Row, RowText, Section } from "@/components/settings";
+import { Button } from "@/components/ui/button";
 import {
   getPermissions,
   openPermissionSettings,
@@ -61,36 +64,40 @@ export function PermissionsCard({ hideWhenGranted = false }: PermissionsCardProp
     return null;
   }
   return (
-    <section className="card" aria-labelledby="permissions-heading">
-      <h2 id="permissions-heading">{t("permissionsCard.title")}</h2>
-      <ul className="rows">
+    <Section headingId="permissions-heading" title={t("permissionsCard.title")}>
+      <Group role="list">
         {ROWS.map(({ permission, name, purpose }) => {
           const status = info?.[permission];
           return (
-            <li key={permission} className="row">
-              <div>
-                <p className="card-title">{t(name)}</p>
-                <p className="muted">{t(purpose)}</p>
-              </div>
-              <div className="row-end">
-                <span className={status === "granted" ? "ok" : "muted"}>
+            <Row key={permission} role="listitem">
+              <RowText title={t(name)} description={t(purpose)} />
+              <div className="flex items-center gap-3">
+                <span
+                  className={
+                    status === "granted"
+                      ? "flex items-center gap-1 text-sm text-success"
+                      : "text-sm text-muted-foreground"
+                  }
+                >
+                  {status === "granted" && <CircleCheck aria-hidden="true" className="size-3.5" />}
                   {status ? t(STATUS_TEXT[status]) : "…"}
                 </span>
                 {status && status !== "granted" && (
-                  <button
-                    type="button"
+                  <Button
+                    size="sm"
+                    variant={status === "notDetermined" ? "default" : "outline"}
                     onClick={() => void openPermissionSettings(permission).catch(() => undefined)}
                   >
                     {status === "notDetermined"
                       ? t("permissionsCard.allow")
                       : t("permissionsCard.openSettings")}
-                  </button>
+                  </Button>
                 )}
               </div>
-            </li>
+            </Row>
           );
         })}
-      </ul>
-    </section>
+      </Group>
+    </Section>
   );
 }

@@ -1,5 +1,7 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
+import { Group, Row, Section } from "@/components/settings";
+import { Button } from "@/components/ui/button";
 import { deleteAllHistory } from "../lib/ipc";
 import { ConfirmDialog } from "./ConfirmDialog";
 
@@ -15,27 +17,28 @@ export function DeleteTranscriptsSetting({ disabled }: DeleteTranscriptsSettingP
   const [done, setDone] = useState(false);
 
   return (
-    <>
-      <div className="toggle-row">
-        <div className="toggle-text">
-          <p className="card-title">{t("privacy.transcriptsTitle")}</p>
-          <p className="muted">{t("privacy.deleteAllBody")}</p>
-          <p className="muted" role="status">
-            {done ? t("privacy.deleteAllDone") : null}
-          </p>
-        </div>
-        <button
-          type="button"
-          className="danger"
-          disabled={disabled}
-          onClick={() => {
-            setDone(false);
-            setAsking(true);
-          }}
-        >
-          {t("privacy.deleteAll")}
-        </button>
-      </div>
+    <Section headingId="transcripts-heading" title={t("privacy.transcriptsTitle")}>
+      <Group>
+        <Row>
+          <div className="flex min-w-0 flex-1 basis-56 flex-col gap-0.5">
+            <p>{t("privacy.deleteAllBody")}</p>
+            <p className="text-sm text-success" role="status">
+              {done ? t("privacy.deleteAllDone") : null}
+            </p>
+          </div>
+          <Button
+            variant="destructive"
+            size="sm"
+            disabled={disabled}
+            onClick={() => {
+              setDone(false);
+              setAsking(true);
+            }}
+          >
+            {t("privacy.deleteAll")}
+          </Button>
+        </Row>
+      </Group>
       {asking && (
         <ConfirmDialog
           title={t("privacy.deleteAllTitle")}
@@ -49,6 +52,6 @@ export function DeleteTranscriptsSetting({ disabled }: DeleteTranscriptsSettingP
           }}
         />
       )}
-    </>
+    </Section>
   );
 }

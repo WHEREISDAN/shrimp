@@ -1,4 +1,6 @@
 import { useId, type KeyboardEvent } from "react";
+import { CircleCheck } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 const ARROW_STEP: Record<string, number> = {
   ArrowRight: 1,
@@ -50,7 +52,14 @@ export function RadioCards<T extends string>({
   };
 
   return (
-    <div className={`radio-cards ${layout}`} role="radiogroup" aria-label={label}>
+    <div
+      className={cn(
+        "grid gap-2",
+        layout === "grid" && "grid-cols-[repeat(auto-fit,minmax(8.5rem,1fr))]",
+      )}
+      role="radiogroup"
+      aria-label={label}
+    >
       {options.map((option, index) => {
         const id = `${baseId}-${index}`;
         return (
@@ -58,7 +67,7 @@ export function RadioCards<T extends string>({
             key={option.value}
             type="button"
             role="radio"
-            className="radio-card"
+            className="group/card relative flex flex-col gap-1 rounded-xl border bg-card p-3.5 text-left shadow-xs transition-[background-color,border-color,box-shadow] duration-150 hover:bg-muted/40 aria-checked:border-brand aria-checked:ring-1 aria-checked:ring-brand dark:hover:bg-white/[0.03]"
             aria-checked={option.value === value}
             aria-labelledby={`${id}-title`}
             aria-describedby={`${id}-description`}
@@ -66,12 +75,22 @@ export function RadioCards<T extends string>({
             onClick={() => onChange(option.value)}
             onKeyDown={(event) => onKeyDown(event, index)}
           >
-            <span className="radio-card-title" id={`${id}-title`}>
+            <span className="pr-6 font-medium" id={`${id}-title`}>
               {option.title}
             </span>
-            <span className="radio-card-body" id={`${id}-description`}>
-              {option.description && <span className="muted">{option.description}</span>}
-              {option.example && <span className="radio-card-example">{option.example}</span>}
+            <CircleCheck
+              aria-hidden="true"
+              className="absolute top-[15px] right-3.5 size-4 scale-75 text-brand opacity-0 transition-[opacity,scale] duration-200 ease-spring group-aria-checked/card:scale-100 group-aria-checked/card:opacity-100"
+            />
+            <span className="flex flex-1 flex-col gap-2.5 empty:hidden" id={`${id}-description`}>
+              {option.description && (
+                <span className="text-sm text-muted-foreground">{option.description}</span>
+              )}
+              {option.example && (
+                <span className="mt-auto rounded-lg bg-muted px-2.5 py-1.5 text-sm">
+                  {option.example}
+                </span>
+              )}
             </span>
           </button>
         );

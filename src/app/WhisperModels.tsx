@@ -1,6 +1,10 @@
 import type { TFunction } from "i18next";
 import { useEffect, useState } from "react";
+import { Download, Trash2 } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { Note } from "@/components/settings";
+import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import {
   deleteModel,
   downloadModel,
@@ -12,6 +16,9 @@ import {
 import { useTauriEvent } from "../lib/useTauriEvent";
 
 const megabytes = (bytes: number) => Math.round(bytes / 1_000_000);
+
+const percentOf = (received: number, total: number) =>
+  Math.floor((received / Math.max(total, 1)) * 100);
 
 interface WhisperModelsProps {
   /** The model chosen in the settings. */
@@ -25,7 +32,7 @@ function stateText(model: ModelStatus, chosen: boolean, t: TFunction): string {
       return chosen ? t("whisperModels.waiting") : t("whisperModels.notDownloaded");
     case "downloading":
       return t("whisperModels.downloading", {
-        percent: Math.floor((model.received / Math.max(model.total, 1)) * 100),
+        percent: percentOf(model.received, model.total),
       });
     case "downloaded":
       return chosen ? t("common.loading") : t("whisperModels.downloaded");
@@ -59,56 +66,81 @@ export function WhisperModels({ chosen, onChoose }: WhisperModelsProps) {
   };
 
   return (
-    <fieldset className="plain-fieldset stack">
-      <legend className="card-title">{t("whisperModels.title")}</legend>
-      <ul className="list" aria-label={t("whisperModels.list")}>
+    <fieldset className="mt-2 min-w-0">
+      <legend className="px-1 pb-2 font-medium">{t("whisperModels.title")}</legend>
+      <ul
+        className="list flex flex-col divide-y divide-separator rounded-xl border bg-card shadow-xs"
+        aria-label={t("whisperModels.list")}
+      >
         {models.map((model) => {
           const isChosen = model.id === chosen;
           const downloaded = model.state === "downloaded" || model.state === "active";
           return (
-            <li key={model.id} className="list-row">
-              <label className="list-main check">
+            <li
+              key={model.id}
+              className="list-row flex min-h-(--row-min-h) flex-wrap items-center gap-x-3 gap-y-2 px-4 py-2.5"
+            >
+              <label className="flex min-w-0 flex-1 basis-56 items-start gap-3">
                 <input
                   type="radio"
                   name="whisper-model"
+                  className="mt-0.5"
                   checked={isChosen}
                   onChange={() => onChoose(model.id)}
                 />
-                <span>
+                <span className="flex min-w-0 flex-col gap-0.5">
                   <span className="list-title">{model.label}</span>
-                  <span className="list-meta">
+                  <span
+                    className={cn(
+                      "text-sm tabular-nums",
+                      model.state === "failed" ? "text-destructive" : "text-muted-foreground",
+                    )}
+                  >
                     {t("whisperModels.size", { size: megabytes(model.sizeBytes) })}
                     {model.isDefault && ` · ${t("whisperModels.recommended")}`} ·{" "}
                     {stateText(model, isChosen, t)}
                   </span>
                 </span>
               </label>
-              <div className="row-actions">
+              <div className="flex items-center gap-1 empty:hidden">
                 {model.state === "missing" && !isChosen && (
-                  <button type="button" onClick={() => run(downloadModel(model.id))}>
+                  <Button size="sm" onClick={() => run(downloadModel(model.id))}>
+                    <Download aria-hidden="true" />
                     {t("whisperModels.download")}
-                  </button>
+                  </Button>
                 )}
                 {downloaded && !isChosen && !model.inUse && (
-                  <button
-                    type="button"
+                  <Button
+                    variant="ghost"
+                    size="sm"
                     aria-label={t("whisperModels.deleteModel", { model: model.label })}
                     onClick={() => run(deleteModel(model.id))}
                   >
+                    <Trash2 aria-hidden="true" />
                     {t("common.delete")}
-                  </button>
+                  </Button>
                 )}
               </div>
+              {model.state === "downloading" && (
+                <div className="basis-full pb-0.5 pl-7">
+                  <progress
+                    className="h-1.5 w-full"
+                    max={100}
+                    value={percentOf(model.received, model.total)}
+                    aria-label={t("modelCard.progress")}
+                  />
+                </div>
+              )}
             </li>
           );
         })}
       </ul>
       {error && (
-        <p className="error" role="alert">
+        <p className="mt-2 px-1 text-sm text-destructive" role="alert">
           {error}
         </p>
       )}
-      <p className="muted">{t("whisperModels.note")}</p>
+      <Note className="mt-2">{t("whisperModels.note")}</Note>
     </fieldset>
   );
 }

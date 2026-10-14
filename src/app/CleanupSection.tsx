@@ -1,4 +1,5 @@
 import { useTranslation } from "react-i18next";
+import { Section } from "@/components/settings";
 import type { CleanupLevel } from "../lib/ipc";
 import { RadioCards, type RadioCardOption } from "./RadioCards";
 
@@ -19,14 +20,13 @@ export function CleanupSection({ value, onChange }: CleanupSectionProps) {
     },
   ];
   return (
-    <section className="card stack" aria-labelledby="cleanup-heading">
-      <h2 id="cleanup-heading">{t("style.cleanup.title")}</h2>
+    <Section headingId="cleanup-heading" title={t("style.cleanup.title")}>
       <RadioCards
         label={t("style.cleanup.title")}
         value={value}
         options={options}
         onChange={onChange}
       />
-    </section>
+    </Section>
   );
 }

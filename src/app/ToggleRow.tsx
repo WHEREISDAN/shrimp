@@ -1,4 +1,6 @@
 import { useId } from "react";
+import { Row, RowText } from "@/components/settings";
+import { Switch } from "@/components/ui/switch";
 
 interface ToggleRowProps {
   label: string;
@@ -8,31 +10,20 @@ interface ToggleRowProps {
   onChange: (checked: boolean) => void;
 }
 
-/** A setting that is on or off, with its explanation. */
+/** A setting that is on or off, with its explanation: one row of a group. */
 export function ToggleRow({ label, description, checked, disabled, onChange }: ToggleRowProps) {
   const id = useId();
+  const descriptionId = description ? `${id}-description` : undefined;
   return (
-    <div className="toggle-row">
-      <div className="toggle-text">
-        <label htmlFor={id} className="card-title">
-          {label}
-        </label>
-        {description && (
-          <p id={`${id}-description`} className="muted">
-            {description}
-          </p>
-        )}
-      </div>
-      <input
+    <Row className="toggle-row flex-nowrap">
+      <RowText title={label} htmlFor={id} description={description} descriptionId={descriptionId} />
+      <Switch
         id={id}
-        type="checkbox"
-        role="switch"
-        aria-checked={checked}
         checked={checked}
         disabled={disabled}
-        aria-describedby={description ? `${id}-description` : undefined}
-        onChange={(event) => onChange(event.target.checked)}
+        aria-describedby={descriptionId}
+        onCheckedChange={onChange}
       />
-    </div>
+    </Row>
   );
 }

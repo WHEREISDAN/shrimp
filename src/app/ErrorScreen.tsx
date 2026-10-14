@@ -1,5 +1,9 @@
+import { DatabaseZap, FolderInput, HardDrive, TriangleAlert, type LucideIcon } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { DragBand } from "@/components/drag-band";
+import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import {
   checkStorage,
   dismissCrash,
@@ -22,6 +26,13 @@ export const hasProblem = (health: AppHealth | null): health is AppHealth =>
 /** Which screen shows: the app outside Applications, a damaged database, a full disk, a crash. */
 export const problemKind = (health: AppHealth) =>
   health.misplaced ? "misplaced" : health.data ? "data" : health.storage ? "storage" : "crash";
+
+const ICONS: Record<ReturnType<typeof problemKind>, { icon: LucideIcon; tone: string }> = {
+  misplaced: { icon: FolderInput, tone: "bg-brand/12 text-brand-strong" },
+  data: { icon: DatabaseZap, tone: "bg-destructive/10 text-destructive" },
+  storage: { icon: HardDrive, tone: "bg-warning/12 text-warning" },
+  crash: { icon: TriangleAlert, tone: "bg-warning/12 text-warning" },
+};
 
 /** The app outside Applications, a damaged database, a full disk or a crash, each with its way out. */
 export function ErrorScreen({ health }: ErrorScreenProps) {
@@ -95,36 +106,56 @@ export function ErrorScreen({ health }: ErrorScreenProps) {
     actions = [{ label: t("errors.continue"), primary: true, run: dismissCrash }];
   }
 
+  const { icon: Icon, tone } = ICONS[kind];
   return (
-    <main className="error-screen" aria-labelledby="error-title">
-      <div className="error-card">
-        <h1 id="error-title" ref={headingRef} tabIndex={-1}>
+    <main
+      className="error-screen flex min-h-full flex-col items-center justify-center overflow-y-auto bg-background px-8 py-16"
+      aria-labelledby="error-title"
+    >
+      <DragBand />
+      <div className="error-card flex w-full max-w-[26rem] animate-pop-in flex-col items-center gap-3 text-center">
+        <span
+          aria-hidden="true"
+          className={cn("mb-2 grid size-14 place-items-center rounded-2xl", tone)}
+        >
+          <Icon className="size-7" strokeWidth={1.75} />
+        </span>
+        <h1
+          id="error-title"
+          ref={headingRef}
+          tabIndex={-1}
+          className="font-display text-2xl font-bold tracking-[-0.01em] outline-none"
+        >
           {title}
         </h1>
-        <p>{body}</p>
-        {extra && <p className="muted">{extra}</p>}
+        <p className="text-muted-foreground">{body}</p>
+        {extra && <p className="text-sm text-muted-foreground">{extra}</p>}
         {health.crash?.details && kind === "crash" && (
-          <details>
-            <summary>{t("errors.crashDetails")}</summary>
-            <pre>{health.crash.details}</pre>
+          <details className="mt-1 w-full rounded-lg border bg-card text-left">
+            <summary className="px-3 py-2 text-sm text-muted-foreground">
+              {t("errors.crashDetails")}
+            </summary>
+            <pre className="m-0 max-h-40 overflow-auto border-t px-3 py-2 font-mono text-xs whitespace-pre-wrap select-text">
+              {health.crash.details}
+            </pre>
           </details>
         )}
         {error && (
-          <p className="error" role="alert">
+          <p className="text-sm text-destructive" role="alert">
             {error}
           </p>
         )}
-        <div className="dialog-actions">
+        <div className="mt-3 flex flex-wrap justify-center gap-2">
           {actions.map((action) => (
-            <button
+            <Button
               key={action.label}
-              type="button"
-              className={action.primary ? "primary" : undefined}
+              size="lg"
+              variant={action.primary ? "default" : "outline"}
               disabled={busy}
               onClick={() => run(action.run)}
             >
               {action.label}
-            </button>
+            </Button>
           ))}
         </div>
       </div>

@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { Group, Note, Row, Section } from "@/components/settings";
+import { Button } from "@/components/ui/button";
 import { errorMessage, EVENTS, getLanguages, type Languages } from "../lib/ipc";
 import { useTauriEvent } from "../lib/useTauriEvent";
 import { languageNames } from "./languageChoice";
@@ -45,19 +47,24 @@ export function LanguagesSection({ reveal = 0 }: LanguagesSectionProps) {
     : t("common.loading");
 
   return (
-    <section className="card stack" aria-labelledby="languages-heading" id="languages">
-      <h2 id="languages-heading" ref={headingRef} tabIndex={-1}>
-        {t("languages.title")}
-      </h2>
-      <div className="row">
-        <span>{summary}</span>
-        <button type="button" disabled={!languages} onClick={() => setEditing(true)}>
-          {t("languages.change")}
-        </button>
-      </div>
-      <p className="muted">{t("languages.body")}</p>
+    <Section
+      id="languages"
+      headingId="languages-heading"
+      headingRef={headingRef}
+      focusableHeading
+      title={t("languages.title")}
+    >
+      <Group>
+        <Row>
+          <span className="min-w-0 flex-1">{summary}</span>
+          <Button size="sm" disabled={!languages} onClick={() => setEditing(true)}>
+            {t("languages.change")}
+          </Button>
+        </Row>
+      </Group>
+      <Note>{t("languages.body")}</Note>
       {error && (
-        <p className="error" role="alert">
+        <p className="px-1 text-sm text-destructive" role="alert">
           {error}
         </p>
       )}
@@ -69,6 +76,6 @@ export function LanguagesSection({ reveal = 0 }: LanguagesSectionProps) {
           onClose={() => setEditing(false)}
         />
       )}
-    </section>
+    </Section>
   );
 }

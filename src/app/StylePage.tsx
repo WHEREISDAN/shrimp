@@ -12,7 +12,7 @@ export function StylePage() {
   return (
     <Page title={t("style.title")}>
       {error && (
-        <p className="error" role="alert">
+        <p className="text-sm text-destructive" role="alert">
           {error}
         </p>
       )}
@@ -32,7 +32,7 @@ export function StylePage() {
           />
         </>
       ) : (
-        !error && <p className="muted">{t("common.loading")}</p>
+        !error && <p className="text-muted-foreground">{t("common.loading")}</p>
       )}
     </Page>
   );

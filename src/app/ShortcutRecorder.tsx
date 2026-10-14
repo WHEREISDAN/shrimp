@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import {
   errorMessage,
   EVENTS,
@@ -10,6 +12,7 @@ import {
   type ShortcutRow,
 } from "../lib/ipc";
 import { useTauriEvent } from "../lib/useTauriEvent";
+import { keycap, recordingKeycap } from "@/components/ui/kbd";
 import { useShortcutRecording } from "./useShortcutRecording";
 
 interface ShortcutRecorderProps {
@@ -41,13 +44,17 @@ export function ShortcutRecorder({ action, label }: ShortcutRecorderProps) {
   const problem = error ?? (recording.result?.kind === "failed" ? recording.result.text : null);
 
   return (
-    <div className="shortcut-row">
-      <div className="row">
-        <span>{label}</span>
-        <div className="row-end">
+    <div className="flex w-full min-w-0 flex-col gap-1.5">
+      <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+        <span className="min-w-0 flex-1 basis-40">{label}</span>
+        <div className="flex flex-wrap items-center gap-2">
           <button
             type="button"
-            className={recording.active ? "recorder recording" : "recorder"}
+            className={cn(
+              keycap,
+              "min-w-[6.5rem]",
+              recording.active ? recordingKeycap : !value && "font-normal text-muted-foreground",
+            )}
             aria-label={t("shortcuts.recorder", { label, shortcut: shown })}
             aria-pressed={recording.active !== null}
             onClick={() => {
@@ -59,11 +66,19 @@ export function ShortcutRecorder({ action, label }: ShortcutRecorderProps) {
               }
             }}
           >
+            {recording.active && (
+              <span
+                aria-hidden="true"
+                className="size-1.5 shrink-0 animate-pulse rounded-full bg-brand"
+              />
+            )}
             {shown}
           </button>
           {value && !recording.active && (
-            <button
-              type="button"
+            <Button
+              variant="ghost"
+              size="sm"
+              className="text-muted-foreground hover:text-foreground"
               aria-label={t("shortcuts.removeOneLabel", { label })}
               onClick={() =>
                 void removeShortcut(action, 0)
@@ -72,12 +87,12 @@ export function ShortcutRecorder({ action, label }: ShortcutRecorderProps) {
               }
             >
               {t("shortcuts.removeOne")}
-            </button>
+            </Button>
           )}
         </div>
       </div>
       {problem && (
-        <p className="error" role="alert">
+        <p className="text-sm text-destructive" role="alert">
           {problem}
         </p>
       )}

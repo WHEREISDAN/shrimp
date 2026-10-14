@@ -1,4 +1,5 @@
 import { useTranslation } from "react-i18next";
+import { Group } from "@/components/settings";
 import { ToggleRow } from "./ToggleRow";
 import { useSettings } from "./useSettings";
 
@@ -10,13 +11,13 @@ export function AutoLearnToggle() {
     return null;
   }
   return (
-    <div className="card">
+    <Group>
       <ToggleRow
         label={t("autoLearn.label")}
         description={t("autoLearn.description")}
         checked={settings.dictionary.autoLearn}
         onChange={(autoLearn) => void update({ dictionary: { autoLearn } })}
       />
-    </div>
+    </Group>
   );
 }

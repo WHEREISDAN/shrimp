@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { errorMessage } from "../lib/ipc";
-import { Dialog } from "./Dialog";
+import { Button } from "@/components/ui/button";
+import { Dialog, DialogFooter } from "./Dialog";
 
 interface ConfirmDialogProps {
   title: string;
@@ -33,20 +34,20 @@ export function ConfirmDialog({
 
   return (
     <Dialog title={title} onClose={onCancel}>
-      {message && <p className="muted">{message}</p>}
+      {message && <p className="text-muted-foreground">{message}</p>}
       {error && (
-        <p className="error" role="alert">
+        <p className="text-sm text-destructive" role="alert">
           {error}
         </p>
       )}
-      <div className="dialog-actions">
-        <button type="button" onClick={onCancel} autoFocus>
+      <DialogFooter>
+        <Button onClick={onCancel} autoFocus>
           {t("common.cancel")}
-        </button>
-        <button type="button" className="danger" onClick={confirm} disabled={busy}>
+        </Button>
+        <Button variant="destructive" onClick={confirm} disabled={busy}>
           {confirmLabel}
-        </button>
-      </div>
+        </Button>
+      </DialogFooter>
     </Dialog>
   );
 }

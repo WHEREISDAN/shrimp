@@ -1,5 +1,8 @@
+import { Search } from "lucide-react";
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
 import { useTranslation } from "react-i18next";
+import { Input } from "@/components/ui/input";
+import { cn } from "@/lib/utils";
 import {
   copyHistory,
   deleteHistory,
@@ -147,53 +150,78 @@ export function HistorySection() {
 
   const empty = list && entries.length === 0;
   return (
-    <section className="history" aria-label={t("history.region")}>
-      <div className="history-head">
-        <h2 className="section-title">{t("history.title")}</h2>
-        <input
-          ref={searchRef}
-          type="search"
-          className="history-search"
-          aria-label={t("history.search")}
-          placeholder={t("history.searchPlaceholder")}
-          value={query}
-          disabled={list?.disabled}
-          onChange={(event) => setQuery(event.target.value)}
-          onKeyDown={(event) => {
-            if (event.key === "ArrowDown" && current !== undefined) {
-              event.preventDefault();
-              listRef.current
-                ?.querySelector<HTMLElement>(`[data-history-id="${current}"]`)
-                ?.focus();
-            }
-          }}
-        />
+    <section className="history flex flex-col gap-3" aria-label={t("history.region")}>
+      <div className="history-head flex flex-wrap items-center justify-between gap-x-4 gap-y-2 px-1">
+        <h2 className="section-title text-base font-semibold">{t("history.title")}</h2>
+        <div className="relative w-60 max-w-full">
+          <Search
+            aria-hidden="true"
+            className="pointer-events-none absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-muted-foreground"
+          />
+          <Input
+            ref={searchRef}
+            type="search"
+            className="history-search pl-8"
+            aria-label={t("history.search")}
+            placeholder={t("history.searchPlaceholder")}
+            value={query}
+            disabled={list?.disabled}
+            onChange={(event) => setQuery(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === "ArrowDown" && current !== undefined) {
+                event.preventDefault();
+                listRef.current
+                  ?.querySelector<HTMLElement>(`[data-history-id="${current}"]`)
+                  ?.focus();
+              }
+            }}
+          />
+        </div>
       </div>
-      <p className={status?.error ? "error" : "muted"} role="status" aria-live="polite">
+      <p
+        className={cn(
+          "px-1 text-sm empty:hidden",
+          status?.error ? "text-destructive" : "text-muted-foreground",
+        )}
+        role="status"
+        aria-live="polite"
+      >
         {status?.text}
       </p>
       {error && (
-        <p className="error" role="alert">
+        <p className="px-1 text-sm text-destructive" role="alert">
           {error}
         </p>
       )}
-      {!list && !error && <p className="muted">{t("common.loading")}</p>}
+      {!list && !error && <p className="px-1 text-muted-foreground">{t("common.loading")}</p>}
       {list?.disabled && (
-        <div className="empty">
-          <p className="card-title">{t("history.disabled")}</p>
-          <p className="muted">{t("history.disabledHint")}</p>
+        <div className="empty flex flex-col items-center gap-1 rounded-xl border border-dashed px-6 py-10 text-center">
+          <p className="font-medium">{t("history.disabled")}</p>
+          <p className="max-w-sm text-sm text-muted-foreground">{t("history.disabledHint")}</p>
         </div>
       )}
       {empty && !list.disabled && (
-        <p className="empty">{query ? t("history.noMatches", { query }) : t("history.empty")}</p>
+        <p className="empty rounded-xl border border-dashed px-6 py-10 text-center text-muted-foreground">
+          {query ? t("history.noMatches", { query }) : t("history.empty")}
+        </p>
       )}
-      <div ref={listRef} onKeyDown={onListKeyDown}>
+      <div ref={listRef} onKeyDown={onListKeyDown} className="flex flex-col gap-5">
         {groups.map((group) => (
-          <section key={group.key} className="history-day" aria-labelledby={`day-${group.key}`}>
-            <h3 id={`day-${group.key}`} className="history-day-title">
+          <section
+            key={group.key}
+            className="history-day flex flex-col gap-1.5"
+            aria-labelledby={`day-${group.key}`}
+          >
+            <h3
+              id={`day-${group.key}`}
+              className="history-day-title px-1 text-sm font-medium text-muted-foreground"
+            >
               {group.label}
             </h3>
-            <ul className="list" aria-label={group.label}>
+            <ul
+              className="list flex flex-col divide-y divide-separator rounded-xl border bg-card shadow-xs"
+              aria-label={group.label}
+            >
               {group.entries.map((item: HistoryItem) => (
                 <HistoryRow
                   key={item.id}

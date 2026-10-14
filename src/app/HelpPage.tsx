@@ -1,5 +1,8 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { Group, Note, Row, RowText, Section } from "@/components/settings";
+import { Button } from "@/components/ui/button";
+import { Kbd } from "@/components/ui/kbd";
 import { getAppInfo, getShortcuts, type ShortcutList } from "../lib/ipc";
 import { MicAdviceDialog } from "./MicAdviceDialog";
 import { Page } from "./Page";
@@ -53,69 +56,89 @@ export function HelpPage({ onOpenShortcuts, onSetup }: HelpPageProps) {
       title={t("help.title")}
       modal={advice && <MicAdviceDialog onClose={() => setAdvice(false)} />}
     >
-      <section className="card stack" aria-labelledby="help-start">
-        <h2 id="help-start">{t("help.startTitle")}</h2>
-        <ol className="intro-steps">
-          <li>{t("help.start1", { shortcut: talk })}</li>
-          <li>{t("help.start2", { shortcut: talk })}</li>
-          <li>{t("help.start3")}</li>
-          <li>{t("help.start4")}</li>
-        </ol>
-      </section>
-      <section className="card stack" aria-labelledby="help-shortcuts">
-        <div className="row">
-          <h2 id="help-shortcuts">{t("help.shortcutsTitle")}</h2>
-          <button type="button" onClick={onOpenShortcuts}>
-            {t("help.change")}
-          </button>
-        </div>
-        <dl className="key-list">
-          {shortcuts?.rows
-            .filter((row) => row.shortcuts.length > 0)
-            .map((row) => (
-              <div key={row.name} className="row">
-                <dt>{row.name}</dt>
-                <dd>
-                  <kbd>{row.shortcuts.join(" / ")}</kbd>
-                </dd>
-              </div>
+      <Section headingId="help-start" title={t("help.startTitle")}>
+        <Group>
+          <ol className="m-0 flex list-none flex-col divide-y divide-separator p-0">
+            {[
+              t("help.start1", { shortcut: talk }),
+              t("help.start2", { shortcut: talk }),
+              t("help.start3"),
+              t("help.start4"),
+            ].map((step, index) => (
+              <li key={index} className="flex items-start gap-3 px-4 py-3">
+                <span
+                  aria-hidden="true"
+                  className="grid size-5 shrink-0 place-items-center rounded-full bg-brand/12 text-xs font-semibold text-brand-strong tabular-nums"
+                >
+                  {index + 1}
+                </span>
+                <span>{step}</span>
+              </li>
             ))}
-        </dl>
-      </section>
-      <section className="card stack" aria-labelledby="help-keys">
-        <h2 id="help-keys">{t("help.keysTitle")}</h2>
-        <dl className="key-list">
-          {KEYS.map((key) => (
-            <div key={key.keys} className="row">
-              <dt>{t(key.label)}</dt>
-              <dd>
-                <kbd>{key.keys}</kbd>
-              </dd>
-            </div>
-          ))}
-        </dl>
-      </section>
-      <section className="card stack" aria-labelledby="help-mic">
-        <h2 id="help-mic">{t("help.micTitle")}</h2>
-        <p className="muted">{t("help.micBody")}</p>
-        <div>
-          <button type="button" onClick={() => setAdvice(true)}>
-            {t("help.micAdvice")}
-          </button>
-        </div>
-      </section>
+          </ol>
+        </Group>
+      </Section>
+      <Section
+        headingId="help-shortcuts"
+        title={t("help.shortcutsTitle")}
+        action={
+          <Button size="sm" onClick={onOpenShortcuts}>
+            {t("help.change")}
+          </Button>
+        }
+      >
+        <Group>
+          <dl className="m-0 flex flex-col divide-y divide-separator">
+            {shortcuts?.rows
+              .filter((row) => row.shortcuts.length > 0)
+              .map((row) => (
+                <Row key={row.name} className="min-h-10 py-2">
+                  <dt>{row.name}</dt>
+                  <dd className="m-0">
+                    <Kbd>{row.shortcuts.join(" / ")}</Kbd>
+                  </dd>
+                </Row>
+              ))}
+          </dl>
+        </Group>
+      </Section>
+      <Section headingId="help-keys" title={t("help.keysTitle")}>
+        <Group>
+          <dl className="m-0 flex flex-col divide-y divide-separator">
+            {KEYS.map((key) => (
+              <Row key={key.keys} className="min-h-10 py-2">
+                <dt>{t(key.label)}</dt>
+                <dd className="m-0">
+                  <Kbd>{key.keys}</Kbd>
+                </dd>
+              </Row>
+            ))}
+          </dl>
+        </Group>
+      </Section>
+      <Section headingId="help-mic" title={t("help.micTitle")}>
+        <Group>
+          <Row>
+            <RowText title={t("help.micBody")} />
+            <Button size="sm" onClick={() => setAdvice(true)}>
+              {t("help.micAdvice")}
+            </Button>
+          </Row>
+        </Group>
+      </Section>
       {onSetup && (
-        <section className="card stack" aria-labelledby="help-setup">
-          <h2 id="help-setup">{t("help.setupTitle")}</h2>
-          <p className="muted">{t("help.setupBody")}</p>
-          <div>
-            <button type="button" onClick={onSetup}>
-              {t("help.setupAgain")}
-            </button>
-          </div>
-        </section>
+        <Section headingId="help-setup" title={t("help.setupTitle")}>
+          <Group>
+            <Row>
+              <RowText title={t("help.setupBody")} />
+              <Button size="sm" onClick={onSetup}>
+                {t("help.setupAgain")}
+              </Button>
+            </Row>
+          </Group>
+        </Section>
       )}
-      <p className="meta">{t("help.about", { version })}</p>
+      <Note className="meta text-center text-xs">{t("help.about", { version })}</Note>
     </Page>
   );
 }

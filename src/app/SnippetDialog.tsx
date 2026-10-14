@@ -6,7 +6,11 @@ import {
   type FormEvent,
   type KeyboardEvent,
 } from "react";
+import { Bold, Italic, Link } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import {
   addSnippet,
   errorMessage,
@@ -14,7 +18,7 @@ import {
   type Snippet,
   type SnippetSaved,
 } from "../lib/ipc";
-import { Dialog } from "./Dialog";
+import { Dialog, DialogFooter } from "./Dialog";
 import { insertLink, wrapSelection, type TextEdit } from "./markdownEdit";
 import { primaryKey } from "../lib/platform";
 
@@ -98,12 +102,16 @@ export function SnippetDialog({ snippet, onSaved, onClose }: SnippetDialogProps)
     void save();
   };
 
+  const formatButton = "text-muted-foreground hover:text-foreground";
+
   return (
     <Dialog title={snippet ? t("snippets.editSnippet") : t("snippets.add")} onClose={onClose}>
-      <form className="form" onSubmit={onSubmit} onKeyDown={onFormKeyDown}>
-        <div className="field">
-          <label htmlFor={`${ids}-trigger`}>{t("snippets.trigger")}</label>
-          <input
+      <form className="flex flex-col gap-4" onSubmit={onSubmit} onKeyDown={onFormKeyDown}>
+        <div className="flex flex-col gap-1.5">
+          <label htmlFor={`${ids}-trigger`} className="text-sm font-medium">
+            {t("snippets.trigger")}
+          </label>
+          <Input
             id={`${ids}-trigger`}
             type="text"
             value={trigger}
@@ -113,26 +121,49 @@ export function SnippetDialog({ snippet, onSaved, onClose }: SnippetDialogProps)
             aria-describedby={`${ids}-trigger-hint`}
             onChange={(event) => setTrigger(event.target.value)}
           />
-          <p id={`${ids}-trigger-hint`} className="muted hint">
+          <p id={`${ids}-trigger-hint`} className="text-sm text-muted-foreground">
             {t("snippets.triggerHint")}
           </p>
         </div>
-        <div className="field">
-          <div className="field-head">
-            <label htmlFor={`${ids}-expansion`}>{t("snippets.expansion")}</label>
-            <div className="format-bar">
-              <button type="button" onClick={bold}>
-                {t("snippets.bold")}
-              </button>
-              <button type="button" onClick={italic}>
-                {t("snippets.italic")}
-              </button>
-              <button type="button" onClick={link}>
-                {t("snippets.link")}
-              </button>
+        <div className="flex flex-col gap-1.5">
+          <div className="flex items-end justify-between gap-3">
+            <label htmlFor={`${ids}-expansion`} className="text-sm font-medium">
+              {t("snippets.expansion")}
+            </label>
+            <div className="-mb-0.5 flex items-center gap-0.5">
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                className={formatButton}
+                aria-label={t("snippets.bold")}
+                title={t("snippets.bold")}
+                onClick={bold}
+              >
+                <Bold aria-hidden="true" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                className={formatButton}
+                aria-label={t("snippets.italic")}
+                title={t("snippets.italic")}
+                onClick={italic}
+              >
+                <Italic aria-hidden="true" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                className={formatButton}
+                aria-label={t("snippets.link")}
+                title={t("snippets.link")}
+                onClick={link}
+              >
+                <Link aria-hidden="true" />
+              </Button>
             </div>
           </div>
-          <textarea
+          <Textarea
             id={`${ids}-expansion`}
             ref={textareaRef}
             value={expansion}
@@ -145,26 +176,24 @@ export function SnippetDialog({ snippet, onSaved, onClose }: SnippetDialogProps)
             }}
             onKeyDown={onTextareaKeyDown}
           />
-          <div className="field-foot">
-            <p id={`${ids}-expansion-hint`} className="muted hint">
+          <div className="flex items-start justify-between gap-3">
+            <p id={`${ids}-expansion-hint`} className="text-sm text-muted-foreground">
               {t("snippets.expansionHint")}
             </p>
-            <span className="muted counter">{`${expansion.length}/${MAX_EXPANSION}`}</span>
+            <span className="shrink-0 pt-px text-xs whitespace-nowrap text-muted-foreground tabular-nums">{`${expansion.length}/${MAX_EXPANSION}`}</span>
           </div>
         </div>
         {(error !== null || tooLong) && (
-          <p className="error" role="alert">
+          <p className="text-sm text-destructive" role="alert">
             {error ?? t("snippets.expansionTooLong")}
           </p>
         )}
-        <div className="dialog-actions">
-          <button type="button" onClick={onClose}>
-            {t("common.cancel")}
-          </button>
-          <button type="submit" className="primary" disabled={busy}>
+        <DialogFooter>
+          <Button onClick={onClose}>{t("common.cancel")}</Button>
+          <Button type="submit" variant="default" disabled={busy}>
             {snippet ? t("snippets.saveChanges") : t("snippets.save")}
-          </button>
-        </div>
+          </Button>
+        </DialogFooter>
       </form>
     </Dialog>
   );

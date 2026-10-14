@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { Group, Row, Section } from "@/components/settings";
+import { Button } from "@/components/ui/button";
 import { EVENTS, getModels, retryModel, type ModelStatus } from "../lib/ipc";
 import { useTauriEvent } from "../lib/useTauriEvent";
 
@@ -34,22 +36,25 @@ export function ModelCard({ hideWhenReady = false }: ModelCardProps) {
     return null;
   }
   return (
-    <section className="card" aria-labelledby="model-heading">
-      <h2 id="model-heading">{t("modelCard.title")}</h2>
-      {model ? (
-        <>
-          <p className="card-title">
-            {model.label}{" "}
-            <span className="muted">
-              · {t("modelCard.onDevice", { size: megabytes(model.sizeBytes) })}
-            </span>
-          </p>
-          <ModelProgress model={model} />
-        </>
-      ) : (
-        <p className="muted">{t("common.loading")}</p>
-      )}
-    </section>
+    <Section headingId="model-heading" title={t("modelCard.title")}>
+      <Group>
+        <Row className="flex-col items-stretch gap-2 py-3.5">
+          {model ? (
+            <>
+              <p className="font-medium">
+                {model.label}{" "}
+                <span className="font-normal text-muted-foreground">
+                  · {t("modelCard.onDevice", { size: megabytes(model.sizeBytes) })}
+                </span>
+              </p>
+              <ModelProgress model={model} />
+            </>
+          ) : (
+            <p className="text-muted-foreground">{t("common.loading")}</p>
+          )}
+        </Row>
+      </Group>
+    </Section>
   );
 }
 
@@ -57,13 +62,18 @@ function ModelProgress({ model }: { model: ModelStatus }) {
   const { t } = useTranslation();
   switch (model.state) {
     case "missing":
-      return <p className="muted">{t("modelCard.waiting")}</p>;
+      return <p className="text-sm text-muted-foreground">{t("modelCard.waiting")}</p>;
     case "downloading": {
       const percent = Math.floor((model.received / Math.max(model.total, 1)) * 100);
       return (
-        <div className="progress-row">
-          <progress max={100} value={percent} aria-label={t("modelCard.progress")} />
-          <span data-testid="model-progress">
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+          <progress
+            className="min-w-32 flex-1"
+            max={100}
+            value={percent}
+            aria-label={t("modelCard.progress")}
+          />
+          <span className="text-sm text-muted-foreground tabular-nums" data-testid="model-progress">
             {t("modelCard.downloading", {
               percent,
               received: megabytes(model.received),
@@ -74,16 +84,16 @@ function ModelProgress({ model }: { model: ModelStatus }) {
       );
     }
     case "downloaded":
-      return <p className="muted">{t("modelCard.loading")}</p>;
+      return <p className="text-sm text-muted-foreground">{t("modelCard.loading")}</p>;
     case "active":
-      return <p className="ok">{t("modelCard.ready")}</p>;
+      return <p className="text-sm text-success">{t("modelCard.ready")}</p>;
     case "failed":
       return (
-        <div className="progress-row">
-          <span className="error">{model.message}</span>
-          <button type="button" onClick={() => void retryModel().catch(() => undefined)}>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <span className="text-sm text-destructive">{model.message}</span>
+          <Button size="sm" onClick={() => void retryModel().catch(() => undefined)}>
             {t("modelCard.retry")}
-          </button>
+          </Button>
         </div>
       );
   }

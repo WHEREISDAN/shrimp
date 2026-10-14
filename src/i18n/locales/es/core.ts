@@ -61,6 +61,13 @@ export const core: CoreCatalog = {
     transcribing: "Transcribiendo",
     privacy: "{{label}}, modo de privacidad activado",
   },
+  windowControls: {
+    label: "Ventana",
+    minimize: "Minimizar",
+    maximize: "Maximizar",
+    restore: "Restaurar",
+    close: "Cerrar",
+  },
   nav: {
     label: "Principal",
     home: "Inicio",

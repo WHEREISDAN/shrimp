@@ -1,5 +1,8 @@
 import { useCallback, useEffect, useId, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { Group, Note, Row, Section } from "@/components/settings";
+import { Button } from "@/components/ui/button";
+import { NativeSelect } from "@/components/ui/native-select";
 import {
   EVENTS,
   getFormatApps,
@@ -58,69 +61,89 @@ export function AppFormatsSection({ formats, onChange }: AppFormatsSectionProps)
   const remove = (appId: string) => onChange(formats.filter((entry) => entry.appId !== appId));
 
   return (
-    <section className="card stack" aria-labelledby={`${ids}-heading`}>
-      <h2 id={`${ids}-heading`}>{t("style.appFormats.title")}</h2>
-      <p className="muted">{t("style.appFormats.body")}</p>
-      {formats.length > 0 && (
-        <ul className="list" aria-labelledby={`${ids}-heading`}>
-          {formats.map((entry) => {
-            const app = entry.appName || entry.appId;
-            return (
-              <li key={entry.appId} className="list-row">
-                <div className="list-main">
-                  <div className="list-title">{app}</div>
-                  <div className="list-meta muted">{entry.appId}</div>
-                </div>
-                <select
-                  aria-label={t("style.appFormats.formatFor", { app })}
-                  value={entry.format}
-                  onChange={(event) => change(entry.appId, event.target.value as TranscriptFormat)}
+    <Section headingId={`${ids}-heading`} title={t("style.appFormats.title")}>
+      <Note>{t("style.appFormats.body")}</Note>
+      <Group>
+        {formats.length > 0 && (
+          <ul
+            className="list flex flex-col divide-y divide-separator"
+            aria-labelledby={`${ids}-heading`}
+          >
+            {formats.map((entry) => {
+              const app = entry.appName || entry.appId;
+              return (
+                <li
+                  key={entry.appId}
+                  className="list-row flex min-h-(--row-min-h) flex-wrap items-center gap-x-3 gap-y-2 px-4 py-2.5"
                 >
-                  {formatOptions}
-                </select>
-                <div className="row-actions">
-                  <button
-                    type="button"
-                    aria-label={t("style.appFormats.removeApp", { app })}
-                    onClick={() => remove(entry.appId)}
-                  >
-                    {t("style.appFormats.remove")}
-                  </button>
-                </div>
-              </li>
-            );
-          })}
-        </ul>
-      )}
-      {choice ? (
-        <div className="inline-row">
-          <label className="select-field">
-            <span>{t("style.appFormats.app")}</span>
-            <select value={choice.id} onChange={(event) => setPicked(event.target.value)}>
-              {available.map((app) => (
-                <option key={app.id} value={app.id}>
-                  {app.name}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="select-field">
-            <span>{t("style.appFormats.format")}</span>
-            <select
-              value={format}
-              onChange={(event) => setFormat(event.target.value as TranscriptFormat)}
-            >
-              {formatOptions}
-            </select>
-          </label>
-          <button type="button" onClick={add}>
-            {t("style.appFormats.add")}
-          </button>
-        </div>
-      ) : (
-        known.length === 0 && <p className="muted">{t("style.appFormats.noApps")}</p>
-      )}
-      <p className="muted footnote">{t("style.appFormats.footnote")}</p>
-    </section>
+                  <div className="flex min-w-0 flex-1 basis-40 flex-col gap-0.5">
+                    <div className="list-title font-medium">{app}</div>
+                    <div className="text-sm [overflow-wrap:anywhere] text-muted-foreground">
+                      {entry.appId}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <NativeSelect
+                      wrapperClassName="min-w-44"
+                      aria-label={t("style.appFormats.formatFor", { app })}
+                      value={entry.format}
+                      onChange={(event) =>
+                        change(entry.appId, event.target.value as TranscriptFormat)
+                      }
+                    >
+                      {formatOptions}
+                    </NativeSelect>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      aria-label={t("style.appFormats.removeApp", { app })}
+                      onClick={() => remove(entry.appId)}
+                    >
+                      {t("style.appFormats.remove")}
+                    </Button>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+        {choice ? (
+          <Row className="justify-start gap-x-4">
+            <label className="flex items-center gap-2">
+              <span className="text-sm font-medium">{t("style.appFormats.app")}</span>
+              <NativeSelect
+                wrapperClassName="min-w-36"
+                value={choice.id}
+                onChange={(event) => setPicked(event.target.value)}
+              >
+                {available.map((app) => (
+                  <option key={app.id} value={app.id}>
+                    {app.name}
+                  </option>
+                ))}
+              </NativeSelect>
+            </label>
+            <label className="flex items-center gap-2">
+              <span className="text-sm font-medium">{t("style.appFormats.format")}</span>
+              <NativeSelect
+                wrapperClassName="min-w-44"
+                value={format}
+                onChange={(event) => setFormat(event.target.value as TranscriptFormat)}
+              >
+                {formatOptions}
+              </NativeSelect>
+            </label>
+            <Button className="ml-auto" onClick={add}>
+              {t("style.appFormats.add")}
+            </Button>
+          </Row>
+        ) : (
+          known.length === 0 && (
+            <p className="px-4 py-3 text-muted-foreground">{t("style.appFormats.noApps")}</p>
+          )
+        )}
+      </Group>
+      <Note>{t("style.appFormats.footnote")}</Note>
+    </Section>
   );
 }

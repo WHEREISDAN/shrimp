@@ -1,5 +1,9 @@
-import { useEffect, useState, type KeyboardEvent } from "react";
+import { useEffect, useId, useState, type KeyboardEvent } from "react";
 import { useTranslation } from "react-i18next";
+import { Row, RowText } from "@/components/settings";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { NativeSelect } from "@/components/ui/native-select";
 import { listOllamaModels, type Settings, type SettingsPatch } from "../lib/ipc";
 
 interface OllamaFieldsProps {
@@ -7,8 +11,11 @@ interface OllamaFieldsProps {
   update: (patch: SettingsPatch) => Promise<void>;
 }
 
+/** Ollama's address and model: rows of the AI provider's group. */
 export function OllamaFields({ ai, update }: OllamaFieldsProps) {
   const { t } = useTranslation();
+  const addressId = useId();
+  const modelId = useId();
   const [listing, setListing] = useState<{ key: string; models: string[] | null } | null>(null);
   const [attempt, setAttempt] = useState(0);
   const key = `${ai.ollamaUrl}#${attempt}`;
@@ -40,22 +47,26 @@ export function OllamaFields({ ai, update }: OllamaFieldsProps) {
 
   return (
     <>
-      <label className="select-field field">
-        <span>{t("ollama.address")}</span>
-        <input
+      <Row>
+        <RowText title={t("ollama.address")} htmlFor={addressId} />
+        <Input
+          id={addressId}
           key={ai.ollamaUrl}
           type="text"
+          className="w-64 max-w-full"
           defaultValue={ai.ollamaUrl}
           autoComplete="off"
           spellCheck={false}
           onBlur={(event) => saveAddress(event.target.value)}
           onKeyDown={onAddressKeyDown}
         />
-      </label>
-      <label className="select-field field">
-        <span>{t("ollama.model")}</span>
-        <select
+      </Row>
+      <Row>
+        <RowText title={t("ollama.model")} htmlFor={modelId} />
+        <NativeSelect
+          id={modelId}
           aria-label={t("ollama.model")}
+          wrapperClassName="min-w-40 max-w-full"
           value={ai.ollamaModel}
           onChange={(event) => void update({ ai: { ollamaModel: event.target.value } })}
         >
@@ -68,15 +79,17 @@ export function OllamaFields({ ai, update }: OllamaFieldsProps) {
               {model}
             </option>
           ))}
-        </select>
-      </label>
+        </NativeSelect>
+      </Row>
       {failed && (
-        <div className="inline-row">
-          <p className="error">{t("ollama.notRunning", { url: ai.ollamaUrl })}</p>
-          <button type="button" onClick={() => setAttempt((count) => count + 1)}>
+        <Row>
+          <p className="min-w-0 flex-1 basis-56 text-sm text-destructive">
+            {t("ollama.notRunning", { url: ai.ollamaUrl })}
+          </p>
+          <Button size="sm" onClick={() => setAttempt((count) => count + 1)}>
             {t("ollama.retry")}
-          </button>
-        </div>
+          </Button>
+        </Row>
       )}
     </>
   );

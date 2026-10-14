@@ -1,4 +1,7 @@
+import { Ellipsis } from "lucide-react";
 import { useEffect, useId, useRef, useState, type KeyboardEvent } from "react";
+import { buttonVariants } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
 export interface MenuItem {
   label: string;
@@ -74,11 +77,14 @@ export function MenuButton({ label, items, tabIndex = 0 }: MenuButtonProps) {
   };
 
   return (
-    <div className="menu-anchor">
+    <div className="menu-anchor relative">
       <button
         ref={buttonRef}
         type="button"
-        className="icon-button"
+        className={cn(
+          buttonVariants({ variant: "ghost", size: "icon-sm" }),
+          "text-muted-foreground hover:text-foreground aria-expanded:text-foreground",
+        )}
         aria-label={label}
         title={label}
         aria-haspopup="menu"
@@ -97,17 +103,13 @@ export function MenuButton({ label, items, tabIndex = 0 }: MenuButtonProps) {
           }
         }}
       >
-        <svg viewBox="0 0 16 16" aria-hidden="true" width="14" height="14">
-          <circle cx="3" cy="8" r="1.4" />
-          <circle cx="8" cy="8" r="1.4" />
-          <circle cx="13" cy="8" r="1.4" />
-        </svg>
+        <Ellipsis aria-hidden="true" />
       </button>
       {open && (
         <div
           ref={menuRef}
           id={menuId}
-          className="menu"
+          className="menu absolute top-[calc(100%+4px)] right-0 z-30 flex min-w-44 origin-top-right animate-menu-in flex-col rounded-lg border bg-popover/95 p-1 text-popover-foreground shadow-lg backdrop-blur-xl"
           role="menu"
           tabIndex={-1}
           aria-label={label}
@@ -120,7 +122,10 @@ export function MenuButton({ label, items, tabIndex = 0 }: MenuButtonProps) {
               type="button"
               role="menuitem"
               tabIndex={-1}
-              className={item.danger ? "menu-item danger-text" : "menu-item"}
+              className={cn(
+                "menu-item flex h-7 items-center rounded-md px-2 text-left text-base whitespace-nowrap outline-none hover:bg-accent focus-visible:bg-accent windows:h-8",
+                item.danger && "text-destructive",
+              )}
               onClick={() => {
                 close();
                 item.onSelect();

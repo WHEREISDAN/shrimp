@@ -1,4 +1,7 @@
+import { useId } from "react";
 import { useTranslation } from "react-i18next";
+import { Group, Note, Row, RowText, Section } from "@/components/settings";
+import { NativeSelect } from "@/components/ui/native-select";
 import type { AiOptions, ApiKeys, LlmProviderId, Settings, SettingsPatch } from "../lib/ipc";
 import { AiTestRow } from "./AiTestRow";
 import { KeyRow } from "./KeyRow";
@@ -37,6 +40,7 @@ export function AiProviderSection({
   update,
 }: AiProviderSectionProps) {
   const { t } = useTranslation();
+  const providerId = useId();
   const provider =
     options.providers.find((candidate) => candidate.id === settings.ai.provider) ??
     options.providers[0];
@@ -46,36 +50,43 @@ export function AiProviderSection({
   const field = modelField(provider.id);
 
   return (
-    <section className="card stack" aria-labelledby="ai-heading">
-      <h2 id="ai-heading">{t("aiProvider.title")}</h2>
+    <Section headingId="ai-heading" title={t("aiProvider.title")}>
       <PrivacyModeNote settings={settings} />
-      <label className="select-field field">
-        <span>{t("aiProvider.provider")}</span>
-        <select
-          aria-label={t("aiProvider.provider")}
-          value={provider.id}
-          onChange={(event) => {
-            const next = options.providers.find((candidate) => candidate.id === event.target.value);
-            if (next) {
-              void update({ ai: { provider: next.id } });
-            }
-          }}
-        >
-          {options.providers.map((candidate) => (
-            <option key={candidate.id} value={candidate.id}>
-              {candidate.label}
-            </option>
-          ))}
-        </select>
-      </label>
-      {field && (
-        <ModelSelect
-          label={t("aiProvider.model")}
-          models={provider.models}
-          value={settings.ai[field]}
-          onChange={(model) => void update({ ai: { [field]: model } })}
-        />
-      )}
+      <Group>
+        <Row>
+          <RowText title={t("aiProvider.provider")} htmlFor={providerId} />
+          <NativeSelect
+            id={providerId}
+            aria-label={t("aiProvider.provider")}
+            wrapperClassName="min-w-40 max-w-full"
+            value={provider.id}
+            onChange={(event) => {
+              const next = options.providers.find(
+                (candidate) => candidate.id === event.target.value,
+              );
+              if (next) {
+                void update({ ai: { provider: next.id } });
+              }
+            }}
+          >
+            {options.providers.map((candidate) => (
+              <option key={candidate.id} value={candidate.id}>
+                {candidate.label}
+              </option>
+            ))}
+          </NativeSelect>
+        </Row>
+        {field && (
+          <ModelSelect
+            label={t("aiProvider.model")}
+            models={provider.models}
+            value={settings.ai[field]}
+            onChange={(model) => void update({ ai: { [field]: model } })}
+          />
+        )}
+        {/* Ollama runs without a key, so its fields never share the page with the key. */}
+        {provider.id === "ollama" && <OllamaFields ai={settings.ai} update={update} />}
+      </Group>
       {provider.key !== null && (
         <KeyRow
           account={provider.key}
@@ -84,13 +95,12 @@ export function AiProviderSection({
           onChange={onKeys}
         />
       )}
-      {provider.id === "ollama" && <OllamaFields ai={settings.ai} update={update} />}
       <AiTestRow key={provider.id} />
-      <p className="muted">
+      <Note>
         {provider.id === "ollama"
           ? t("aiProvider.ollamaNote")
           : t("aiProvider.cloudNote", { provider: provider.label })}
-      </p>
-    </section>
+      </Note>
+    </Section>
   );
 }

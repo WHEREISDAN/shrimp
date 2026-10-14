@@ -4,11 +4,10 @@ import { App } from "./app/App";
 import { setupI18n } from "./i18n";
 import { loadDevBridge } from "./lib/devBridge";
 import { reportOwnTextFields } from "./lib/ownField";
-import "./app/App.css";
-import "./app/Pages.css";
-import "./app/History.css";
-import "./app/Insights.css";
+import { setUpWindowChrome } from "./lib/windowChrome";
+import "./styles/globals.css";
 
+setUpWindowChrome();
 loadDevBridge();
 setupI18n();
 reportOwnTextFields();

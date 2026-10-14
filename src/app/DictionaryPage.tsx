@@ -1,5 +1,9 @@
+import { Plus, Search, Trash2, Upload } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { NativeSelect } from "@/components/ui/native-select";
 import {
   deleteDictionaryEntries,
   errorMessage,
@@ -173,16 +177,14 @@ export function DictionaryPage() {
 
   const actions = (
     <>
-      <button
-        type="button"
-        className="primary"
-        onClick={() => setDialog({ kind: "edit", entry: null })}
-      >
+      <Button variant="default" onClick={() => setDialog({ kind: "edit", entry: null })}>
+        <Plus aria-hidden="true" />
         {t("dictionary.addWord")}
-      </button>
-      <button type="button" onClick={importer.pick}>
+      </Button>
+      <Button onClick={importer.pick}>
+        <Upload aria-hidden="true" />
         {t("dictionary.importCsv")}
-      </button>
+      </Button>
       <ImportFileInput flow={importer} accept=".csv,text/csv" />
     </>
   );
@@ -191,69 +193,85 @@ export function DictionaryPage() {
   return (
     <Page title={t("dictionary.title")} actions={actions} modal={modal}>
       <AutoLearnToggle />
-      <div className="list-tools">
-        <input
-          type="search"
-          className="search"
-          aria-label={t("dictionary.search")}
-          placeholder={t("dictionary.searchPlaceholder")}
-          value={query}
-          onChange={(event) => setQuery(event.target.value)}
-        />
-        <label className="sort-by">
-          <span>{t("dictionary.sortBy")}</span>
-          <select
-            value={sort}
-            onChange={(event) =>
-              void update({ dictionary: { sort: event.target.value as DictionarySort } })
-            }
-          >
-            {DICTIONARY_SORTS.map((option) => (
-              <option key={option} value={option}>
-                {t(`dictionary.sorts.${option}`)}
-              </option>
-            ))}
-          </select>
-        </label>
-      </div>
-      {selectedIds.length > 0 && (
-        <div className="selection-bar">
-          <span>{t("dictionary.selected", { count: selectedIds.length })}</span>
-          <button
-            type="button"
-            className="danger"
-            onClick={() => setDialog({ kind: "delete", ids: selectedIds, bulk: true })}
-          >
-            {t("common.delete")}
-          </button>
-        </div>
-      )}
-      {pageError && (
-        <p className="error" role="alert">
-          {pageError}
-        </p>
-      )}
-      {entries === null ? (
-        <p className="muted">{t("common.loading")}</p>
-      ) : entries.length === 0 ? (
-        <p className="empty">{t("dictionary.empty")}</p>
-      ) : visible.length === 0 ? (
-        <p className="empty">{t("dictionary.noMatches")}</p>
-      ) : (
-        <ul className="list">
-          {visible.map((entry) => (
-            <DictionaryRow
-              key={entry.id}
-              entry={entry}
-              selected={selected.has(entry.id)}
-              onSelect={(on) => toggle(entry.id, on)}
-              onPin={() => togglePin(entry)}
-              onEdit={() => setDialog({ kind: "edit", entry })}
-              onDelete={() => setDialog({ kind: "delete", ids: [entry.id], bulk: false })}
+      <div className="flex flex-col gap-3">
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+          <div className="relative min-w-48 flex-1">
+            <Search
+              aria-hidden="true"
+              className="pointer-events-none absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-muted-foreground"
             />
-          ))}
-        </ul>
-      )}
+            <Input
+              type="search"
+              className="pl-8"
+              aria-label={t("dictionary.search")}
+              placeholder={t("dictionary.searchPlaceholder")}
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+            />
+          </div>
+          <label className="flex shrink-0 items-center gap-2 text-sm whitespace-nowrap text-muted-foreground">
+            <span>{t("dictionary.sortBy")}</span>
+            <NativeSelect
+              wrapperClassName="min-w-40"
+              value={sort}
+              onChange={(event) =>
+                void update({ dictionary: { sort: event.target.value as DictionarySort } })
+              }
+            >
+              {DICTIONARY_SORTS.map((option) => (
+                <option key={option} value={option}>
+                  {t(`dictionary.sorts.${option}`)}
+                </option>
+              ))}
+            </NativeSelect>
+          </label>
+        </div>
+        {selectedIds.length > 0 && (
+          <div className="flex min-h-9 items-center justify-between gap-3 rounded-lg bg-muted py-1 pr-1 pl-3 text-sm">
+            <span className="font-medium tabular-nums">
+              {t("dictionary.selected", { count: selectedIds.length })}
+            </span>
+            <Button
+              variant="destructive"
+              size="sm"
+              onClick={() => setDialog({ kind: "delete", ids: selectedIds, bulk: true })}
+            >
+              <Trash2 aria-hidden="true" />
+              {t("common.delete")}
+            </Button>
+          </div>
+        )}
+        {pageError && (
+          <p className="px-1 text-sm text-destructive" role="alert">
+            {pageError}
+          </p>
+        )}
+        {entries === null ? (
+          <p className="px-1 text-muted-foreground">{t("common.loading")}</p>
+        ) : entries.length === 0 ? (
+          <p className="rounded-xl border border-dashed px-6 py-10 text-center text-muted-foreground">
+            {t("dictionary.empty")}
+          </p>
+        ) : visible.length === 0 ? (
+          <p className="rounded-xl border border-dashed px-6 py-10 text-center text-muted-foreground">
+            {t("dictionary.noMatches")}
+          </p>
+        ) : (
+          <ul className="list flex flex-col divide-y divide-separator rounded-xl border bg-card shadow-xs">
+            {visible.map((entry) => (
+              <DictionaryRow
+                key={entry.id}
+                entry={entry}
+                selected={selected.has(entry.id)}
+                onSelect={(on) => toggle(entry.id, on)}
+                onPin={() => togglePin(entry)}
+                onEdit={() => setDialog({ kind: "edit", entry })}
+                onDelete={() => setDialog({ kind: "delete", ids: [entry.id], bulk: false })}
+              />
+            ))}
+          </ul>
+        )}
+      </div>
     </Page>
   );
 }

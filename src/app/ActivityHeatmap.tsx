@@ -6,6 +6,22 @@ const WEEKS = 53;
 const CELL = 11;
 const GAP = 3;
 
+/** The five bands' fills, from no words to 750+: a neutral cell, then brand coral steps. */
+const LEVEL_FILL = [
+  "fill-foreground/[0.06]",
+  "fill-brand/25",
+  "fill-brand/45",
+  "fill-brand/70",
+  "fill-brand",
+] as const;
+const LEVEL_SWATCH = [
+  "bg-foreground/[0.06]",
+  "bg-brand/25",
+  "bg-brand/45",
+  "bg-brand/70",
+  "bg-brand",
+] as const;
+
 /** Wispr Flow's bands: 0, 1–249, 250–499, 500–749, 750+ words. */
 export function band(words: number): number {
   if (words <= 0) {
@@ -56,7 +72,7 @@ export function ActivityHeatmap({ days, today: fixedToday }: ActivityHeatmapProp
       cells.push(
         <rect
           key={`${week}-${weekday}`}
-          className={`heat heat-${band(activity?.words ?? 0)}`}
+          className={LEVEL_FILL[band(activity?.words ?? 0)]}
           x={week * (CELL + GAP)}
           y={weekday * (CELL + GAP)}
           width={CELL}
@@ -70,20 +86,24 @@ export function ActivityHeatmap({ days, today: fixedToday }: ActivityHeatmapProp
   }
   const words = days.reduce((sum, day) => sum + day.words, 0);
   return (
-    <figure className="heatmap">
+    <figure className="m-0 flex flex-col gap-3">
       <svg
+        className="block h-auto w-full"
         role="img"
         aria-label={t("insights.heatmap", { days: days.length, words })}
         viewBox={`0 0 ${WEEKS * (CELL + GAP)} ${7 * (CELL + GAP)}`}
       >
         {cells}
       </svg>
-      <figcaption className="heat-legend" aria-hidden="true">
-        <span>{t("insights.less")}</span>
-        {[0, 1, 2, 3, 4].map((level) => (
-          <span key={level} className={`heat-swatch heat-${level}`} />
+      <figcaption
+        className="flex items-center justify-end gap-1 text-xs text-muted-foreground"
+        aria-hidden="true"
+      >
+        <span className="mr-1">{t("insights.less")}</span>
+        {LEVEL_SWATCH.map((swatch) => (
+          <span key={swatch} className={`size-2.5 rounded-[2px] ${swatch}`} />
         ))}
-        <span>{t("insights.more")}</span>
+        <span className="ml-1">{t("insights.more")}</span>
       </figcaption>
     </figure>
   );

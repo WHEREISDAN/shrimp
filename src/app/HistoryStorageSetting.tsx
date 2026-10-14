@@ -1,8 +1,12 @@
 import { useId, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { Section } from "@/components/settings";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { errorMessage, setHistoryStorage, type HistoryStorage } from "../lib/ipc";
 import { ConfirmDialog } from "./ConfirmDialog";
-import { Dialog } from "./Dialog";
+import { Dialog, DialogFooter } from "./Dialog";
 import { RadioCards } from "./RadioCards";
 
 /** What "Never store data locally" asks the user to type. */
@@ -30,8 +34,7 @@ export function HistoryStorageSetting({ value }: HistoryStorageSettingProps) {
   };
 
   return (
-    <div className="stack-tight">
-      <p className="card-title">{t("privacy.storageTitle")}</p>
+    <Section headingId="history-storage-heading" title={t("privacy.storageTitle")}>
       <RadioCards
         label={t("privacy.storageTitle")}
         value={value}
@@ -55,7 +58,7 @@ export function HistoryStorageSetting({ value }: HistoryStorageSettingProps) {
         ]}
       />
       {error && (
-        <p className="error" role="alert">
+        <p className="px-1 text-sm text-destructive" role="alert">
           {error}
         </p>
       )}
@@ -72,7 +75,7 @@ export function HistoryStorageSetting({ value }: HistoryStorageSettingProps) {
         />
       )}
       {asking === "never" && <DeleteAllDialog onClose={() => setAsking(null)} />}
-    </div>
+    </Section>
   );
 }
 
@@ -97,36 +100,34 @@ function DeleteAllDialog({ onClose }: { onClose: () => void }) {
 
   return (
     <Dialog title={t("privacy.neverTitle")} onClose={onClose}>
-      <p className="muted">{t("privacy.neverBody")}</p>
-      <label htmlFor={fieldId} className="card-title">
-        {t("privacy.neverField")}
-      </label>
-      <input
-        id={fieldId}
-        type="text"
-        autoComplete="off"
-        placeholder={DELETE_ALL}
-        value={typed}
-        onChange={(event) => setTyped(event.target.value)}
-        onKeyDown={(event) => {
-          if (event.key === "Enter" && confirmed && !busy) {
-            confirm();
-          }
-        }}
-      />
+      <p className="text-muted-foreground">{t("privacy.neverBody")}</p>
+      <div className="flex flex-col gap-1.5">
+        <Label htmlFor={fieldId}>{t("privacy.neverField")}</Label>
+        <Input
+          id={fieldId}
+          type="text"
+          autoComplete="off"
+          placeholder={DELETE_ALL}
+          value={typed}
+          onChange={(event) => setTyped(event.target.value)}
+          onKeyDown={(event) => {
+            if (event.key === "Enter" && confirmed && !busy) {
+              confirm();
+            }
+          }}
+        />
+      </div>
       {error && (
-        <p className="error" role="alert">
+        <p className="text-sm text-destructive" role="alert">
           {error}
         </p>
       )}
-      <div className="dialog-actions">
-        <button type="button" onClick={onClose}>
-          {t("common.cancel")}
-        </button>
-        <button type="button" className="danger" disabled={!confirmed || busy} onClick={confirm}>
+      <DialogFooter>
+        <Button onClick={onClose}>{t("common.cancel")}</Button>
+        <Button variant="destructive" disabled={!confirmed || busy} onClick={confirm}>
           {t("privacy.neverConfirm")}
-        </button>
-      </div>
+        </Button>
+      </DialogFooter>
     </Dialog>
   );
 }

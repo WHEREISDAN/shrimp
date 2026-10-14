@@ -1,4 +1,5 @@
 import { useTranslation } from "react-i18next";
+import { Group, Note, Section } from "@/components/settings";
 import type { AiOptions, ApiKeys, Settings, SettingsPatch, SttEngineId } from "../lib/ipc";
 import { KeyRow } from "./KeyRow";
 import { ModelSelect } from "./ModelSelect";
@@ -44,13 +45,13 @@ export function SpeechEngineSection({
     options.providers.find((provider) => provider.key === engine?.key)?.label ?? engine?.label;
 
   return (
-    <section className="card stack" aria-labelledby="speech-heading">
-      <h2 id="speech-heading">{t("speechEngine.title")}</h2>
+    <Section headingId="speech-heading" title={t("speechEngine.title")}>
       <PrivacyModeNote settings={settings} />
       <RadioCards
         label={t("speechEngine.title")}
         value={settings.stt.engine}
         options={choices}
+        layout="grid"
         onChange={(id) => void update({ stt: { engine: id } })}
       />
       {settings.stt.engine === "local-whisper" && (
@@ -60,17 +61,19 @@ export function SpeechEngineSection({
         />
       )}
       {engine && field && (
-        <ModelSelect
-          label={t("speechEngine.model")}
-          models={engine.models}
-          value={settings.stt[field]}
-          onChange={(model) => void update({ stt: { [field]: model } })}
-        />
+        <Group className="mt-2">
+          <ModelSelect
+            label={t("speechEngine.model")}
+            models={engine.models}
+            value={settings.stt[field]}
+            onChange={(model) => void update({ stt: { [field]: model } })}
+          />
+        </Group>
       )}
       {engine?.key != null && company && (
         <KeyRow account={engine.key} label={company} saved={keys[engine.key]} onChange={onKeys} />
       )}
-      <p className="muted">{t("speechEngine.note")}</p>
-    </section>
+      <Note>{t("speechEngine.note")}</Note>
+    </Section>
   );
 }

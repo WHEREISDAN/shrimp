@@ -1,3 +1,4 @@
+import { Info } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import type { Settings } from "../lib/ipc";
 
@@ -8,8 +9,12 @@ export function PrivacyModeNote({ settings }: { settings: Settings }) {
     return null;
   }
   return (
-    <p className="banner" role="note">
-      {t("privacy.privacyModeOn")}
+    <p
+      className="flex items-start gap-2.5 rounded-lg border bg-muted/50 px-3.5 py-2.5 text-sm"
+      role="note"
+    >
+      <Info aria-hidden="true" className="size-4 shrink-0 text-muted-foreground" />
+      <span>{t("privacy.privacyModeOn")}</span>
     </p>
   );
 }

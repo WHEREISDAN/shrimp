@@ -1,5 +1,8 @@
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { Group, Note, Row, Section } from "@/components/settings";
+import { Button } from "@/components/ui/button";
+import { Kbd } from "@/components/ui/kbd";
 import { EVENTS, getShortcuts, type ShortcutList } from "../lib/ipc";
 import { useTauriEvent } from "../lib/useTauriEvent";
 
@@ -21,17 +24,18 @@ export function ShortcutsSection({ onOpenShortcuts }: ShortcutsSectionProps) {
   const talk = list?.rows.find((row) => row.action === "pushToTalk");
 
   return (
-    <section className="card stack" aria-labelledby="shortcut-settings-heading">
-      <h2 id="shortcut-settings-heading">{t("shortcutsSection.title")}</h2>
-      <div className="row">
-        <span>
-          {t("shortcutsSection.pushToTalk")} {talk && <kbd>{talk.shortcuts.join(" / ")}</kbd>}
-        </span>
-        <button type="button" onClick={onOpenShortcuts}>
-          {t("shortcutsSection.change")}
-        </button>
-      </div>
-      <p className="muted">{t("shortcutsSection.note")}</p>
-    </section>
+    <Section headingId="shortcut-settings-heading" title={t("shortcutsSection.title")}>
+      <Group>
+        <Row>
+          <p className="flex items-center gap-2">
+            {t("shortcutsSection.pushToTalk")} {talk && <Kbd>{talk.shortcuts.join(" / ")}</Kbd>}
+          </p>
+          <Button size="sm" onClick={onOpenShortcuts}>
+            {t("shortcutsSection.change")}
+          </Button>
+        </Row>
+      </Group>
+      <Note>{t("shortcutsSection.note")}</Note>
+    </Section>
   );
 }

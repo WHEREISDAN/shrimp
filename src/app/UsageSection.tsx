@@ -1,4 +1,6 @@
 import { useTranslation } from "react-i18next";
+import { Note, Section } from "@/components/settings";
+import { Badge } from "@/components/ui/badge";
 import type { UsageActivity, UsageCategory } from "../lib/ipc";
 
 /** What each row counts: messages, emails, prompts, documents or tasks. */
@@ -11,6 +13,18 @@ const COUNT_KEYS = {
   otherTasks: "insights.usageTasks",
 } as const satisfies Record<UsageCategory, string>;
 
+/** A horizontal bar: `percent` of its track filled in the brand colour. */
+export function UsageBar({ percent }: { percent: number }) {
+  return (
+    <span className="block h-1.5 overflow-hidden rounded-full bg-muted" aria-hidden="true">
+      <span
+        className="block h-full rounded-full bg-brand transition-[width] duration-300 ease-out-quint"
+        style={{ width: `${percent}%` }}
+      />
+    </span>
+  );
+}
+
 interface UsageSectionProps {
   usage: UsageActivity[];
 }
@@ -20,10 +34,8 @@ export function UsageSection({ usage }: UsageSectionProps) {
   const { t } = useTranslation();
   const total = usage.reduce((sum, row) => sum + row.words, 0);
   return (
-    <section className="card stack" aria-labelledby="usage-heading">
-      <h2 id="usage-heading">{t("insights.usage")}</h2>
-      <p className="muted">{t("insights.usageHint")}</p>
-      <ol className="app-bars usage-bars">
+    <Section headingId="usage-heading" title={t("insights.usage")}>
+      <ol className="m-0 flex list-none flex-col divide-y divide-separator rounded-xl border bg-card p-0 shadow-xs">
         {usage.map((row) => {
           const percent = total > 0 ? Math.round((row.words / total) * 100) : 0;
           const level = t(`insights.usageLevel.${row.level}`);
@@ -33,20 +45,25 @@ export function UsageSection({ usage }: UsageSectionProps) {
             range: t(`insights.usageRange.${row.level}`),
           });
           return (
-            <li key={row.category} title={title}>
-              <span className="app-name">{t(`insights.usageCategory.${row.category}`)}</span>
-              <span className="app-bar" aria-hidden="true">
-                <span style={{ width: `${percent}%` }} />
-              </span>
-              <span className="muted">
-                {t("insights.usageShare", { percent })} ·{" "}
-                {t(COUNT_KEYS[row.category], { count: row.count })}
-              </span>
-              <span className={`usage-level usage-${row.level}`}>{level}</span>
+            <li key={row.category} title={title} className="flex flex-col gap-2 px-4 py-3">
+              <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1">
+                <span className="flex min-w-0 flex-1 basis-40 flex-wrap items-center gap-x-2 gap-y-1">
+                  <span className="app-name font-medium">
+                    {t(`insights.usageCategory.${row.category}`)}
+                  </span>
+                  <Badge variant={row.level === "power" ? "brand" : "default"}>{level}</Badge>
+                </span>
+                <span className="text-sm text-muted-foreground tabular-nums">
+                  {t("insights.usageShare", { percent })} ·{" "}
+                  {t(COUNT_KEYS[row.category], { count: row.count })}
+                </span>
+              </div>
+              <UsageBar percent={percent} />
             </li>
           );
         })}
       </ol>
-    </section>
+      <Note>{t("insights.usageHint")}</Note>
+    </Section>
   );
 }

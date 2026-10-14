@@ -227,10 +227,15 @@ index.html              main window entry                                       
 flow-bar.html           Flow Bar entry (Vite multi-page build)                         (built)
 src/
   main.tsx              main window bootstrap + dev MCP bridge                         (built)
+  styles/               design tokens (theme.css) and the Tailwind base (globals.css)  (built)
+  components/ui/        shadcn/ui components, adapted to the tokens                    (built)
+  components/           page building blocks (settings groups and rows), window
+                        chrome (Windows caption buttons, drag band), brand mark         (built)
   app/                  main window: sidebar shell; Home (model, permissions and
                         shortcuts cards); Dictionary, Snippets, Style and Settings
                         pages with their dialogs and imports                           (built)
   flow-bar/             pill, waveform, notices, content-size reporting                (built)
+  lib/windowChrome.ts   tells the stylesheet the platform and the window's material    (built)
   lib/ipc.ts            typed wrappers for every command and event                     (built)
   lib/useTauriEvent.ts  event subscription hook                                        (built)
   lib/devBridge.ts      loads the tauri-plugin-mcp listeners in development builds     (built)
@@ -255,6 +260,43 @@ its JSON shape (see `commands/app.rs`).
 Each webview entry point (main window and Flow Bar) loads the tauri-plugin-mcp guest
 listeners in development-mode builds, so agents can drive every window.
 
+### Design system and window chrome
+
+The interface is shadcn/ui on Tailwind CSS v4 (`components.json`, style `radix-nova`),
+themed to read as a first-party Apple app:
+
+- **Tokens** (`src/styles/theme.css`): shadcn's names (`background`, `card`, `muted`,
+  `muted-foreground`, `border`, `ring`…) plus `brand` (coral, Shrimp's one accent),
+  `brand-strong` (its AA text shade), `separator`, `success`, `warning` and the sidebar
+  colours, light and dark through `prefers-color-scheme`. The type scale is macOS's
+  (13 px body, 26 px large titles) with the system font; `html[data-platform="windows"]`
+  switches to Segoe UI Variable at WinUI's sizes and 32 px controls. Shadows, radii and two
+  easings (`ease-out-quint`, `ease-spring`) are tokens too; Reduce Motion stops them all.
+- **Components** (`src/components/ui/`) come from the shadcn CLI and are adapted: Button,
+  Input, Textarea, Label, Badge, Kbd, Separator, Switch (Radix) and NativeSelect (a real
+  `<select>`, so the system's own menu opens). Dialogs, menus, tab lists and radio cards
+  keep Shrimp's own tested behaviour (focus handling, arrow keys, click to open) in the
+  same styling, rather than Radix's, which would change how they behave. Checkboxes and
+  radios are native inputs drawn in the tokens. `src/components/settings.tsx` holds the
+  grouped inset lists (`Section`, `Group`, `Row`, `RowText`, `Note`), `app/Page.tsx` the
+  page frame: a sticky toolbar that drags the window and shows the title once the page
+  scrolls, and the large title.
+- **macOS window** (`tauri.macos.conf.json`): an overlay title bar with a hidden title and
+  the traffic lights moved into the sidebar's top band (`trafficLightPosition`), a
+  transparent window with the `sidebar` vibrancy material that follows the window's
+  active state. The page paints the content area and leaves the sidebar clear; the
+  sidebar's top band and each page's toolbar and header carry
+  `data-tauri-drag-region="deep"` (buttons inside still click), and screens outside the
+  shell (onboarding, error screens) a fixed `DragBand`.
+- **Windows window** (`tauri.windows.conf.json`): no decorations, transparent, with a
+  shadow (rounded corners on Windows 11). `WindowControls` draws minimize, maximize/restore
+  and close in Segoe Fluent Icons/MDL2 glyphs at the top right of every screen; close
+  hides to the tray like the native button. Setup applies Mica on Windows 11 (build
+  22000+, read from the registry), and `window_material` tells the page whether to leave
+  the sidebar clear for it; Windows 10 gets an opaque sidebar. The capabilities
+  `main-window` (dragging) and `caption-buttons` (Windows only) grant just those window
+  commands.
+
 IPC conventions:
 
 - Commands are `snake_case` verbs (`get_settings`, `update_settings`, `list_history`).
@@ -273,7 +315,8 @@ Built so far:
 | Phase 4b | `get_app_health`, `dismiss_crash`, `check_storage`, `open_storage_settings`, `repair_data`, `reset_app` (both restart the app); `get_insights`, `get_voice_profile`, `generate_voice_profile` (rejects with `{kind}`), `copy_image` and `save_image` (a raw PNG request body; the file name in an `x-file-name` header); `list_history`, `copy_history`, `set_history_raw` (Undo/Redo AI edit), `retry_history`, `history_audio` (raw WAV bytes), `extract_history_audio`, `delete_history`, `set_history_storage` ("never" needs "delete all") |
 | Phase 6  | `delete_all_history` (Delete all transcripts); `move_to_applications`, `quit_app` (the Move to Applications screen); `get_format_apps` (the apps Style › Formatting per app offers: the app in front before Shrimp's window opened, then the apps dictated into, most words first); `share_image` (X or LinkedIn: a raw PNG request body, the network in an `x-share-network` header)                                                                                                                                                           |
 | Phase 2  | `get_settings`, `update_settings`, `get_ai_options`, `get_api_keys`, `set_api_key`, `delete_api_key`, `list_ollama_models`, `test_ai_provider`; dictionary and snippet CRUD and imports (`list_dictionary`, `add_dictionary_entry`, `update_dictionary_entry`, `set_dictionary_pinned`, `delete_dictionary_entries`, `preview_dictionary_import`, `import_dictionary`, `list_snippets`, `add_snippet`, `update_snippet`, `delete_snippets`, `preview_snippet_import`, `import_snippets`)                                                        |
-| Dev only | `dev_get_audio_source`, `dev_set_audio_source`, `dev_set_app_category`, `dev_edit_text`, `dev_read_context`, `dev_set_microphones`, `dev_set_permissions` (debug builds; see DEVELOPMENT.md)                                                                                                                                                                                                                                                                                                                                                    |
+| Redesign | `window_material` (the native material behind the main window's sidebar: `vibrancy`, `mica` or `none`)                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| Dev only | `dev_get_audio_source`, `dev_set_audio_source`, `dev_set_app_category`, `dev_edit_text`, `dev_read_context`, `dev_set_microphones`, `dev_set_permissions`, `dev_set_theme` (debug builds; see DEVELOPMENT.md)                                                                                                                                                                                                                                                                                                                                   |
 | Events   | `dictation://state`, `dictation://level` (Flow Bar only), `notify://notice`, `command://answer` and `transform://changes` (Flow Bar only), `models://status`, `app://navigate`, `settings://changed`, `shortcuts://recording`, `notify://dismiss` (a notice whose cause went away), `mic://devices`, `mic://level`, `flow-bar://hover` (Flow Bar only), `app://main-visible` (main window shown or closed to the tray)                                                                                                                          |
 
 The Flow Bar shows the resting pill only when "Show Flow Bar at all times" is on and it
@@ -1640,6 +1683,11 @@ needs 1.90 or later.
 | clipboard-rs                                                                                                                                | 0.3.5             | —     | Not used: the Win32 clipboard API directly, to add the formats that keep Shrimp's writes out of clipboard history.                                                                                                                                                         |
 | uiautomation                                                                                                                                | 0.25.1            | —     | Not used: UI Automation through the `windows` crate, which exposes `IUIAutomation2`'s timeouts.                                                                                                                                                                            |
 | png                                                                                                                                         | 0.18              | built | Windows: decodes the share card's PNG into the clipboard's `CF_DIBV5`.                                                                                                                                                                                                     |
+| tailwindcss, @tailwindcss/vite (npm)                                                                                                        | 4.3.3             | built | Styling: utilities over the design tokens in `src/styles/`.                                                                                                                                                                                                                |
+| shadcn/ui components (CLI 4.21, not a dependency)                                                                                           | radix-nova        | built | Source copied into `src/components/ui/` and adapted; `components.json` records the setup.                                                                                                                                                                                  |
+| radix-ui (npm)                                                                                                                              | 1.8.1             | built | Radix primitives behind the shadcn Switch, Label, Separator and Button's `asChild`.                                                                                                                                                                                        |
+| cn, class-variance-authority (npm)                                                                                                          | 0.4.0 / 0.7.1     | built | Class merging (shadcn's replacement for clsx + tailwind-merge) and component variants.                                                                                                                                                                                     |
+| lucide-react, tw-animate-css (npm)                                                                                                          | 1.57.0 / 1.4.0    | built | Icons; enter animations.                                                                                                                                                                                                                                                   |
 
 Prior art: [Handy](https://github.com/cjpais/Handy) (MIT), an open-source Tauri v2 dictation
 app, uses the same building blocks: cpal and rubato, a CGEventTap hotkey crate (`handy-keys`)

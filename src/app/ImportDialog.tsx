@@ -1,6 +1,8 @@
+import { TriangleAlert } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { Button } from "@/components/ui/button";
 import type { SkippedRow } from "../lib/ipc";
-import { Dialog } from "./Dialog";
+import { Dialog, DialogFooter } from "./Dialog";
 import type { FileImport } from "./useFileImport";
 
 const MAX_LISTED = 50;
@@ -39,49 +41,55 @@ export function ImportDialog({ flow, title, hint, importLabel, allExistText }: I
 
   return (
     <Dialog title={title} onClose={flow.close}>
-      <div className="import-preview">
+      <div className="flex max-h-64 flex-col gap-2 overflow-y-auto">
         {allExist ? (
           <p>{allExistText(duplicates)}</p>
         ) : (
           <>
-            {added.length === 0 && <p className="muted">{t("importFile.nothingNew")}</p>}
-            <ul className="import-list">
+            {added.length === 0 && (
+              <p className="text-muted-foreground">{t("importFile.nothingNew")}</p>
+            )}
+            <ul className="flex flex-col divide-y divide-separator rounded-lg border bg-card empty:hidden">
               {added.slice(0, MAX_LISTED).map((item) => (
-                <li key={item}>{item}</li>
+                <li key={item} className="px-3 py-1.5 [overflow-wrap:anywhere]">
+                  {item}
+                </li>
               ))}
             </ul>
             {added.length > MAX_LISTED && (
-              <p className="muted">{t("importFile.more", { count: added.length - MAX_LISTED })}</p>
+              <p className="text-sm text-muted-foreground">
+                {t("importFile.more", { count: added.length - MAX_LISTED })}
+              </p>
             )}
             {duplicates > 0 && (
-              <p className="muted">{t("importFile.duplicates", { count: duplicates })}</p>
+              <p className="text-sm text-muted-foreground">
+                {t("importFile.duplicates", { count: duplicates })}
+              </p>
             )}
           </>
         )}
         <SkippedList rows={skipped} />
       </div>
+      <p className="text-sm text-muted-foreground">{hint}</p>
       {flow.importError && (
-        <p className="error" role="alert">
+        <p className="text-sm text-destructive" role="alert">
           {flow.importError}
         </p>
       )}
-      <div className="dialog-actions">
+      <DialogFooter>
         {added.length > 0 ? (
           <>
-            <button type="button" onClick={flow.close}>
-              {t("common.cancel")}
-            </button>
-            <button type="button" className="primary" onClick={flow.confirm} disabled={flow.busy}>
+            <Button onClick={flow.close}>{t("common.cancel")}</Button>
+            <Button variant="default" onClick={flow.confirm} disabled={flow.busy}>
               {importLabel(added.length)}
-            </button>
+            </Button>
           </>
         ) : (
-          <button type="button" className="primary" onClick={flow.close}>
+          <Button variant="default" onClick={flow.close}>
             {allExist ? t("importFile.done") : t("common.close")}
-          </button>
+          </Button>
         )}
-      </div>
-      <p className="muted hint">{hint}</p>
+      </DialogFooter>
     </Dialog>
   );
 }
@@ -92,10 +100,11 @@ function SkippedList({ rows }: { rows: SkippedRow[] }) {
     return null;
   }
   return (
-    <ul className="import-list skipped">
+    <ul className="flex flex-col gap-1 text-sm text-destructive">
       {rows.map((row) => (
-        <li key={`${row.line}-${row.reason}`} className="error">
-          {t("importFile.skippedLine", { line: row.line, reason: row.reason })}
+        <li key={`${row.line}-${row.reason}`} className="flex items-start gap-1.5">
+          <TriangleAlert aria-hidden="true" className="mt-px size-3.5 shrink-0" />
+          <span>{t("importFile.skippedLine", { line: row.line, reason: row.reason })}</span>
         </li>
       ))}
     </ul>

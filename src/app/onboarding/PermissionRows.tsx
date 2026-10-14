@@ -1,4 +1,7 @@
+import { CircleCheck } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { Row, RowText } from "@/components/settings";
+import { Button } from "@/components/ui/button";
 import {
   openPermissionSettings,
   type Permission,
@@ -20,32 +23,41 @@ export function PermissionRows({ info }: PermissionRowsProps) {
   const state = (status: PermissionStatus | undefined) =>
     status ? t(`onboarding.permission.${status}`) : t("common.loading");
   return (
-    <ul className="rows permission-rows">
+    <ul className="permission-rows m-0 flex list-none flex-col divide-y divide-separator rounded-xl border bg-card p-0 shadow-xs">
       {ROWS.map((permission) => {
         const status = info?.[permission];
         return (
-          <li key={permission} className="row">
-            <div>
-              <p className="card-title">{t(`onboarding.permission.${permission}`)}</p>
-              <p className="muted">{t(`onboarding.permission.${permission}Why`)}</p>
-            </div>
-            <div className="row-end">
-              <span className={status === "granted" ? "ok" : "muted"} aria-live="polite">
-                {status === "granted" && "✓ "}
-                {state(status)}
-              </span>
-              {status && status !== "granted" && (
-                <button
-                  type="button"
-                  className="primary"
-                  onClick={() => void openPermissionSettings(permission).catch(() => undefined)}
+          <li key={permission}>
+            <Row>
+              <RowText
+                title={t(`onboarding.permission.${permission}`)}
+                description={t(`onboarding.permission.${permission}Why`)}
+              />
+              <div className="flex items-center gap-3">
+                <span
+                  className={
+                    status === "granted"
+                      ? "flex items-center gap-1 text-sm text-success"
+                      : "text-sm text-muted-foreground"
+                  }
+                  aria-live="polite"
                 >
-                  {permission === "microphone" && status === "notDetermined"
-                    ? t("onboarding.permission.grant")
-                    : t("onboarding.permission.openSettings")}
-                </button>
-              )}
-            </div>
+                  {status === "granted" && <CircleCheck aria-hidden="true" className="size-3.5" />}
+                  {state(status)}
+                </span>
+                {status && status !== "granted" && (
+                  <Button
+                    size="sm"
+                    variant="default"
+                    onClick={() => void openPermissionSettings(permission).catch(() => undefined)}
+                  >
+                    {permission === "microphone" && status === "notDetermined"
+                      ? t("onboarding.permission.grant")
+                      : t("onboarding.permission.openSettings")}
+                  </Button>
+                )}
+              </div>
+            </Row>
           </li>
         );
       })}

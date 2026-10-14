@@ -1,5 +1,8 @@
 import type { TFunction } from "i18next";
 import { useTranslation } from "react-i18next";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import type { HistoryItem } from "../lib/ipc";
 import { languageName } from "./historyGroups";
 import { MenuButton, type MenuItem } from "./MenuButton";
@@ -82,49 +85,62 @@ export function HistoryRow({ item, current, audioUrl, busy, actions, onFocus }: 
   });
 
   return (
-    <li className={hasText(item) ? "history-row" : "history-row history-row-problem"}>
+    <li
+      className={cn(
+        "history-row group/row grid grid-cols-[minmax(0,1fr)_auto] items-start gap-x-1 pr-2 transition-colors duration-100 first:rounded-t-xl last:rounded-b-xl hover:bg-muted/40 dark:hover:bg-white/[0.025]",
+      )}
+    >
       <button
         type="button"
-        className="history-main"
+        className="history-main grid grid-cols-[4.75rem_minmax(0,1fr)] gap-x-3 gap-y-1 rounded-[11px] py-3 pr-1 pl-4 text-left outline-none focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring/70"
         data-history-id={item.id}
         tabIndex={tabIndex}
         onFocus={onFocus}
         onClick={() => actions.activate(item)}
       >
-        <span className="history-time">{time}</span>
-        <span className="history-text">{text}</span>
-        <span className="history-meta">
+        <span className="history-time row-span-2 pt-px text-sm text-muted-foreground tabular-nums">
+          {time}
+        </span>
+        <span
+          className={cn(
+            "history-text whitespace-pre-wrap [overflow-wrap:anywhere]",
+            !hasText(item) && "text-muted-foreground italic",
+          )}
+        >
+          {text}
+        </span>
+        <span className="history-meta flex flex-wrap items-center gap-x-1.5 gap-y-1 text-sm text-muted-foreground">
           <span>{item.appName ?? t("history.unknownApp")}</span>
-          {language && <span>{language}</span>}
-          {item.status === "copied" && <span className="badge">{t("history.notPasted")}</span>}
+          {language && (
+            <>
+              <span aria-hidden="true">·</span>
+              <span>{language}</span>
+            </>
+          )}
+          {item.status === "copied" && <Badge className="ml-1">{t("history.notPasted")}</Badge>}
           {hasText(item) && !item.formatted && (
-            <span className="badge" title={t("history.unformattedHint")}>
+            <Badge className="ml-1" title={t("history.unformattedHint")}>
               {t("history.unformatted")}
-            </span>
+            </Badge>
           )}
           {item.showRaw && (
-            <span className="badge" title={t("history.rawShownHint")}>
+            <Badge className="ml-1" variant="outline" title={t("history.rawShownHint")}>
               {t("history.rawShown")}
-            </span>
+            </Badge>
           )}
         </span>
       </button>
-      <div className="history-actions">
+      <div className="history-actions flex items-center gap-1 pt-2.5 opacity-0 transition-opacity duration-150 group-focus-within/row:opacity-100 group-hover/row:opacity-100 has-[[aria-expanded=true]]:opacity-100 has-[button:not([aria-haspopup])]:opacity-100">
         {item.retry && (
-          <button
-            type="button"
-            tabIndex={tabIndex}
-            disabled={busy}
-            onClick={() => actions.retry(item)}
-          >
+          <Button size="sm" tabIndex={tabIndex} disabled={busy} onClick={() => actions.retry(item)}>
             {item.retry === "recover" ? t("history.recover") : t("history.retry")}
-          </button>
+          </Button>
         )}
         <MenuButton label={t("history.moreOptions")} items={menu} tabIndex={tabIndex} />
       </div>
       {audioUrl && (
         <audio
-          className="history-audio"
+          className="history-audio col-span-2 mx-4 mb-3 h-8 w-[calc(100%-2rem)]"
           controls
           autoPlay
           src={audioUrl}

@@ -1,6 +1,8 @@
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
+import { WindowControls } from "@/components/window-controls";
 import { useInterfaceLanguage } from "../i18n";
 import { EVENTS } from "../lib/ipc";
+import { IS_WINDOWS } from "../lib/platform";
 import { useTauriEvent } from "../lib/useTauriEvent";
 import { DictionaryPage } from "./DictionaryPage";
 import { ErrorScreen, hasProblem, problemKind } from "./ErrorScreen";
@@ -30,7 +32,23 @@ const SETTINGS_TARGETS: Record<string, Omit<SettingsTarget, "count">> = {
 };
 
 export function App() {
+  const screen = <Screen />;
+  return IS_WINDOWS ? <WindowChrome>{screen}</WindowChrome> : screen;
+}
+
+/** Windows draws no title bar for the main window, so every screen gets its caption buttons. */
+function WindowChrome({ children }: { children: ReactNode }) {
+  return (
+    <>
+      {children}
+      <WindowControls />
+    </>
+  );
+}
+
+function Screen() {
   const { page, go } = usePageHistory();
+  const [scrolled, setScrolled] = useState(false);
   const { settings, error: settingsError, update } = useSettings();
   const health = useAppHealth();
   const permissions = usePermissions();
@@ -93,9 +111,14 @@ export function App() {
     return <ReverifyScreen info={permissions} onLater={() => setReverifyLater(true)} />;
   }
   return (
-    <div className="shell">
+    <div className="shell flex h-full">
       <Sidebar page={page} onSelect={go} />
-      <main className="content" inert={shortcutsOpen}>
+      <main
+        className="content group/content relative min-w-0 flex-1 overflow-y-auto bg-background"
+        data-scrolled={scrolled}
+        inert={shortcutsOpen}
+        onScroll={(event) => setScrolled(event.currentTarget.scrollTop > 2)}
+      >
         <CurrentPage
           page={page}
           settingsTarget={settingsTarget}

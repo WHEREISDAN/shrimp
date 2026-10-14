@@ -1,5 +1,8 @@
+import { ChevronRight } from "lucide-react";
 import { useId, useState, type KeyboardEvent } from "react";
 import { Trans, useTranslation } from "react-i18next";
+import { Note, Section } from "@/components/settings";
+import { Button } from "@/components/ui/button";
 import type { AppCategory, Style } from "../lib/ipc";
 import { RadioCards, type RadioCardOption } from "./RadioCards";
 import { styleCategories, styleText } from "./styleCatalog";
@@ -45,16 +48,19 @@ export function StylesSection({ styles, onChange }: StylesSectionProps) {
   };
 
   return (
-    <section className="card stack" aria-labelledby="styles-heading">
-      <h2 id="styles-heading">{t("style.styles.title")}</h2>
-      <div className="tabs" role="tablist" aria-label={t("style.styles.tabs")}>
+    <Section headingId="styles-heading" title={t("style.styles.title")}>
+      <div
+        className="inline-flex flex-wrap gap-0.5 self-start rounded-lg bg-muted p-0.5"
+        role="tablist"
+        aria-label={t("style.styles.tabs")}
+      >
         {categories.map((item, position) => (
           <button
             key={item.id}
             id={`${baseId}-tab-${position}`}
             type="button"
             role="tab"
-            className="tab"
+            className="h-7 rounded-md px-3 text-sm font-medium whitespace-nowrap text-muted-foreground transition-colors duration-150 hover:text-foreground aria-selected:bg-card aria-selected:text-foreground aria-selected:shadow-sm dark:aria-selected:bg-white/10"
             aria-selected={position === index}
             aria-controls={position === index ? `${baseId}-panel` : undefined}
             tabIndex={position === index ? 0 : -1}
@@ -69,14 +75,14 @@ export function StylesSection({ styles, onChange }: StylesSectionProps) {
         id={`${baseId}-panel`}
         role="tabpanel"
         aria-labelledby={`${baseId}-tab-${index}`}
-        className="tab-panel"
+        className="mt-1 flex flex-col gap-2"
       >
-        <p className="muted style-apps">
+        <p className="px-1 text-sm text-muted-foreground">
           {category.appList ? (
             <Trans
               i18nKey="style.styles.appliesTo"
               values={{ apps: category.apps }}
-              components={{ label: <span className="style-apps-label" /> }}
+              components={{ label: <span className="font-medium text-foreground" /> }}
             />
           ) : (
             category.apps
@@ -90,12 +96,13 @@ export function StylesSection({ styles, onChange }: StylesSectionProps) {
           onChange={(style) => onChange(category.id, style)}
         />
         {category.id !== "other" && (
-          <button type="button" className="next" onClick={() => select(index + 1, false)}>
+          <Button size="sm" className="self-end" onClick={() => select(index + 1, false)}>
             {t("style.styles.next")}
-          </button>
+            <ChevronRight aria-hidden="true" className="-mr-0.5" />
+          </Button>
         )}
       </div>
-      <p className="muted footnote">{t("style.styles.footnote")}</p>
-    </section>
+      <Note>{t("style.styles.footnote")}</Note>
+    </Section>
   );
 }

@@ -49,10 +49,12 @@ export function EngineStep({ settings, update }: EngineStepProps) {
 
   return (
     <>
-      <p>{t("onboarding.engineBody")}</p>
+      <p className="text-muted-foreground">{t("onboarding.engineBody")}</p>
       <ModelCard />
-      <h2 className="section-title">{t("onboarding.aiTitle")}</h2>
-      <p className="muted">{t("onboarding.aiBody")}</p>
+      <div className="mt-2 flex flex-col gap-1 px-1">
+        <h2 className="section-title text-base font-semibold">{t("onboarding.aiTitle")}</h2>
+        <p className="text-sm text-muted-foreground">{t("onboarding.aiBody")}</p>
+      </div>
       <RadioCards
         label={t("onboarding.aiTitle")}
         value={choice}

@@ -1,12 +1,14 @@
 import { useId, useState, type FormEvent } from "react";
 import { useTranslation } from "react-i18next";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import {
   addDictionaryEntry,
   errorMessage,
   updateDictionaryEntry,
   type DictionaryEntry,
 } from "../lib/ipc";
-import { Dialog } from "./Dialog";
+import { Dialog, DialogFooter } from "./Dialog";
 
 interface DictionaryDialogProps {
   /** The entry being edited; null adds a new one. */
@@ -40,10 +42,10 @@ export function DictionaryDialog({ entry, onSaved, onClose }: DictionaryDialogPr
 
   return (
     <Dialog title={entry ? t("dictionary.editWord") : t("dictionary.addWord")} onClose={onClose}>
-      <form className="form" onSubmit={(event) => void save(event)}>
-        <label className="field">
-          <span>{t("dictionary.word")}</span>
-          <input
+      <form className="flex flex-col gap-4" onSubmit={(event) => void save(event)}>
+        <label className="flex flex-col gap-1.5">
+          <span className="text-sm font-medium">{t("dictionary.word")}</span>
+          <Input
             type="text"
             value={term}
             maxLength={60}
@@ -52,18 +54,21 @@ export function DictionaryDialog({ entry, onSaved, onClose }: DictionaryDialogPr
             onChange={(event) => setTerm(event.target.value)}
           />
         </label>
-        <label className="check">
+        <label className="flex items-start gap-3">
           <input
             type="checkbox"
+            className="mt-0.5"
             checked={isCorrection}
             onChange={(event) => setIsCorrection(event.target.checked)}
           />
           <span>{t("dictionary.correctMisspelling")}</span>
         </label>
         {isCorrection && (
-          <div className="field">
-            <label htmlFor={misspellingId}>{t("dictionary.misspelling")}</label>
-            <input
+          <div className="flex flex-col gap-1.5">
+            <label htmlFor={misspellingId} className="text-sm font-medium">
+              {t("dictionary.misspelling")}
+            </label>
+            <Input
               id={misspellingId}
               type="text"
               value={misspelling}
@@ -72,24 +77,22 @@ export function DictionaryDialog({ entry, onSaved, onClose }: DictionaryDialogPr
               aria-describedby={`${misspellingId}-hint`}
               onChange={(event) => setMisspelling(event.target.value)}
             />
-            <p id={`${misspellingId}-hint`} className="muted hint">
+            <p id={`${misspellingId}-hint`} className="text-sm text-muted-foreground">
               {t("dictionary.misspellingHint")}
             </p>
           </div>
         )}
         {error && (
-          <p className="error" role="alert">
+          <p className="text-sm text-destructive" role="alert">
             {error}
           </p>
         )}
-        <div className="dialog-actions">
-          <button type="button" onClick={onClose}>
-            {t("common.cancel")}
-          </button>
-          <button type="submit" className="primary" disabled={busy}>
+        <DialogFooter>
+          <Button onClick={onClose}>{t("common.cancel")}</Button>
+          <Button type="submit" variant="default" disabled={busy}>
             {t("dictionary.save")}
-          </button>
-        </div>
+          </Button>
+        </DialogFooter>
       </form>
     </Dialog>
   );

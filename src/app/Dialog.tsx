@@ -1,4 +1,13 @@
-import { useEffect, useId, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
+import {
+  useEffect,
+  useId,
+  useRef,
+  useState,
+  type ComponentProps,
+  type KeyboardEvent,
+  type ReactNode,
+} from "react";
+import { cn } from "@/lib/utils";
 
 const FOCUSABLE =
   "button:not([disabled]), input:not([disabled]), textarea:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex='-1'])";
@@ -61,18 +70,33 @@ export function Dialog({ title, onClose, wide = false, children }: DialogProps) 
   };
 
   return (
-    <div className="dialog-backdrop">
+    <div className="dialog-backdrop fixed inset-0 z-50 flex animate-fade-in items-center justify-center bg-overlay p-6">
       <div
         ref={dialogRef}
-        className={wide ? "dialog dialog-wide" : "dialog"}
+        className={cn(
+          "dialog flex max-h-full w-full animate-pop-in flex-col gap-4 overflow-y-auto rounded-2xl border bg-popover p-6 text-popover-foreground shadow-xl windows:rounded-lg",
+          wide ? "max-w-[36rem]" : "max-w-[30rem]",
+        )}
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
         onKeyDown={keepFocusInside}
       >
-        <h2 id={titleId}>{title}</h2>
+        <h2 id={titleId} className="text-lg font-semibold tracking-[-0.01em]">
+          {title}
+        </h2>
         {children}
       </div>
     </div>
+  );
+}
+
+/** A dialog's buttons, at its bottom right. */
+export function DialogFooter({ className, ...props }: ComponentProps<"div">) {
+  return (
+    <div
+      className={cn("dialog-actions flex flex-wrap justify-end gap-2 pt-1", className)}
+      {...props}
+    />
   );
 }

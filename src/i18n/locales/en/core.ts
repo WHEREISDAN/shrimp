@@ -59,6 +59,13 @@ export const core = {
     transcribing: "Transcribing",
     privacy: "{{label}}, Privacy mode on",
   },
+  windowControls: {
+    label: "Window",
+    minimize: "Minimize",
+    maximize: "Maximize",
+    restore: "Restore Down",
+    close: "Close",
+  },
   nav: {
     label: "Main",
     home: "Home",

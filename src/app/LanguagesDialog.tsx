@@ -1,7 +1,11 @@
+import { Search } from "lucide-react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
+import { Group } from "@/components/settings";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { errorMessage, setLanguages, type LanguageChoice, type LanguageOption } from "../lib/ipc";
-import { Dialog } from "./Dialog";
+import { Dialog, DialogFooter } from "./Dialog";
 import { languageName, toggleLanguage } from "./languageChoice";
 import { ToggleRow } from "./ToggleRow";
 
@@ -48,49 +52,62 @@ export function LanguagesDialog({ options, chosen, onSaved, onClose }: Languages
 
   return (
     <Dialog title={t("languages.title")} onClose={onClose} wide>
-      <ToggleRow
-        label={t("languages.autoDetect")}
-        description={t("languages.autoDetectBody")}
-        checked={autoDetect}
-        onChange={setAutoDetect}
-      />
-      <input
-        type="search"
-        aria-label={t("languages.search")}
-        placeholder={t("languages.search")}
-        value={query}
-        onChange={(event) => setQuery(event.target.value)}
-      />
-      <ul className="language-list" aria-label={t("languages.title")}>
-        {shown.map((option) => (
-          <li key={option.id}>
-            <label className="check">
-              <input
-                type="checkbox"
-                checked={selected.includes(option.id)}
-                onChange={() => {
-                  setError(null);
-                  setSelected(toggleLanguage(selected, option.id, options));
-                }}
-              />
-              <span>{option.shownName}</span>
-            </label>
-          </li>
-        ))}
-      </ul>
+      <Group>
+        <ToggleRow
+          label={t("languages.autoDetect")}
+          description={t("languages.autoDetectBody")}
+          checked={autoDetect}
+          onChange={setAutoDetect}
+        />
+      </Group>
+      <div className="flex flex-col gap-2">
+        <div className="relative">
+          <Search
+            aria-hidden="true"
+            className="pointer-events-none absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-muted-foreground"
+          />
+          <Input
+            type="search"
+            className="pl-8"
+            aria-label={t("languages.search")}
+            placeholder={t("languages.search")}
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+          />
+        </div>
+        <ul
+          className="flex max-h-64 flex-col divide-y divide-separator overflow-y-auto rounded-xl border bg-card shadow-xs empty:hidden"
+          aria-label={t("languages.title")}
+        >
+          {shown.map((option) => (
+            <li key={option.id}>
+              <label className="flex items-start gap-3 px-4 py-2 transition-colors duration-100 hover:bg-muted/40 dark:hover:bg-white/[0.025]">
+                <input
+                  type="checkbox"
+                  className="mt-0.5"
+                  checked={selected.includes(option.id)}
+                  onChange={() => {
+                    setError(null);
+                    setSelected(toggleLanguage(selected, option.id, options));
+                  }}
+                />
+                <span>{option.shownName}</span>
+              </label>
+            </li>
+          ))}
+        </ul>
+      </div>
       {error && (
-        <p className="error" role="alert">
+        <p className="text-sm text-destructive" role="alert">
           {error}
         </p>
       )}
-      <div className="dialog-actions">
-        <button type="button" onClick={onClose}>
-          {t("common.cancel")}
-        </button>
-        <button type="button" className="primary" onClick={save}>
+      <DialogFooter>
+        <Button onClick={onClose}>{t("common.cancel")}</Button>
+        <Button variant="default" onClick={save}>
           {t("dialog.save")}
-        </button>
-      </div>
+        </Button>
+      </DialogFooter>
     </Dialog>
   );
 }
