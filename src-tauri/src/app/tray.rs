@@ -17,7 +17,18 @@ use crate::settings::{Settings, SettingsStore};
 use crate::t;
 
 const TRAY_ID: &str = "main";
+/// macOS: a black template image, which the menu bar tints.
+#[cfg(not(target_os = "windows"))]
 const TRAY_ICON: Image<'_> = include_image!("icons/tray.png");
+/// Windows: the coral mark, which reads on light and dark taskbars.
+#[cfg(target_os = "windows")]
+const TRAY_ICON: Image<'_> = include_image!("icons/tray-windows.png");
+/// Privacy mode's dot: black in the macOS template, green on Windows' coloured icon.
+const PRIVACY_DOT: [u8; 3] = if cfg!(target_os = "windows") {
+    [48, 209, 88]
+} else {
+    [0, 0, 0]
+};
 const OPEN_ID: &str = "open";
 pub const SHORTCUTS_ID: &str = "shortcuts";
 const PASTE_LAST_ID: &str = "paste-last";
@@ -160,7 +171,7 @@ fn tooltip(privacy: bool) -> String {
     }
 }
 
-/// The template icon, with a dot in the corner while Privacy mode is on.
+/// The tray icon, with a dot in the corner while Privacy mode is on.
 fn icon(privacy: bool) -> Image<'static> {
     let (width, height) = (TRAY_ICON.width(), TRAY_ICON.height());
     let mut rgba = TRAY_ICON.rgba().to_vec();
@@ -178,7 +189,8 @@ fn icon(privacy: bool) -> Image<'static> {
                     continue;
                 };
                 let at = ((y * width + x) * 4) as usize;
-                rgba[at..at + 4].copy_from_slice(&[0, 0, 0, alpha]);
+                let [r, g, b] = PRIVACY_DOT;
+                rgba[at..at + 4].copy_from_slice(&[r, g, b, alpha]);
             }
         }
     }
