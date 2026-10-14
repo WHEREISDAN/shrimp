@@ -1,0 +1,198 @@
+@import "tailwindcss" source(none);
+@import "tw-animate-css";
+@import "./theme.css";
+
+@source "../app";
+@source "../components";
+
+@custom-variant data-checked (&:where([data-state="checked"]));
+@custom-variant data-unchecked (&:where([data-state="unchecked"]));
+@custom-variant windows (&:where([data-platform="windows"] *));
+@custom-variant material (&:where([data-material="vibrancy"] *, [data-material="mica"] *));
+
+@layer base {
+  *,
+  ::before,
+  ::after {
+    border-color: var(--border);
+  }
+
+  html {
+    color-scheme: light dark;
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+    font-synthesis: none;
+  }
+
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+
+  body {
+    background: var(--background);
+    color: var(--foreground);
+    font-size: var(--text-base);
+    line-height: var(--text-base--line-height);
+  }
+
+  /* The window's material shows through wherever a screen leaves the page clear. */
+  html[data-material="vibrancy"] body,
+  html[data-material="mica"] body {
+    background: transparent;
+  }
+
+  ::selection {
+    background: color-mix(in oklab, var(--brand) 26%, transparent);
+  }
+
+  button,
+  [role="button"],
+  [role="tab"],
+  [role="radio"],
+  [role="switch"],
+  [role="menuitem"],
+  select,
+  summary {
+    cursor: default;
+  }
+
+  a {
+    color: var(--brand-strong);
+    text-underline-offset: 3px;
+  }
+
+  /* Checkboxes and radios drawn in the tokens, alike on macOS and Windows. */
+  input[type="checkbox"],
+  input[type="radio"] {
+    appearance: none;
+    display: inline-grid;
+    place-content: center;
+    flex: none;
+    width: 16px;
+    height: 16px;
+    margin: 0;
+    border: 1px solid var(--input);
+    background: var(--card);
+    box-shadow: 0 1px 1px rgb(0 0 0 / 0.05);
+    transition:
+      background-color 120ms ease-out,
+      border-color 120ms ease-out;
+  }
+
+  input[type="radio"] {
+    border-radius: 999px;
+  }
+
+  input[type="checkbox"] {
+    border-radius: 4.5px;
+  }
+
+  input[type="checkbox"]::before,
+  input[type="radio"]::before {
+    content: "";
+    background: #fff;
+    transform: scale(0);
+    transition: transform 180ms var(--ease-spring);
+  }
+
+  input[type="radio"]::before {
+    width: 6px;
+    height: 6px;
+    border-radius: 999px;
+  }
+
+  input[type="checkbox"]::before {
+    width: 10px;
+    height: 10px;
+    mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 10'%3E%3Cpath d='M1.8 5.3 4 7.4l4.2-4.8' fill='none' stroke='%23000' stroke-width='1.7' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")
+      center / contain no-repeat;
+  }
+
+  input[type="checkbox"]:checked,
+  input[type="radio"]:checked {
+    border-color: var(--brand);
+    background: var(--brand);
+  }
+
+  input[type="checkbox"]:checked::before,
+  input[type="radio"]:checked::before {
+    transform: scale(1);
+  }
+
+  input[type="checkbox"]:disabled,
+  input[type="radio"]:disabled {
+    opacity: 0.45;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    input[type="checkbox"]:not(:checked),
+    input[type="radio"]:not(:checked) {
+      border-color: rgb(255 255 255 / 0.18);
+      background: rgb(255 255 255 / 0.05);
+    }
+  }
+
+  :focus-visible {
+    outline: 2px solid color-mix(in oklab, var(--ring) 70%, transparent);
+    outline-offset: 2px;
+  }
+
+  /* Native meters and progress bars in the token colours. */
+  progress,
+  meter {
+    appearance: none;
+    height: 6px;
+    border: 0;
+    border-radius: 999px;
+    background: var(--muted);
+    overflow: hidden;
+  }
+
+  progress::-webkit-progress-bar,
+  meter::-webkit-meter-bar {
+    background: var(--muted);
+    border: 0;
+    border-radius: 999px;
+  }
+
+  progress::-webkit-progress-value {
+    background: var(--brand);
+    border-radius: 999px;
+    transition: width 200ms var(--ease-out-quint);
+  }
+
+  meter::-webkit-meter-optimum-value,
+  meter::-webkit-meter-suboptimum-value,
+  meter::-webkit-meter-even-less-good-value {
+    background: var(--brand);
+    border-radius: 999px;
+    transition: width 80ms linear;
+  }
+
+  progress::-moz-progress-bar,
+  meter::-moz-meter-bar {
+    background: var(--brand);
+  }
+
+  /* WebView2's classic scrollbars, slimmed down. */
+  html[data-platform="windows"] * {
+    scrollbar-width: thin;
+    scrollbar-color: color-mix(in oklab, var(--foreground) 22%, transparent) transparent;
+  }
+}
+
+/* Reduce Motion (A11Y-02): nothing slides, fades or scrolls smoothly. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

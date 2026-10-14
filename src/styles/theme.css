@@ -1,0 +1,214 @@
+/*
+ * Shrimp's design tokens: shadcn/ui's token names and hairline precision, set in
+ * Apple's type scale, materials and motion. Light and dark follow the system
+ * (prefers-color-scheme); html[data-platform] adapts sizes to Windows, and
+ * html[data-material] says whether the window shows a native material.
+ */
+
+@theme {
+  --font-sans:
+    -apple-system, BlinkMacSystemFont, "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif;
+  --font-display:
+    -apple-system, BlinkMacSystemFont, "Segoe UI Variable Display", "Segoe UI", system-ui,
+    sans-serif;
+  --font-mono: ui-monospace, "SF Mono", "Cascadia Mono", Menlo, Consolas, monospace;
+
+  /* macOS sizes: 13 px body, as in AppKit; Windows overrides below. */
+  --text-2xs: 10px;
+  --text-2xs--line-height: 12px;
+  --text-xs: 11px;
+  --text-xs--line-height: 14px;
+  --text-sm: 12px;
+  --text-sm--line-height: 16px;
+  --text-base: 13px;
+  --text-base--line-height: 18px;
+  --text-lg: 15px;
+  --text-lg--line-height: 20px;
+  --text-xl: 17px;
+  --text-xl--line-height: 22px;
+  --text-2xl: 22px;
+  --text-2xl--line-height: 28px;
+  --text-3xl: 26px;
+  --text-3xl--line-height: 32px;
+
+  --radius-xs: 4px;
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 10px;
+  --radius-xl: 12px;
+  --radius-2xl: 16px;
+  --radius-3xl: 22px;
+
+  --shadow-xs: 0 1px 1px rgb(0 0 0 / 0.04);
+  --shadow-sm: 0 1px 2px -0.5px rgb(0 0 0 / 0.08), 0 1px 1px rgb(0 0 0 / 0.03);
+  --shadow-md: 0 2px 4px -1px rgb(0 0 0 / 0.06), 0 6px 14px -4px rgb(0 0 0 / 0.08);
+  --shadow-lg: 0 4px 10px -2px rgb(0 0 0 / 0.08), 0 14px 34px -6px rgb(0 0 0 / 0.16);
+  --shadow-xl: 0 10px 20px -6px rgb(0 0 0 / 0.12), 0 28px 70px -10px rgb(0 0 0 / 0.3);
+
+  /* Apple-like motion: a quick ease-out, and a gentle spring with a small overshoot. */
+  --ease-out-quint: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-spring: cubic-bezier(0.34, 1.32, 0.64, 1);
+
+  --animate-pop-in: pop-in 260ms var(--ease-spring);
+  --animate-fade-in: fade-in 160ms ease-out;
+  --animate-menu-in: menu-in 150ms var(--ease-out-quint);
+
+  @keyframes pop-in {
+    from {
+      opacity: 0;
+      transform: translateY(6px) scale(0.965);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+
+  @keyframes fade-in {
+    from {
+      opacity: 0;
+    }
+  }
+
+  @keyframes menu-in {
+    from {
+      opacity: 0;
+      transform: translateY(-4px) scale(0.97);
+    }
+  }
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-separator: var(--separator);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-brand: var(--brand);
+  --color-brand-foreground: var(--brand-foreground);
+  --color-brand-strong: var(--brand-strong);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-overlay: var(--overlay);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-border: var(--sidebar-border);
+}
+
+:root {
+  --background: #f7f7f8;
+  --foreground: #18181b;
+  --card: #ffffff;
+  --card-foreground: #18181b;
+  --popover: #ffffff;
+  --popover-foreground: #18181b;
+  --primary: #18181b;
+  --primary-foreground: #fafafa;
+  --secondary: #efeff1;
+  --secondary-foreground: #18181b;
+  --muted: #f0f0f2;
+  --muted-foreground: #6b6b74;
+  --accent: rgb(0 0 0 / 0.045);
+  --accent-foreground: #18181b;
+  --destructive: #c21d1d;
+  --border: #e4e4e7;
+  --separator: #ececef;
+  --input: #d9d9de;
+  --ring: #f05a38;
+  /* Coral, Shrimp's one accent: fills and icons; brand-strong is its AA text shade. */
+  --brand: #f05a38;
+  --brand-foreground: #ffffff;
+  --brand-strong: #b5371e;
+  --success: #13733a;
+  --warning: #a14a08;
+  --overlay: rgb(24 24 27 / 0.28);
+  --sidebar: #efeff1;
+  --sidebar-foreground: #18181b;
+  --sidebar-accent: rgb(0 0 0 / 0.07);
+  --sidebar-border: rgb(0 0 0 / 0.09);
+
+  --sidebar-w: clamp(184px, 24vw, 224px);
+  --toolbar-h: 52px;
+  --control-h: 28px;
+  --control-h-sm: 24px;
+  --control-h-lg: 32px;
+  --row-min-h: 44px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #161618;
+    --foreground: #f4f4f5;
+    --card: #1e1e21;
+    --card-foreground: #f4f4f5;
+    --popover: #232326;
+    --popover-foreground: #f4f4f5;
+    --primary: #f4f4f5;
+    --primary-foreground: #18181b;
+    --secondary: #2a2a2e;
+    --secondary-foreground: #f4f4f5;
+    --muted: #2a2a2e;
+    --muted-foreground: #a1a1aa;
+    --accent: rgb(255 255 255 / 0.06);
+    --accent-foreground: #f4f4f5;
+    --destructive: #f87171;
+    --border: rgb(255 255 255 / 0.09);
+    --separator: rgb(255 255 255 / 0.065);
+    --input: rgb(255 255 255 / 0.13);
+    --ring: #ff6f4f;
+    --brand: #ff6f4f;
+    --brand-foreground: #ffffff;
+    --brand-strong: #ff8466;
+    --success: #4ade80;
+    --warning: #fbbf24;
+    --overlay: rgb(0 0 0 / 0.5);
+    --sidebar: #1c1c1f;
+    --sidebar-foreground: #f4f4f5;
+    --sidebar-accent: rgb(255 255 255 / 0.08);
+    --sidebar-border: rgb(0 0 0 / 0.55);
+  }
+}
+
+/* Windows: Segoe UI at WinUI's sizes, and WinUI's 32 px controls. */
+html[data-platform="windows"] {
+  --text-xs: 12px;
+  --text-xs--line-height: 16px;
+  --text-sm: 12px;
+  --text-sm--line-height: 16px;
+  --text-base: 14px;
+  --text-base--line-height: 20px;
+  --text-lg: 16px;
+  --text-lg--line-height: 22px;
+  --text-xl: 20px;
+  --text-xl--line-height: 26px;
+  --text-2xl: 24px;
+  --text-2xl--line-height: 30px;
+  --text-3xl: 28px;
+  --text-3xl--line-height: 36px;
+  --toolbar-h: 48px;
+  --control-h: 32px;
+  --control-h-sm: 26px;
+  --control-h-lg: 36px;
+  --row-min-h: 48px;
+}
+
+/* A native material (macOS vibrancy, Windows 11 Mica) shows through the sidebar. */
+html[data-material="vibrancy"],
+html[data-material="mica"] {
+  --sidebar: transparent;
+}
