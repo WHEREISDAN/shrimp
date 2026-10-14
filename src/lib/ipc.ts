@@ -281,7 +281,6 @@ export interface Settings {
   notices: {
     commandModeOffCount: number;
     commandModeOffDay: string;
-    bluetoothAdviceCount: number;
     bluetoothAdviceAt: number;
     bluetoothAdviceOff: boolean;
     languageCardDay: string;

@@ -651,7 +651,8 @@ for usage.
   detected" with Open Sound Settings; a selected device that can't be used gives
   "Selected microphone is unavailable" and the next one is used.
 - **Bluetooth advice.** Recording from a Bluetooth microphone shows advice with Switch
-  microphone and Don't show again, at most 3 times and once a week.
+  microphone and Don't show again when the dictation starts, at most once an hour (as
+  Wispr's AirPods tip); Don't show again is permanent.
 - **Hot-plug** is a 2 s poll of the device list and the lid. The picker's level meter
   opens the device a dictation would use and reports `mic://level` about 20 times a
   second while Settings shows it. Closing the main window to the tray stops it and sends

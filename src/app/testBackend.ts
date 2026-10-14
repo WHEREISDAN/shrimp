@@ -116,7 +116,6 @@ export const SETTINGS: Settings = {
   notices: {
     commandModeOffCount: 0,
     commandModeOffDay: "",
-    bluetoothAdviceCount: 0,
     bluetoothAdviceAt: 0,
     bluetoothAdviceOff: false,
     languageCardDay: "",

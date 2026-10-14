@@ -213,9 +213,8 @@ pub struct NoticeSettings {
     pub command_mode_off_count: u32,
     /// The local date it was last shown, YYYY-MM-DD.
     pub command_mode_off_day: String,
-    /// Bluetooth microphone advice: at most 3 times, at most weekly (MIC-08).
-    pub bluetooth_advice_count: u32,
-    /// When it was last shown, in seconds since 1970.
+    /// When the Bluetooth microphone advice was last shown, in seconds since
+    /// 1970; it shows at most once an hour (MIC-08).
     pub bluetooth_advice_at: u64,
     /// "Don't show again".
     pub bluetooth_advice_off: bool,
