@@ -68,7 +68,8 @@ export const settingsSections: SettingsSectionsCatalog = {
   sound: {
     title: "Som",
     dictation: "Sons de ditado",
-    dictationBody: "Um som quando o ditado começa, para, fica no modo mãos livres, é cancelado ou é colado.",
+    dictationBody:
+      "Um som quando o ditado começa, para, fica no modo mãos livres, é cancelado ou é colado.",
     notifications: "Sons de notificação",
     notificationsBody: "Um som com avisos, erros e marcos.",
     mute: "Silenciar o áudio ao ditar",

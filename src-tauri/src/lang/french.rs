@@ -161,10 +161,7 @@ mod tests {
             apply("Il a dit «bonjour» hier."),
             format!("Il a dit «{N}bonjour{N}» hier.")
         );
-        assert_eq!(
-            apply("«\u{00A0}Oui\u{00A0}» ?"),
-            format!("«{N}Oui{N}»{N}?")
-        );
+        assert_eq!(apply("«\u{00A0}Oui\u{00A0}» ?"), format!("«{N}Oui{N}»{N}?"));
         assert_eq!(apply("Citation :\n«\n»"), format!("Citation{N}:\n«\n»"));
     }
 

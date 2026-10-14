@@ -65,7 +65,8 @@ export const settingsSections = {
   sound: {
     title: "Sound",
     dictation: "Dictation sounds",
-    dictationBody: "A sound when dictation starts, stops, locks hands-free, is cancelled or is pasted.",
+    dictationBody:
+      "A sound when dictation starts, stops, locks hands-free, is cancelled or is pasted.",
     notifications: "Notification sounds",
     notificationsBody: "A sound with warnings, errors and milestones.",
     mute: "Mute audio while dictating",

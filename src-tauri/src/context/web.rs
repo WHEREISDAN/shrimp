@@ -133,7 +133,11 @@ mod tests {
             category("https://chat.google.com/room/AAA"),
             Some(AppCategory::Work)
         );
-        assert!(target_for_url("https://gemini.google.com/app").unwrap().ai_app);
+        assert!(
+            target_for_url("https://gemini.google.com/app")
+                .unwrap()
+                .ai_app
+        );
         assert!(
             target_for_url("https://aistudio.google.com/prompts/new_chat")
                 .unwrap()

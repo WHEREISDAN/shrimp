@@ -58,7 +58,9 @@ fn milestones_come_with_the_achievement_sound_unless_notification_sounds_are_off
             store,
         ));
         let ui = SoundingNotices::new(Arc::new(FakeUi(Arc::clone(&fakes))), player);
-        ui.notice(Notice::info("You've dictated 1,000 words").in_category(NoticeCategory::Milestone));
+        ui.notice(
+            Notice::info("You've dictated 1,000 words").in_category(NoticeCategory::Milestone),
+        );
         ui.notice(Notice::info("Copied"));
         fakes.cues()
     };

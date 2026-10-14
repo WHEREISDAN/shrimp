@@ -180,7 +180,11 @@ impl Microphones {
         let now = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .map_or(0, |elapsed| elapsed.as_secs());
-        if !bluetooth_advice_due(notices.bluetooth_advice_off, notices.bluetooth_advice_at, now) {
+        if !bluetooth_advice_due(
+            notices.bluetooth_advice_off,
+            notices.bluetooth_advice_at,
+            now,
+        ) {
             return;
         }
         let patch = json!({"notices": {"bluetoothAdviceAt": now}});
@@ -374,7 +378,9 @@ mod tests {
         assert!(bluetooth_advice_due(false, 0, now), "never shown");
         assert!(!bluetooth_advice_due(false, now - 59 * 60, now));
         assert!(bluetooth_advice_due(false, now - 60 * 60, now));
-        assert!(!bluetooth_advice_due(true, 0, now), "Don't show again is permanent");
+        assert!(
+            !bluetooth_advice_due(true, 0, now),
+            "Don't show again is permanent"
+        );
     }
 }
-

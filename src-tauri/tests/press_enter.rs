@@ -45,13 +45,19 @@ fn the_first_press_enter_is_left_out_and_asks_once() {
     let asked = prompt(&h);
     assert_eq!(
         asked.actions,
-        [NoticeAction::EnablePressEnter, NoticeAction::DisablePressEnter]
+        [
+            NoticeAction::EnablePressEnter,
+            NoticeAction::DisablePressEnter
+        ]
     );
     assert_eq!(h.fakes.inserted(), ["Ship it"]);
     assert!(h.fakes.pressed.lock().unwrap().is_empty(), "no Enter yet");
     let experimental = h.settings.get().experimental;
     assert!(experimental.press_enter_prompt_seen);
-    assert!(!experimental.press_enter_command, "ignoring it leaves it off");
+    assert!(
+        !experimental.press_enter_command,
+        "ignoring it leaves it off"
+    );
 
     idle(&h);
     dictate(&h);
@@ -82,7 +88,9 @@ fn great_turns_the_command_on_and_presses_enter() {
     assert!(h.settings.get().experimental.press_enter_command);
 
     dictate(&h);
-    wait_until("the next enter", || h.fakes.pressed.lock().unwrap().len() == 2);
+    wait_until("the next enter", || {
+        h.fakes.pressed.lock().unwrap().len() == 2
+    });
     assert_eq!(h.fakes.inserted(), ["Ship it", "Ship it"]);
 }
 

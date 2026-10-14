@@ -23,8 +23,8 @@ const MAX_WORD_CHARS: usize = 40;
 /// Characters of email addresses, markdown and code; a replacement that
 /// contains one teaches nothing.
 const SYMBOLS: &[char] = &[
-    '@', '*', '_', '`', '#', '[', ']', '(', ')', '<', '>', '/', '\\', '=', '+', '~', '|', '{',
-    '}', '$', '%', '^', '&',
+    '@', '*', '_', '`', '#', '[', ']', '(', ')', '<', '>', '/', '\\', '=', '+', '~', '|', '{', '}',
+    '$', '%', '^', '&',
 ];
 
 /// Where a dictation was pasted, for the watcher.

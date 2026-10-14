@@ -30,9 +30,9 @@ pub use shrimp_lib::llm::{
 pub use shrimp_lib::mic::Microphones;
 pub use shrimp_lib::notify::{Notice, NoticeCategory};
 pub use shrimp_lib::platform::{
-    AppIdentity, ContextRequest, CopyReason, CuePlayer, FieldContext, FocusInspector, HotkeyBackend,
-    InsertOptions, InsertOutcome, InsertText, Launcher, MediaControl, Permission, PermissionStatus,
-    Permissions, PlatformError, Restore, SyntheticKey, TextInserter, TextRange,
+    AppIdentity, ContextRequest, CopyReason, CuePlayer, FieldContext, FocusInspector,
+    HotkeyBackend, InsertOptions, InsertOutcome, InsertText, Launcher, MediaControl, Permission,
+    PermissionStatus, Permissions, PlatformError, Restore, SyntheticKey, TextInserter, TextRange,
 };
 pub use shrimp_lib::settings::{OnboardingSettings, OnboardingStep, Settings, SettingsStore};
 pub use shrimp_lib::sounds::Cue;
