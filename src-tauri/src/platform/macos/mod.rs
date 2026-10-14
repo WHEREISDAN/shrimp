@@ -15,6 +15,7 @@ mod keymap;
 mod launcher;
 mod login;
 mod media;
+mod mice;
 mod mouse;
 mod pasteboard;
 mod permissions;
@@ -46,6 +47,8 @@ pub fn platform(main_thread: MainThread) -> Platform {
         globe_key: globe::globe_key_action(),
         user_name: first_name(),
         login_item: Arc::new(login::MacLoginItem),
+        region: region(),
+        mice: Arc::new(mice::HidMice),
     }
 }
 
@@ -96,6 +99,12 @@ pub fn language_name(code: &str, language: &str) -> Option<String> {
     let mut chars = name.chars();
     let first = chars.next()?;
     Some(first.to_uppercase().chain(chars).collect())
+}
+
+/// The region chosen in System Settings › General › Language & Region, e.g. "CA".
+fn region() -> Option<String> {
+    let code = NSLocale::currentLocale().regionCode()?.to_string();
+    (!code.is_empty()).then_some(code)
 }
 
 /// The user's first preferred language as a BCP 47 tag, e.g. "en-GB".

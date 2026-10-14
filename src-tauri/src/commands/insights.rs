@@ -1,4 +1,4 @@
-//! Insights (STA-01..05): stats, the voice profile and the share card.
+//! Insights (STA-01..06): stats, the voice profile and the share card.
 
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -11,14 +11,19 @@ use tauri::{AppHandle, Manager, State};
 use super::CommandError;
 use super::history::Clipboard;
 use crate::insights::profile::{self, ProfileError, VoiceProfileStatus};
+use crate::insights::share::{self, ShareNetwork};
 use crate::insights::{self, Insights};
 use crate::llm::LlmSource;
+use crate::platform::Launcher;
 use crate::settings::SettingsStore;
-use crate::storage::{Database, StorageError};
+use crate::storage::{Database, StorageError, stats};
 use crate::t;
 
 /// The LLM the settings choose, for the voice profile.
 pub struct AppLlm(pub Arc<dyn LlmSource>);
+
+/// Opens web pages in the default browser (sharing to X and LinkedIn).
+pub struct Browser(pub Arc<dyn Launcher>);
 
 /// Share cards are PNGs well under this size.
 const MAX_IMAGE_BYTES: usize = 8 * 1024 * 1024;
@@ -126,6 +131,37 @@ pub async fn copy_image(
     let png = png_body(&request)?;
     let inserter = Arc::clone(&clipboard.0);
     tauri::async_runtime::spawn_blocking(move || inserter.copy_png(&png))
+        .await
+        .map_err(|err| CommandError::new("platform", err))?
+        .map_err(|err| CommandError::new("platform", err))
+}
+
+/// X or LinkedIn: the share card onto the clipboard, then the network's
+/// compose page with a line of text; nothing opens if copying failed
+/// (STA-03). The network comes in an `x-share-network` header.
+#[tauri::command]
+pub async fn share_image(
+    request: tauri::ipc::Request<'_>,
+    clipboard: State<'_, Clipboard>,
+    browser: State<'_, Browser>,
+    database: State<'_, Arc<Database>>,
+) -> Result<(), CommandError> {
+    let png = png_body(&request)?;
+    let network = request
+        .headers()
+        .get("x-share-network")
+        .and_then(|value| value.to_str().ok())
+        .and_then(|name| serde_json::from_value::<ShareNetwork>(serde_json::json!(name)).ok())
+        .ok_or_else(|| CommandError::new("invalid", t!("error.insights.unknownNetwork")))?;
+    let inserter = Arc::clone(&clipboard.0);
+    tauri::async_runtime::spawn_blocking(move || inserter.copy_png(&png))
+        .await
+        .map_err(|err| CommandError::new("platform", err))?
+        .map_err(|err| CommandError::new("platform", err))?;
+    let words = read(&database, |db| stats::total_words(db)).await?;
+    let url = share::compose_url(network, &share::post_text(words));
+    let launcher = Arc::clone(&browser.0);
+    tauri::async_runtime::spawn_blocking(move || launcher.open_url(&url))
         .await
         .map_err(|err| CommandError::new("platform", err))?
         .map_err(|err| CommandError::new("platform", err))

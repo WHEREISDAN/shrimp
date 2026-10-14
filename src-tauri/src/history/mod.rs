@@ -15,6 +15,7 @@ use chrono::{Datelike, Local, TimeZone, Timelike};
 use serde::Serialize;
 
 use crate::audio::{AudioClip, read_wav, wav_encode};
+use crate::insights::usage::UsageCategory;
 use crate::insights::{self, Milestone};
 use crate::llm::LlmProviderId;
 use crate::platform::AppIdentity;
@@ -125,6 +126,8 @@ pub struct Dictation {
     pub error: Option<String>,
     /// The entry this transcribes again (paste last of a failed dictation).
     pub replaces: Option<i64>,
+    /// Where it was dictated, for Insights (STA-06); unknown for retries.
+    pub usage: Option<UsageCategory>,
 }
 
 impl Dictation {
@@ -295,6 +298,7 @@ impl History {
             speech_ms: dictation.speech_ms,
             fixes: fixes::words_corrected(&dictation.raw, &dictation.text),
             dictionary_fixes: dictation.dictionary_fixes,
+            usage: dictation.usage.map(UsageCategory::key),
         };
         let counted = self.database.with(|db| {
             let before = stats::total_words(db)?;
@@ -551,6 +555,33 @@ mod tests {
         let clip = f.history.retry_clip(long).unwrap();
         assert_eq!(clip.samples().len(), 16_000 * 6);
         assert_eq!(total_words(&f.history), 0, "failures don't count");
+    }
+
+    #[test]
+    fn usage_categories_count_even_when_nothing_is_stored() {
+        let f = fixture();
+        f.settings
+            .update(&serde_json::json!({"privacy": {"history": "never"}}))
+            .unwrap();
+        let mut email = dictation("dear team", 1);
+        email.usage = Some(UsageCategory::Emails);
+        f.history.record(email, HistoryStatus::Inserted);
+        f.history
+            .record(dictation("retried", 1), HistoryStatus::Inserted);
+        let usage = f.history.database.with(|db| stats::usage(db)).unwrap();
+        assert_eq!(
+            usage.len(),
+            1,
+            "a dictation without a category isn't counted"
+        );
+        assert_eq!(
+            (
+                usage[0].category.as_str(),
+                usage[0].words,
+                usage[0].dictations
+            ),
+            ("emails", 2, 1)
+        );
     }
 
     #[test]

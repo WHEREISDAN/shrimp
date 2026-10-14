@@ -61,5 +61,7 @@
   "menu.close": "Close",
   "menu.help": "Help",
   "menu.shortcuts": "Shortcuts",
-  "menu.shrimpHelp": "Shrimp Help"
+  "menu.shrimpHelp": "Shrimp Help",
+  "share.post.one": "I've dictated {count} word with Shrimp.",
+  "share.post.other": "I've dictated {count} words with Shrimp."
 }

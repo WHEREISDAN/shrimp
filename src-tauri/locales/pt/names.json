@@ -61,5 +61,7 @@
   "menu.close": "Fechar",
   "menu.help": "Ajuda",
   "menu.shortcuts": "Atalhos",
-  "menu.shrimpHelp": "Ajuda do Shrimp"
+  "menu.shrimpHelp": "Ajuda do Shrimp",
+  "share.post.one": "Já ditei {count} palavra com o Shrimp.",
+  "share.post.other": "Já ditei {count} palavras com o Shrimp."
 }

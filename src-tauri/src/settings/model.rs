@@ -255,6 +255,10 @@ pub struct NoticeSettings {
     pub cancel_recover_count: u32,
     /// The local date it was last shown, YYYY-MM-DD.
     pub cancel_recover_day: String,
+    /// "Switch to Canadian English?" was offered; it shows once (LANG-07).
+    pub canadian_english_shown: bool,
+    /// "Your mouse has extra buttons" was shown; it shows once (CORE-18).
+    pub mouse_buttons_shown: bool,
 }
 
 /// How many times each formatting tip was shown: one explanation, then up

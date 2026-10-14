@@ -160,6 +160,10 @@ pub enum ControllerInput {
     AnswerPressEnter {
         enable: bool,
     },
+    /// "Switch to Canadian English?"'s Switch (LANG-07).
+    SwitchToCanadianEnglish,
+    /// The most buttons a connected mouse has, read after a dictation (CORE-18).
+    MouseButtons(u32),
     Bar(BarControl),
     /// Paste or copy last transcript from the tray menu.
     Menu(Action),
@@ -218,6 +222,8 @@ pub struct Processed {
     pub journal: Option<JournalFiles>,
     /// The transform auto-apply ran on the dictation, for the changes view (TRF-05).
     pub transform: Option<Box<TransformRun>>,
+    /// How the dictation started; None for everything but dictations.
+    pub started_by: Option<StartedBy>,
 }
 
 impl From<Outcome> for Processed {
@@ -231,8 +237,18 @@ impl From<Outcome> for Processed {
             history_id: None,
             journal: None,
             transform: None,
+            started_by: None,
         }
     }
+}
+
+/// What started a recording.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum StartedBy {
+    /// A key or mouse shortcut.
+    Shortcut,
+    /// A click on the Flow Bar.
+    FlowBar,
 }
 
 /// The final text of a dictation.

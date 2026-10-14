@@ -4,6 +4,7 @@
 
 mod support;
 
+use shrimp_lib::insights::usage::{self, UsageCategory};
 use shrimp_lib::notify::NoticeAction;
 use support::*;
 
@@ -296,6 +297,25 @@ fn a_cancelled_command_is_not_stored() {
     notice(&h, "Command cancelled");
     std::thread::sleep(Duration::from_millis(300));
     assert!(list(&h).entries.is_empty());
+}
+
+#[test]
+fn dictations_count_towards_their_usage_category() {
+    let h = harness(
+        6.0,
+        0.3,
+        Setup {
+            app: Some(app("com.apple.mail", "Mail")),
+            ..Setup::default()
+        },
+    );
+    dictate(&h);
+    wait_for_entries(&h, 1);
+    let database = Database::open(&h._dir.path().join("shrimp.db")).unwrap();
+    let usage = database.with(|db| usage::usage(db)).unwrap();
+    assert_eq!(usage[0].category, UsageCategory::Emails);
+    assert_eq!((usage[0].words, usage[0].dictations), (3, 1));
+    assert!(usage[1..].iter().all(|row| row.words == 0));
 }
 
 #[test]

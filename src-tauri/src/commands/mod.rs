@@ -89,6 +89,7 @@ pub const NAMES: &[&str] = &[
     "generate_voice_profile",
     "copy_image",
     "save_image",
+    "share_image",
     "get_app_health",
     "dismiss_crash",
     "check_storage",

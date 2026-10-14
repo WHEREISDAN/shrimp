@@ -31,8 +31,9 @@ pub use shrimp_lib::mic::Microphones;
 pub use shrimp_lib::notify::{Notice, NoticeCategory};
 pub use shrimp_lib::platform::{
     AppIdentity, ContextRequest, CopyReason, CuePlayer, FieldContext, FocusInspector,
-    HotkeyBackend, InsertOptions, InsertOutcome, InsertText, Launcher, MediaControl, Permission,
-    PermissionStatus, Permissions, PlatformError, Restore, SyntheticKey, TextInserter, TextRange,
+    HotkeyBackend, InsertOptions, InsertOutcome, InsertText, Launcher, MediaControl, MouseDevices,
+    Permission, PermissionStatus, Permissions, PlatformError, Restore, SyntheticKey, TextInserter,
+    TextRange,
 };
 pub use shrimp_lib::settings::{OnboardingSettings, OnboardingStep, Settings, SettingsStore};
 pub use shrimp_lib::sounds::Cue;
@@ -96,6 +97,9 @@ pub struct Fakes {
     pub providers: Mutex<Vec<LlmProviderId>>,
     /// Whether paste and copy last transcript had something, as reported.
     pub last_transcript: Mutex<Vec<(bool, bool)>>,
+    /// The buttons of the connected mouse, and how often the mice were read.
+    pub mouse_buttons: Mutex<u32>,
+    pub mouse_reads: AtomicUsize,
 }
 
 impl Fakes {
@@ -273,6 +277,16 @@ impl MediaControl for FakeMedia {
     }
 }
 
+/// One mouse with `Fakes::mouse_buttons` buttons.
+pub struct FakeMice(pub Arc<Fakes>);
+
+impl MouseDevices for FakeMice {
+    fn most_buttons(&self) -> u32 {
+        self.0.mouse_reads.fetch_add(1, Ordering::SeqCst);
+        *self.0.mouse_buttons.lock().unwrap()
+    }
+}
+
 pub struct FakeSounds(pub Arc<Fakes>);
 
 impl CuePlayer for FakeSounds {
@@ -417,6 +431,10 @@ pub struct Setup {
     pub history: bool,
     /// Onboarding's state; finished when None, whatever `settings` says.
     pub onboarding: Option<OnboardingSettings>,
+    /// The system region ("CA"); none when None.
+    pub region: Option<String>,
+    /// The buttons of the connected mouse; 0 is no mouse.
+    pub mouse_buttons: u32,
 }
 
 impl Default for Setup {
@@ -434,6 +452,8 @@ impl Default for Setup {
             microphones: None,
             history: false,
             onboarding: None,
+            region: None,
+            mouse_buttons: 0,
         }
     }
 }
@@ -496,6 +516,7 @@ impl Harness {
         *fakes.app.lock().unwrap() = setup.app;
         *fakes.field.lock().unwrap() = setup.field;
         *fakes.transcript.lock().unwrap() = setup.transcript;
+        *fakes.mouse_buttons.lock().unwrap() = setup.mouse_buttons;
         let mut settings = setup.settings;
         settings.ai.cleanup = setup.cleanup;
         settings.onboarding = setup.onboarding.unwrap_or_else(OnboardingSettings::done);
@@ -570,6 +591,8 @@ impl Harness {
             microphones: microphones.clone(),
             history: history.clone(),
             timing,
+            region: setup.region,
+            mice: Arc::new(FakeMice(Arc::clone(&fakes))),
         });
         Self {
             controller,

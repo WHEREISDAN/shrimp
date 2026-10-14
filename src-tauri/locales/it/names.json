@@ -61,5 +61,7 @@
   "menu.close": "Chiudi",
   "menu.help": "Aiuto",
   "menu.shortcuts": "Scorciatoie",
-  "menu.shrimpHelp": "Aiuto di Shrimp"
+  "menu.shrimpHelp": "Aiuto di Shrimp",
+  "share.post.one": "Ho dettato {count} parola con Shrimp.",
+  "share.post.other": "Ho dettato {count} parole con Shrimp."
 }

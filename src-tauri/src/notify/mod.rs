@@ -113,6 +113,12 @@ pub enum NoticeAction {
     EnablePressEnter,
     /// Disable: types " press enter" back and leaves the command off.
     DisablePressEnter,
+    /// Dictates in English (Canada) instead of the other English (LANG-07).
+    SwitchToCanadianEnglish,
+    /// Opens the Shortcuts dialog to bind a mouse button (CORE-18).
+    SetUpMouseButton,
+    /// Closes a one-time suggestion.
+    NotNow,
 }
 
 static NEXT_ID: AtomicU64 = AtomicU64::new(1);
@@ -179,6 +185,20 @@ mod tests {
         let reveal: NoticeAction = serde_json::from_str("\"revealEdit\"").unwrap();
         assert_eq!(reveal, NoticeAction::RevealEdit);
         assert_eq!(serde_json::to_value(reveal).unwrap(), "revealEdit");
+    }
+
+    #[test]
+    fn suggestion_actions_serialize_in_camel_case() {
+        let json = serde_json::to_value([
+            NoticeAction::SwitchToCanadianEnglish,
+            NoticeAction::SetUpMouseButton,
+            NoticeAction::NotNow,
+        ])
+        .unwrap();
+        assert_eq!(
+            json,
+            serde_json::json!(["switchToCanadianEnglish", "setUpMouseButton", "notNow"])
+        );
     }
 
     #[test]

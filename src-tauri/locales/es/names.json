@@ -61,5 +61,7 @@
   "menu.close": "Cerrar",
   "menu.help": "Ayuda",
   "menu.shortcuts": "Atajos",
-  "menu.shrimpHelp": "Ayuda de Shrimp"
+  "menu.shrimpHelp": "Ayuda de Shrimp",
+  "share.post.one": "He dictado {count} palabra con Shrimp.",
+  "share.post.other": "He dictado {count} palabras con Shrimp."
 }

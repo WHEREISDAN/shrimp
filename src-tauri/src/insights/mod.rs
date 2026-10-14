@@ -1,8 +1,11 @@
-//! Insights (STA-01..05): speed, totals, streaks, the activity heatmap and
-//! apps, read from the stats tables that outlive history; word-count and
-//! voice-profile milestones; and the voice profile itself (`profile`).
+//! Insights (STA-01..06): speed, totals, streaks, the activity heatmap, apps
+//! and usage categories (`usage`), read from the stats tables that outlive
+//! history; word-count and voice-profile milestones; the voice profile
+//! itself (`profile`); and sharing the stats card (`share`).
 
 pub mod profile;
+pub mod share;
+pub mod usage;
 
 use chrono::{Datelike, Days, Months, NaiveDate};
 use rusqlite::Connection;
@@ -44,6 +47,8 @@ pub struct Insights {
     pub apps: Vec<AppActivity>,
     pub apps_used: i64,
     pub top_app: Option<String>,
+    /// The six usage categories, most words first (STA-06).
+    pub usage: Vec<usage::UsageActivity>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
@@ -114,6 +119,7 @@ pub fn insights(db: &Connection, today: NaiveDate) -> Result<Insights, StorageEr
                 dictations: app.dictations,
             })
             .collect(),
+        usage: usage::usage(db)?,
     })
 }
 
@@ -290,5 +296,8 @@ mod tests {
         assert_eq!(insights.top_app.as_deref(), Some("TextEdit"));
         assert_eq!(insights.apps_used, 1);
         assert_eq!(insights.wpm, 750, "100 words in 8 s");
+        assert_eq!(insights.usage.len(), 6);
+        assert_eq!(insights.usage[0].category, usage::UsageCategory::Documents);
+        assert_eq!(insights.usage[0].words, 400);
     }
 }

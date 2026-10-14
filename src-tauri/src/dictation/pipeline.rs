@@ -85,6 +85,7 @@ impl Pipeline {
         };
         let mut context = context.ready();
         context.language = language.clone();
+        record.usage = Some(insights::usage::classify(&context));
         let edited = self.editor.edit(&raw, &context).await;
         notices.extend(edited.notice.clone());
         record.raw = raw;

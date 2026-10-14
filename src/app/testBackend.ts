@@ -129,6 +129,8 @@ export const SETTINGS: Settings = {
     formattingTips: { list: 0, email: 0, backtrack: 0, day: "" },
     cancelRecoverCount: 0,
     cancelRecoverDay: "",
+    canadianEnglishShown: false,
+    mouseButtonsShown: false,
   },
   transforms: {
     enabled: false,
@@ -338,6 +340,14 @@ export const INSIGHTS: Insights = {
   ],
   appsUsed: 2,
   topApp: "Slack",
+  usage: [
+    { category: "workMessages", words: 1_500, dictations: 30, count: 30, level: "moderate" },
+    { category: "documents", words: 980, dictations: 31, count: 6, level: "light" },
+    { category: "personalMessages", words: 0, dictations: 0, count: 0, level: "light" },
+    { category: "emails", words: 0, dictations: 0, count: 0, level: "light" },
+    { category: "aiPrompts", words: 0, dictations: 0, count: 0, level: "light" },
+    { category: "otherTasks", words: 0, dictations: 0, count: 0, level: "light" },
+  ],
 };
 
 export const VOICE_PROFILE: VoiceProfileStatus = {
