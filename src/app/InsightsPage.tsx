@@ -4,6 +4,7 @@ import type { Insights } from "../lib/ipc";
 import { ActivityHeatmap } from "./ActivityHeatmap";
 import { Page } from "./Page";
 import { ShareDialog } from "./ShareDialog";
+import { UsageSection } from "./UsageSection";
 import { useInsights } from "./useInsights";
 import { useSettings } from "./useSettings";
 import { VoiceProfileCard } from "./VoiceProfileCard";
@@ -13,7 +14,7 @@ interface InsightsPageProps {
   revealVoiceProfile?: number;
 }
 
-/** Insights (STA-01, STA-03, STA-04). */
+/** Insights (STA-01, STA-03, STA-04, STA-06). */
 export function InsightsPage({ revealVoiceProfile = 0 }: InsightsPageProps) {
   const { t } = useTranslation();
   const { insights, error, reload } = useInsights();
@@ -127,6 +128,7 @@ function Stats({ insights }: { insights: Insights }) {
           </ol>
         )}
       </section>
+      <UsageSection usage={insights.usage} />
     </>
   );
 }

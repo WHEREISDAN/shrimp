@@ -1,4 +1,4 @@
-//! Usage stats (STA-01..05). They live apart from history, so deleting or
+//! Usage stats (STA-01..06). They live apart from history, so deleting or
 //! not storing transcripts never resets them (STA-05).
 
 use rusqlite::{Connection, OptionalExtension, params};
@@ -29,6 +29,8 @@ pub struct Counted {
     pub fixes: i64,
     /// Dictionary corrections and snippets applied.
     pub dictionary_fixes: i64,
+    /// The usage category's key ("emails"), when known (STA-06).
+    pub usage: Option<&'static str>,
 }
 
 pub fn record(db: &mut Connection, counted: &Counted) -> Result<(), StorageError> {
@@ -61,6 +63,14 @@ pub fn record(db: &mut Connection, counted: &Counted) -> Result<(), StorageError
                 counted.app_name.as_deref().unwrap_or(app_id),
                 counted.words
             ],
+        )?;
+    }
+    if let Some(category) = counted.usage {
+        transaction.execute(
+            "INSERT INTO usage_categories (category, words, dictations) VALUES (?1, ?2, 1)
+             ON CONFLICT(category) DO UPDATE SET words = words + ?2,
+               dictations = dictations + 1",
+            params![category, counted.words],
         )?;
     }
     transaction.execute(
@@ -210,6 +220,29 @@ pub fn apps(db: &Connection) -> Result<Vec<AppTotal>, StorageError> {
     Ok(apps)
 }
 
+/// One usage category over all time (STA-06).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CategoryTotal {
+    pub category: String,
+    pub words: i64,
+    pub dictations: i64,
+}
+
+/// Every usage category with words, in no particular order.
+pub fn usage(db: &Connection) -> Result<Vec<CategoryTotal>, StorageError> {
+    let mut statement = db.prepare("SELECT category, words, dictations FROM usage_categories")?;
+    let categories = statement
+        .query_map([], |row| {
+            Ok(CategoryTotal {
+                category: row.get(0)?,
+                words: row.get(1)?,
+                dictations: row.get(2)?,
+            })
+        })?
+        .collect::<rusqlite::Result<Vec<_>>>()?;
+    Ok(categories)
+}
+
 /// Words by weekday (0 is Sunday) and hour.
 pub fn hourly(db: &Connection) -> Result<[[i64; 24]; 7], StorageError> {
     let mut grid = [[0; 24]; 7];
@@ -264,6 +297,7 @@ pub(crate) fn counted(day: &str, words: i64) -> Counted {
         speech_ms: 8_000,
         fixes: 2,
         dictionary_fixes: 1,
+        usage: Some("documents"),
     }
 }
 
@@ -301,6 +335,14 @@ mod tests {
                 assert_eq!(days[0].apps, 1);
                 assert_eq!(apps(db)?[0].words, 1_050);
                 assert_eq!(hourly(db)?[1][9], 1_050);
+                assert_eq!(
+                    usage(db)?,
+                    [CategoryTotal {
+                        category: "documents".into(),
+                        words: 1_050,
+                        dictations: 105
+                    }]
+                );
                 assert_eq!(active_days(db)?, ["2026-10-12"]);
                 set_meta(db, "k", "v")?;
                 assert_eq!(meta(db, "k")?.as_deref(), Some("v"));

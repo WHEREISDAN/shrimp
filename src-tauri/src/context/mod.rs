@@ -143,6 +143,17 @@ impl DictationContext {
         )
     }
 
+    /// A writing app, or a writing site in a browser (STA-06).
+    pub fn is_document(&self) -> bool {
+        if self.app_kind() != AppKind::Browser {
+            return apps::is_document(self.app.as_ref());
+        }
+        self.field
+            .as_ref()
+            .and_then(|field| field.url.as_deref())
+            .is_some_and(web::is_document_site)
+    }
+
     /// The app's category, or the website's in a browser (STY-05). An IDE's
     /// chat input is an AI app, whose dictations skip style formatting (FMT-09).
     pub fn target(&self) -> Target {

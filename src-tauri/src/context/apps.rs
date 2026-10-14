@@ -1,7 +1,8 @@
 //! Kinds of apps that change how Shrimp reads context and pastes: terminals
 //! (INS-11), remote desktops (INS-10), browsers (STY-05) and code editors
-//! (DEV-01..03). Matched by bundle ID (macOS) or executable name (Windows),
-//! with the display name as a fallback.
+//! (DEV-01..03); and the writing apps Insights counts as documents (STA-06).
+//! Matched by bundle ID (macOS) or executable name (Windows), with the
+//! display name as a fallback.
 
 use crate::platform::AppIdentity;
 
@@ -115,6 +116,17 @@ const LATE_CLIPBOARD_READERS: &[(&str, &str)] = &[
     ("WhatsApp.Root.exe", "WhatsApp"),
 ];
 
+/// Writing apps whose dictations Insights counts as documents (STA-06).
+const DOCUMENTS: &[(&str, &str)] = &[
+    ("com.apple.iWork.Pages", "Pages"),
+    ("com.microsoft.Word", "Microsoft Word"),
+    ("WINWORD.EXE", "Microsoft Word"),
+    ("com.apple.TextEdit", "TextEdit"),
+    ("com.apple.Notes", "Notes"),
+    ("notion.id", "Notion"),
+    ("md.obsidian", "Obsidian"),
+];
+
 /// Editors whose AI chat takes @-mentions of files (DEV-01).
 const FILE_TAGGING: &[(&str, &str)] = &[
     ("com.todesktop.230313mzl4w4u92", "Cursor"),
@@ -144,6 +156,10 @@ pub fn kind(app: Option<&AppIdentity>) -> AppKind {
     } else {
         AppKind::Other
     }
+}
+
+pub fn is_document(app: Option<&AppIdentity>) -> bool {
+    app.is_some_and(|app| listed(app, DOCUMENTS))
 }
 
 pub fn has_file_tagging(app: Option<&AppIdentity>) -> bool {
@@ -220,6 +236,25 @@ mod tests {
     }
 
     #[test]
+    fn writing_apps_are_documents() {
+        for (id, name) in [
+            ("com.apple.iWork.Pages", "Pages"),
+            ("com.microsoft.Word", "Microsoft Word"),
+            ("com.apple.TextEdit", "TextEdit"),
+            ("com.apple.Notes", "Notes"),
+            ("notion.id", "Notion"),
+            ("md.obsidian", "Obsidian"),
+        ] {
+            assert!(is_document(Some(&app(id, name))), "{name}");
+        }
+        assert!(!is_document(Some(&app(
+            "com.tinyspeck.slackmacgap",
+            "Slack"
+        ))));
+        assert!(!is_document(None));
+    }
+
+    #[test]
     fn windows_editors_and_late_clipboard_readers() {
         assert_eq!(
             kind(Some(&app("Code.exe", "Visual Studio Code"))),
@@ -242,6 +277,7 @@ mod tests {
             "Microsoft Outlook"
         ))));
         assert!(!reads_clipboard_late(Some(&app("notepad.exe", "Notepad"))));
+        assert!(is_document(Some(&app("WINWORD.EXE", "Microsoft Word"))));
         assert!(
             !reads_clipboard_late(Some(&app("com.microsoft.Word", "Microsoft Word"))),
             "macOS keeps its hold"

@@ -541,6 +541,25 @@ export interface Insights {
   apps: { name: string; words: number; dictations: number }[];
   appsUsed: number;
   topApp: string | null;
+  /** The six usage categories, most words first (STA-06). */
+  usage: UsageActivity[];
+}
+
+/** Mirrors `insights::usage::UsageCategory`. */
+export type UsageCategory =
+  "personalMessages" | "workMessages" | "emails" | "aiPrompts" | "documents" | "otherTasks";
+
+/** Mirrors `insights::usage::UsageLevel`: 10,000+, 1,000–9,999 or under 1,000 words. */
+export type UsageLevel = "power" | "moderate" | "light";
+
+/** Mirrors `insights::usage::UsageActivity`. */
+export interface UsageActivity {
+  category: UsageCategory;
+  words: number;
+  dictations: number;
+  /** Dictations, except that emails count half and documents a fifth. */
+  count: number;
+  level: UsageLevel;
 }
 
 /** Mirrors `insights::profile::VoiceProfile` (STA-04). */

@@ -41,8 +41,29 @@ describe("InsightsPage", () => {
     expect(screen.getByText("5 days")).toBeInTheDocument();
     expect(screen.getByText("Top app: Slack")).toBeInTheDocument();
     expect(screen.getByRole("img", { name: /2 active days, 640 words/ })).toBeInTheDocument();
-    const apps = screen.getByRole("list");
+    const apps = screen.getByRole("region", { name: "Apps" });
     expect(within(apps).getAllByRole("listitem")).toHaveLength(2);
+  });
+
+  it("shows every usage category with its share, count and level", async () => {
+    backend();
+    render(<InsightsPage />);
+    const usage = await screen.findByRole("region", { name: "Where you dictate" });
+    const rows = within(usage).getAllByRole("listitem");
+    expect(rows.map((row) => row.querySelector(".app-name")?.textContent)).toEqual([
+      "Work messages",
+      "Documents",
+      "Personal messages",
+      "Emails",
+      "AI prompts",
+      "Other tasks",
+    ]);
+    expect(within(rows[0]!).getByText("60% · 30 messages")).toBeInTheDocument();
+    expect(within(rows[0]!).getByText("Moderate usage")).toBeInTheDocument();
+    expect(rows[0]).toHaveAttribute("title", "1,500 words. Moderate usage: 1,000–9,999 words");
+    expect(within(rows[1]!).getByText("40% · 6 documents")).toBeInTheDocument();
+    expect(within(rows[1]!).getByText("Light usage")).toBeInTheDocument();
+    expect(within(rows[3]!).getByText("0% · 0 emails")).toBeInTheDocument();
   });
 
   it("bands days like Wispr Flow", () => {

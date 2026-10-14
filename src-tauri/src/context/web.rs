@@ -1,5 +1,6 @@
 //! Web apps by domain (STY-05): in a browser, the site decides the category,
-//! so Gmail formats like email and Slack like work messages.
+//! so Gmail formats like email and Slack like work messages. Writing sites
+//! count as documents in Insights (STA-06).
 
 use crate::edit::{AppCategory, Target};
 
@@ -49,6 +50,17 @@ const SITES: &[(&str, &str, AppCategory, bool)] = &[
     ("poe.com", "", AppCategory::Other, true),
 ];
 
+/// Writing sites whose dictations Insights counts as documents (STA-06).
+const DOCUMENT_SITES: &[&str] = &["docs.google.com", "notion.so", "obsidian.md"];
+
+/// A host matches its site and the site's subdomains.
+fn on_site(host: &str, site: &str) -> bool {
+    host == site
+        || host
+            .strip_suffix(site)
+            .is_some_and(|rest| rest.ends_with('.'))
+}
+
 /// The host and path of an http(s) URL, lowercased host.
 pub fn host_and_path(url: &str) -> Option<(String, &str)> {
     let rest = url
@@ -73,14 +85,17 @@ pub fn target_for_url(url: &str) -> Option<Target> {
     let (host, path) = host_and_path(url)?;
     SITES
         .iter()
-        .find(|(site, prefix, _, _)| {
-            let host_matches = host == *site || host.ends_with(&format!(".{site}"));
-            host_matches && path.starts_with(prefix)
-        })
+        .find(|(site, prefix, _, _)| on_site(&host, site) && path.starts_with(prefix))
         .map(|(_, _, category, ai_app)| Target {
             category: *category,
             ai_app: *ai_app,
         })
+}
+
+/// Whether a web page is on a writing site such as Google Docs.
+pub fn is_document_site(url: &str) -> bool {
+    host_and_path(url)
+        .is_some_and(|(host, _)| DOCUMENT_SITES.iter().any(|site| on_site(&host, site)))
 }
 
 #[cfg(test)]
@@ -117,6 +132,16 @@ mod tests {
         assert_eq!(category("https://example.com/"), None);
         assert_eq!(category("vscode-file://vscode-app/workbench.html"), None);
         assert_eq!(category("https://notslack.com/"), None);
+    }
+
+    #[test]
+    fn writing_sites_are_documents() {
+        assert!(is_document_site(
+            "https://docs.google.com/document/d/1/edit"
+        ));
+        assert!(is_document_site("https://www.notion.so/Plans-123"));
+        assert!(!is_document_site("https://mail.google.com/mail/u/0/"));
+        assert!(!is_document_site("https://notnotion.so/"));
     }
 
     #[test]

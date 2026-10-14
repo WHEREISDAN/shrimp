@@ -100,6 +100,14 @@ static MIGRATIONS: LazyLock<Migrations<'static>> = LazyLock::new(|| {
          );
          CREATE TABLE meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);",
         ),
+        // Words per usage category, from this version on (STA-06).
+        M::up(
+            "CREATE TABLE usage_categories (
+           category   TEXT    PRIMARY KEY,
+           words      INTEGER NOT NULL DEFAULT 0,
+           dictations INTEGER NOT NULL DEFAULT 0
+         );",
+        ),
     ])
 });
 
