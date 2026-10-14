@@ -170,6 +170,9 @@ pub enum ControllerInput {
     /// History's Retry or Recover for an entry (HIS-05, HIS-06).
     RetryHistory(i64),
     Processed(Box<Processed>),
+    /// Ends the controller task; the sender hears once every service it held
+    /// is released.
+    Shutdown(std::sync::mpsc::Sender<()>),
 }
 
 /// What the user can do with the last transform.

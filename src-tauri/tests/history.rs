@@ -149,3 +149,18 @@ fn a_cancelled_dictation_is_not_stored() {
     std::thread::sleep(Duration::from_millis(300));
     assert!(list(&h).entries.is_empty());
 }
+
+#[test]
+fn shutting_down_the_controller_releases_the_database() {
+    let h = harness(6.0, 0.3, Setup::default());
+    dictate(&h);
+    wait_for_entries(&h, 1);
+    let history = h.history.as_ref().unwrap();
+    assert!(Arc::strong_count(history) > 1);
+    assert!(h.controller.shutdown(WAIT));
+    wait_until("History's last holder", || Arc::strong_count(history) == 1);
+    assert!(
+        h.controller.shutdown(WAIT),
+        "a second shutdown returns at once"
+    );
+}

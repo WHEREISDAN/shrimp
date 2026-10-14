@@ -587,6 +587,16 @@ impl Harness {
     }
 }
 
+impl Drop for Harness {
+    /// The controller lets go of History's database, so the temporary folder
+    /// can be deleted; Windows keeps open files.
+    fn drop(&mut self) {
+        if !self.controller.shutdown(WAIT) {
+            eprintln!("the dictation controller didn't stop");
+        }
+    }
+}
+
 pub fn fast_timing() -> Timing {
     Timing {
         menu_paste_delay: Duration::ZERO,

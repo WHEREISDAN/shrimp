@@ -8,6 +8,7 @@ mod shortcuts;
 mod transforms;
 
 use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::mpsc::RecvTimeoutError;
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
@@ -110,6 +111,19 @@ impl ControllerHandle {
     /// The app that has Secure Keyboard Entry on, if any (KEYS-09).
     pub fn secure_input(&self) -> Option<String> {
         lock(&self.secure_input).clone()
+    }
+
+    /// Stops the controller: its hooks come off and every service it holds,
+    /// History's database among them, is released. A recording in progress
+    /// keeps its saved audio for recovery (HIS-06). Waits up to `timeout`;
+    /// false if the task didn't end in time.
+    pub fn shutdown(&self, timeout: Duration) -> bool {
+        let (done, ended) = std::sync::mpsc::channel();
+        if self.tx.send(ControllerInput::Shutdown(done)).is_err() {
+            return true;
+        }
+        // Disconnected: the task ended before it read this request.
+        !matches!(ended.recv_timeout(timeout), Err(RecvTimeoutError::Timeout))
     }
 }
 
@@ -261,16 +275,27 @@ impl Controller {
         self.start_hotkeys();
         let mut ticker = tokio::time::interval(self.timing.level_interval);
         ticker.set_missed_tick_behavior(MissedTickBehavior::Skip);
+        let mut stopped = None;
         loop {
             tokio::select! {
                 input = rx.recv() => match input {
+                    Some(ControllerInput::Shutdown(done)) => {
+                        stopped = Some(done);
+                        break;
+                    }
                     Some(input) => self.handle(input),
                     None => break,
                 },
                 _ = ticker.tick(), if self.recording.is_some() => self.poll_audio(),
             }
         }
+        self.release_devices();
         self.hotkeys.stop();
+        drop(self);
+        drop(rx);
+        if let Some(done) = stopped {
+            let _ = done.send(());
+        }
     }
 
     fn handle(&mut self, input: ControllerInput) {
@@ -346,6 +371,8 @@ impl Controller {
             }
             ControllerInput::RetryHistory(id) => self.retry_history(id),
             ControllerInput::Processed(outcome) => self.processed(*outcome),
+            // `run` ends the loop on it.
+            ControllerInput::Shutdown(_) => {}
         }
     }
 
