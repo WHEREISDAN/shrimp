@@ -75,7 +75,12 @@ pub fn is_windows_11() -> bool {
         return false;
     }
     let units = (size as usize / 2).min(buffer.len());
-    String::from_utf16_lossy(&buffer[..units])
+    is_windows_11_build(&String::from_utf16_lossy(&buffer[..units]))
+}
+
+/// `CurrentBuildNumber` as the registry holds it, with its terminating zero.
+fn is_windows_11_build(build: &str) -> bool {
+    build
         .trim_end_matches('\0')
         .parse::<u32>()
         .is_ok_and(|build| build >= 22_000)
@@ -259,6 +264,16 @@ mod tests {
         assert_eq!(language_name("fr", "de").as_deref(), Some("Französisch"));
         assert_eq!(language_name("es", "it").as_deref(), Some("Spagnolo"));
         assert_eq!(language_name("de", "en").as_deref(), Some("German"));
+    }
+
+    #[test]
+    fn windows_11_starts_at_build_22000() {
+        assert!(is_windows_11_build("22000\0"));
+        assert!(is_windows_11_build("26100"));
+        assert!(!is_windows_11_build("19044\0"));
+        assert!(!is_windows_11_build("21999"));
+        assert!(!is_windows_11_build(""));
+        assert!(!is_windows_11_build("unknown"));
     }
 
     #[test]
