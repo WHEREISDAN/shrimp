@@ -23,7 +23,8 @@
     "regression:mac": "scripts/macos/regression/run.sh",
     "app:dev:win": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/windows/dev-app.ps1 build",
     "app:dev:win:open": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/windows/dev-app.ps1 open",
-    "release:win": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/windows/release.ps1"
+    "release:win": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/windows/release.ps1",
+    "regression:win": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/windows/regression/run.ps1"
   },
   "pnpm": {
     "onlyBuiltDependencies": [

@@ -35,6 +35,7 @@ pnpm install
 | `pnpm app:dev:win`              | Windows: builds the debug app `shrimp.exe` (`scripts/windows/dev-app.ps1 build`).      |
 | `pnpm app:dev:win:open`         | Windows: quits a running `Shrimp Dev`, then launches it (builds it first if missing).  |
 | `pnpm release:win`              | Windows: the per-user NSIS installer with Whisper on the GPU (`release.ps1`).          |
+| `pnpm regression:win`           | Windows: the regression walkthrough against `Shrimp Dev` (see below).                  |
 | `pnpm check`                    | Every check: formatting, lint, type check, JS tests, clippy and Rust tests.            |
 | `pnpm format`                   | Formats JS/TS/JSON/CSS/Markdown (Prettier) and Rust (rustfmt).                         |
 | `pnpm lint`                     | oxlint, with warnings treated as errors.                                               |
@@ -460,7 +461,10 @@ into another app still need them.
 
 `pnpm regression:mac` (`scripts/macos/regression/run.sh`) drives the signed dev app through
 every automatable PARITY item (AUD-02) and prints one line per case with the items it
-covers: 84 cases over 128 items, in about 10 minutes.
+covers: 85 cases over 128 items, in about 10 minutes. The cases in
+`scripts/macos/regression/suites` also run on Windows (see
+[Regression walkthrough (Windows)](#regression-walkthrough-windows)); `runner.mjs` holds
+what both platforms share, and a case marked `platforms: ["darwin"]` runs on macOS only.
 
 ```sh
 pnpm regression:mac                         # every case
@@ -583,3 +587,75 @@ Not covered, and why:
   dictation ended, Ctrl+Esc reaches Windows and opens Start.
 - The Flow Bar's notices disappear after a few seconds; read them with `read_text` on
   `flow-bar` right after the action.
+
+### Regression walkthrough (Windows)
+
+`pnpm regression:win` (`scripts/windows/regression/run.ps1`) runs the macOS walkthrough's
+cases against `Shrimp Dev` on Windows, plus the Windows-only cases in
+`scripts/windows/regression/suites/windows.mjs`, and prints the same one line per case.
+
+```powershell
+pnpm regression:win                               # every case
+pnpm regression:win -Only core,CMD-01             # suites (as on macOS, plus windows) or PARITY ids
+pnpm regression:win -Build -Report C:\out.json    # rebuild Shrimp Dev first
+pnpm regression:win latency -Runs 10 -Model qwen2.5-coder:7b   # AUD-03 instead
+```
+
+What it needs:
+
+- The interactive desktop session: from SSH or another session, start it through a
+  scheduled task (see [Testing input on Windows](#testing-input-on-windows)).
+- Shrimp Dev's data folder with onboarding finished and the default model downloaded. Ollama
+  running with a model for the AI cases; without it they are skipped. Load the model once
+  beforehand (for example `ollama run <model> hi`): AI edits give up after 5 s, and the first
+  request after Ollama starts may take longer.
+- Nobody using the PC. A guard (`shrimp-helper.exe watch`) stops the run at the first key
+  press or mouse movement that wasn't injected, and the helper refuses to send keys when an
+  app other than the target app or Shrimp is in front.
+
+What it does:
+
+1. Builds `helper.cs` (keys and mouse buttons through `SendInput`, the clipboard, the target
+   app's fields, Shrimp's tray icon, the speakers' mute and the guard) and `target.cs`, a
+   window with a text box, a field and a password field (the system's own EDIT controls, as
+   in Notepad) and a list, with the .NET Framework compiler that ships with Windows, into a
+   temporary folder.
+2. Builds `shrimp.exe` with Whisper on the GPU if it is missing (or with `-Build`; `-Cpu` for
+   a CPU build), quits it, copies its data folder except `models\`, and saves the clipboard,
+   clipboard history's entries and the window in front. `-MuteSpeakers` also mutes the
+   speakers, as the cues play many times.
+3. Launches Shrimp Dev with a silent WAV as its audio source (the microphone is never used)
+   and the target app, and runs `walkthrough.mjs`. Its context (`context.mjs`) turns the
+   macOS defaults the cases press into the Windows defaults (fn into Ctrl+Win, ⌥1 into
+   Win+Alt+1, ⌃⌘V into Shift+Alt+Z…). The spoken fixtures are made with Windows' text to
+   speech (`speak.ps1`). Mute while dictating is turned off for the run, so no app left
+   playing is muted.
+4. Afterwards, whatever happened: quits both apps, puts the data folder, the clipboard, the
+   speakers and the window in front back, and deletes the clipboard-history entries the run
+   added (Copy last transcript adds one on purpose) and the temporary folder.
+
+The Windows cases imitate other apps by running the target app under their executable names
+(`Code.exe`, `Hyper.exe`, `wezterm-gui.exe`, `WINWORD.EXE`, `mstsc.exe`): the paste key, the
+clipboard hold, context spacing and Insights' categories follow the executable name, and the
+target app records whether a paste came as Ctrl+V or Shift+Insert. `-Extra <module>` also
+runs the cases a module exports as `cases`, for one-off checks with apps the repository
+doesn't ship. `-Report <file>` writes the app's log beside the report (`<file>.app.log`), and
+`-KeyLog <file>` has the guard write down every injected key (Shrimp's carry its tag), which
+shows what reached Windows when a shortcut misbehaves.
+
+Not covered on Windows, besides the macOS list's microphone, cloud, onboarding and release
+items: WIN-06 (an elevated app needs a UAC prompt), WIN-07 (placeholders shown as text are a
+browser's; a native field's cue banner is no value), WIN-08 and WIN-12 (they act on whatever
+the PC is playing), and the macOS-only APP-07, APP-10, APP-11 and CORE-10. APP-03 and APP-12
+skip when Shrimp's tray icon sits in the taskbar's flyout of hidden icons: Windows gives no
+position for it there (`Shell_NotifyIconGetRect` returns `S_FALSE`), and tray-icon ignores a
+click it can't place. The walkthrough doesn't open the flyout, which belongs to Explorer.
+
+Things to know:
+
+- `GetLastInputInfo` counts the run's own input, so right after a run it can't tell whether
+  the person at the PC is idle; the guard's hook, which ignores injected input, can.
+- `SendMessageTimeout` returns a wrong `EM_GETSEL` result across processes; the helper reads
+  the selection with `SendMessage`.
+- WinForms text boxes don't give UI Automation the text patterns Notepad's EDIT control does,
+  so the target app creates EDIT controls itself.
