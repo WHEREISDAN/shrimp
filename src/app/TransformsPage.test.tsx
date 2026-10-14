@@ -60,7 +60,9 @@ describe("TransformsPage", () => {
     await screen.findByText("Use British spelling");
     fireEvent.change(input, { target: { value: "use british spelling" } });
     fireEvent.click(screen.getByRole("button", { name: "Add" }));
-    expect(await screen.findByRole("alert")).toHaveTextContent("already in the list");
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "A custom rule with this text already exists",
+    );
     fireEvent.change(input, { target: { value: "word ".repeat(51) } });
     fireEvent.click(screen.getByRole("button", { name: "Add" }));
     expect(await screen.findByRole("alert")).toHaveTextContent("under 50 words");
@@ -68,6 +70,24 @@ describe("TransformsPage", () => {
       { patch: { transforms: { polish: { rules: { reorder: false } } } } },
       { patch: { transforms: { polish: { instructions: ["Use British spelling"] } } } },
     ]);
+  });
+
+  it("offers Clarify main point and Refine phrasing for impact, off by default", async () => {
+    const { argsOf } = backend(enabled);
+    render(<TransformsPage />);
+    const mainPoint = await screen.findByRole("switch", { name: "Clarify main point" });
+    const impact = screen.getByRole("switch", { name: "Refine phrasing for impact" });
+    expect(mainPoint).toHaveAttribute("aria-checked", "false");
+    expect(impact).toHaveAttribute("aria-checked", "false");
+    fireEvent.click(mainPoint);
+    await waitFor(() => expect(mainPoint).toHaveAttribute("aria-checked", "true"));
+    fireEvent.click(impact);
+    await waitFor(() =>
+      expect(argsOf("update_settings")).toEqual([
+        { patch: { transforms: { polish: { rules: { mainPoint: true } } } } },
+        { patch: { transforms: { polish: { rules: { impact: true } } } } },
+      ]),
+    );
   });
 
   it("saves a new custom transform as it is typed, suggesting Opt+3 first", async () => {

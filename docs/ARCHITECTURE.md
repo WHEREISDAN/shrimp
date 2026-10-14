@@ -994,7 +994,10 @@ transforms took 0.8–1.7 s.
 ### Transforms
 
 Turned on from the Transforms page, which binds their shortcuts (TRF-01..06): Polish
-(Opt+1) with five toggleable rules and up to 5 custom instructions, Prompt Engineer
+(Opt+1) with five toggleable rules, two more that start off (Clarify main point, Refine
+phrasing for impact; a settings file without them reads them as off) and up to 5 custom
+instructions of at most 50 words ("A custom rule with this text already exists" for a
+repeat, ignoring case), Prompt Engineer
 (Opt+2) with an editable prompt, up to 8 custom transforms (name, prompt, shortcut, up to
 5 writing samples of 50–500 words; the first suggests Opt+3; edits save on their own),
 and See changes (Opt+O). They live in `settings.transforms`.

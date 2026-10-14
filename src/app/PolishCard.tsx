@@ -5,7 +5,15 @@ import { ShortcutRecorder } from "./ShortcutRecorder";
 import { ToggleRow } from "./ToggleRow";
 
 /** The rules in display order; each has `transforms.polish.<rule>` and `<rule>Body` text. */
-const RULES: (keyof PolishRules)[] = ["concise", "clarity", "reorder", "structure", "tone"];
+const RULES: (keyof PolishRules)[] = [
+  "concise",
+  "clarity",
+  "reorder",
+  "structure",
+  "tone",
+  "mainPoint",
+  "impact",
+];
 
 const MAX_INSTRUCTIONS = 5;
 const MAX_INSTRUCTION_WORDS = 50;
@@ -31,7 +39,7 @@ export function PolishCard({ settings, update }: PolishCardProps) {
       setProblem(t("transforms.polish.tooLong", { count: MAX_INSTRUCTION_WORDS }));
       return;
     }
-    if (polish.instructions.some((other) => other.toLowerCase() === text.toLowerCase())) {
+    if (polish.instructions.some((other) => other.trim().toLowerCase() === text.toLowerCase())) {
       setProblem(t("transforms.polish.duplicate"));
       return;
     }

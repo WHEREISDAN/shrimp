@@ -126,7 +126,15 @@ export const SETTINGS: Settings = {
   transforms: {
     enabled: false,
     polish: {
-      rules: { concise: true, clarity: true, reorder: true, structure: true, tone: true },
+      rules: {
+        concise: true,
+        clarity: true,
+        reorder: true,
+        structure: true,
+        tone: true,
+        mainPoint: false,
+        impact: false,
+      },
       instructions: [],
     },
     promptEngineer: { prompt: "Turn the text into a clear prompt." },

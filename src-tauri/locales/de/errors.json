@@ -52,7 +52,7 @@
   "error.transforms.tooManyInstructions": "Verwende höchstens {max} eigene Anweisungen.",
   "error.transforms.emptyInstruction": "Eine Anweisung darf nicht leer sein.",
   "error.transforms.instructionTooLong": "Halte jede Anweisung unter {max} Wörtern.",
-  "error.transforms.duplicateInstruction": "Diese Anweisung steht schon in der Liste.",
+  "error.transforms.duplicateInstruction": "Eine eigene Regel mit diesem Text gibt es bereits",
   "error.transforms.promptTooLong": "Halte den Prompt unter {max} Zeichen.",
   "error.transforms.tooMany": "Verwende höchstens {max} eigene Transformationen.",
   "error.transforms.missingId": "Eine Transformation braucht eine ID.",

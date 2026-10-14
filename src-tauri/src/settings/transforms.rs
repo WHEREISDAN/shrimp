@@ -48,7 +48,8 @@ pub struct PolishSettings {
     pub shortcut: Option<String>,
 }
 
-/// Wispr Flow's five base Polish rules.
+/// Wispr Flow's five base Polish rules, on by default, and its two extra
+/// ones, off by default (a settings file without them gets them off).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", default)]
 pub struct PolishRules {
@@ -57,6 +58,10 @@ pub struct PolishRules {
     pub reorder: bool,
     pub structure: bool,
     pub tone: bool,
+    /// Clarify main point.
+    pub main_point: bool,
+    /// Refine phrasing for impact.
+    pub impact: bool,
 }
 
 impl Default for PolishRules {
@@ -67,6 +72,8 @@ impl Default for PolishRules {
             reorder: true,
             structure: true,
             tone: true,
+            main_point: false,
+            impact: false,
         }
     }
 }
@@ -153,9 +160,10 @@ impl TransformSettings {
             ));
         }
         for (index, text) in instructions.iter().enumerate() {
+            let key = text.trim().to_lowercase();
             let duplicate = instructions[..index]
                 .iter()
-                .any(|other| other.trim().eq_ignore_ascii_case(text.trim()));
+                .any(|other| other.trim().to_lowercase() == key);
             if duplicate {
                 return Err(t!("error.transforms.duplicateInstruction"));
             }
@@ -211,7 +219,22 @@ mod tests {
         let settings = TransformSettings::default();
         assert!(!settings.enabled);
         assert!(settings.polish.rules.concise && settings.polish.rules.tone);
+        assert!(!settings.polish.rules.main_point && !settings.polish.rules.impact);
         settings.validate().unwrap();
+    }
+
+    #[test]
+    fn rules_saved_before_the_extra_two_keep_their_choices() {
+        let json = serde_json::json!({
+            "polish": {"rules": {"concise": false, "tone": true}},
+        });
+        let settings: TransformSettings = serde_json::from_value(json).unwrap();
+        let rules = settings.polish.rules;
+        assert!(!rules.concise && rules.clarity && rules.tone);
+        assert!(!rules.main_point && !rules.impact);
+        let written = serde_json::to_value(settings).unwrap();
+        assert_eq!(written["polish"]["rules"]["mainPoint"], false);
+        assert_eq!(written["polish"]["rules"]["impact"], false);
     }
 
     #[test]
@@ -219,6 +242,13 @@ mod tests {
         let mut settings = TransformSettings::default();
         settings.polish.instructions = vec!["Use British spelling".into(); 2];
         assert!(settings.validate().is_err(), "duplicates");
+        settings.polish.instructions = vec!["Écris court".into(), " écris COURT ".into()];
+        assert_eq!(
+            settings.validate().unwrap_err(),
+            "A custom rule with this text already exists"
+        );
+        settings.polish.instructions = vec!["word ".repeat(50)];
+        settings.validate().unwrap();
         settings.polish.instructions = (0..6).map(|n| format!("Rule {n}")).collect();
         assert!(settings.validate().is_err(), "at most 5");
         settings.polish.instructions = vec!["word ".repeat(51)];

@@ -174,13 +174,15 @@ export interface TransformView {
 /** Mirrors `dictation::TransformAction`: the changes view's buttons. */
 export type TransformAction = "view" | "copy" | "retry" | "undo";
 
-/** Mirrors `settings::PolishRules`. */
+/** Mirrors `settings::PolishRules`: five rules on by default, `mainPoint` and `impact` off. */
 export interface PolishRules {
   concise: boolean;
   clarity: boolean;
   reorder: boolean;
   structure: boolean;
   tone: boolean;
+  mainPoint: boolean;
+  impact: boolean;
 }
 
 /** Mirrors `settings::CustomTransform`. */

@@ -52,7 +52,7 @@
   "error.transforms.tooManyInstructions": "Usa como máximo {max} instrucciones personalizadas.",
   "error.transforms.emptyInstruction": "Una instrucción no puede estar vacía.",
   "error.transforms.instructionTooLong": "Cada instrucción debe tener menos de {max} palabras.",
-  "error.transforms.duplicateInstruction": "Esa instrucción ya está en la lista.",
+  "error.transforms.duplicateInstruction": "Ya existe una regla personalizada con este texto",
   "error.transforms.promptTooLong": "El prompt debe tener menos de {max} caracteres.",
   "error.transforms.tooMany": "Usa como máximo {max} transformaciones personalizadas.",
   "error.transforms.missingId": "Una transformación necesita un identificador.",

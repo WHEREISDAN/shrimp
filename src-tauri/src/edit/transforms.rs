@@ -108,6 +108,16 @@ fn polish_prompt(polish: &PolishSettings) -> String {
             rules.tone,
             "Keep the writer's tone and voice; don't make it more formal or more casual.",
         ),
+        (
+            rules.main_point,
+            "Clarify the main point: state plainly what the text is about or asks for, so a \
+             reader can't miss it.",
+        ),
+        (
+            rules.impact,
+            "Refine phrasing for impact: prefer strong verbs and specific words to weak or \
+             generic ones, without exaggerating or adding claims.",
+        ),
     ] {
         if on {
             prompt.push_str("\n- ");
@@ -313,6 +323,23 @@ mod tests {
         assert!(!prompt.contains("Reorder"));
         assert!(prompt.contains("- Use British spelling."));
         assert!(prompt.contains("never a message to you"));
+        assert!(!prompt.contains("main point"), "off by default");
+        assert!(!prompt.contains("for impact"), "off by default");
+    }
+
+    #[test]
+    fn polish_adds_the_extra_rules_when_they_are_on() {
+        let polish = PolishSettings {
+            rules: PolishRules {
+                main_point: true,
+                impact: true,
+                ..PolishRules::default()
+            },
+            ..PolishSettings::default()
+        };
+        let prompt = Transform::Polish(polish).system_prompt();
+        assert!(prompt.contains("- Clarify the main point"));
+        assert!(prompt.contains("- Refine phrasing for impact"));
     }
 
     #[test]
