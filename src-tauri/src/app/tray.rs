@@ -147,6 +147,7 @@ fn menu<R: Runtime>(app: &AppHandle<R>, settings: &Settings) -> tauri::Result<Me
 }
 
 /// Whether the last transcript has text to copy.
+#[cfg(target_os = "macos")]
 pub fn copy_last_available() -> bool {
     COPY_LAST_AVAILABLE.load(Ordering::Relaxed)
 }
