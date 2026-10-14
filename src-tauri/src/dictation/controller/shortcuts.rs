@@ -1,16 +1,22 @@
-//! Shortcuts that are not dictation gestures: Press Enter (CORE-15), the
-//! Command Mode shortcut while it is off (CMD-06), and which shortcuts are
-//! bound at each moment.
+//! Shortcuts that are not dictation gestures: Press Enter (CORE-15) and
+//! the answer to the "press enter" prompt (CORE-17), the Command Mode
+//! shortcut while it is off (CMD-06), and which shortcuts are bound at each
+//! moment.
 
 use std::sync::Arc;
+use std::time::Duration;
 
 use handy_keys::Modifiers;
 
 use super::Controller;
+use crate::context::DictationContext;
 use crate::dictation::bindings::{self, Moment};
+use crate::dictation::outcomes;
+use crate::dictation::state::Delivered;
+use crate::edit::spoken::PRESS_ENTER;
 use crate::hotkeys::Action;
 use crate::notify::{Notice, NoticeAction};
-use crate::platform::SyntheticKey;
+use crate::platform::{InsertText, SyntheticKey};
 use crate::t;
 
 /// "Command mode is toggled off" shows at most this often (CMD-06).
@@ -26,6 +32,38 @@ impl Controller {
             if let Err(error) = inserter.press(SyntheticKey::Enter, extra) {
                 ui.notice(Notice::error(t!("notice.pressEnterFailed", error = error)));
             }
+        });
+    }
+
+    /// The "press enter" prompt (CORE-17). Great turns the command on and
+    /// presses Enter for the dictation just pasted; Disable types the words
+    /// back, so they stay text now and from now on. Nothing is typed or
+    /// pressed while another dictation records.
+    pub(super) fn answer_press_enter(&self, enable: bool) {
+        if enable {
+            let on = serde_json::json!({"experimental": {"pressEnterCommand": true}});
+            if let Err(error) = self.settings.update(&on) {
+                log::warn!("could not turn the press enter command on: {error}");
+            }
+        }
+        if self.recording.is_some() || self.gestures.is_busy() {
+            return;
+        }
+        if enable {
+            self.press_enter(Modifiers::empty());
+            return;
+        }
+        let pipeline = self.pipeline.clone();
+        let app = self.focus.frontmost_app();
+        let options = pipeline.insert_options(&DictationContext::new(app, None));
+        let ui = Arc::clone(&self.ui);
+        let words = Delivered {
+            text: InsertText::plain(format!(" {PRESS_ENTER}")),
+            formatted: false,
+        };
+        tauri::async_runtime::spawn(async move {
+            let outcome = pipeline.insert(words, options, Duration::ZERO).await;
+            outcomes::report(outcome, ui.as_ref());
         });
     }
 

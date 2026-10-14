@@ -69,6 +69,18 @@ impl EditTimeout {
     }
 }
 
+/// What a final "press enter" asks for; the phrase is cut off unless `No`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum PressEnter {
+    #[default]
+    No,
+    /// The command is on: Enter after the paste (CORE-16).
+    Press,
+    /// The command is off and this is its first detection in a dictation:
+    /// a one-time prompt offers to turn it on (CORE-17).
+    Ask,
+}
+
 /// The text to insert and how it was made.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Edited {
@@ -77,8 +89,8 @@ pub struct Edited {
     pub formatted: bool,
     pub notice: Option<Notice>,
     pub llm_ms: Option<u64>,
-    /// The dictation ended with "press enter" (CORE-16).
-    pub press_enter: bool,
+    /// The dictation ended with "press enter" (CORE-16, CORE-17).
+    pub press_enter: PressEnter,
     /// Dictionary corrections and snippets applied, for Insights (STA-01).
     pub dictionary_fixes: usize,
     /// What smart formatting did, for its tips (FMT-13).
@@ -92,7 +104,7 @@ impl Default for Edited {
             formatted: true,
             notice: None,
             llm_ms: None,
-            press_enter: false,
+            press_enter: PressEnter::No,
             dictionary_fixes: 0,
             formatting: Formatting::default(),
         }
@@ -210,12 +222,16 @@ impl Editor {
 
     pub async fn edit(&self, raw: &str, context: &DictationContext) -> Edited {
         let settings = self.settings();
-        let suffix = settings
-            .experimental
-            .press_enter_command
-            .then(|| spoken::press_enter_suffix(raw))
-            .flatten();
-        let press_enter = suffix.is_some();
+        let experimental = settings.experimental;
+        // A dictation into an app, not History's Retry, can prompt (CORE-17).
+        let detect = experimental.press_enter_command
+            || (!experimental.press_enter_prompt_seen && context.app.is_some());
+        let suffix = detect.then(|| spoken::press_enter_suffix(raw)).flatten();
+        let press_enter = match (&suffix, experimental.press_enter_command) {
+            (None, _) => PressEnter::No,
+            (Some(_), true) => PressEnter::Press,
+            (Some(_), false) => PressEnter::Ask,
+        };
         let raw = suffix.as_deref().unwrap_or(raw);
         let mut edited = self.edit_text(raw, context, &settings).await;
         edited.press_enter = press_enter;
@@ -394,7 +410,7 @@ impl Editor {
             formatted,
             notice,
             llm_ms,
-            press_enter: false,
+            press_enter: PressEnter::No,
             dictionary_fixes: corrections + held.len(),
             formatting,
         }

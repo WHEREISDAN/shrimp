@@ -111,7 +111,12 @@ export const SETTINGS: Settings = {
   },
   styles: { personal: "veryCasual", work: "formal", email: "formal", other: "casual" },
   privacy: { contextAwareness: true, history: "local", privacyMode: false },
-  experimental: { commandMode: false, commandModeIntroSeen: false, pressEnterCommand: false },
+  experimental: {
+    commandMode: false,
+    commandModeIntroSeen: false,
+    pressEnterCommand: false,
+    pressEnterPromptSeen: false,
+  },
   shortcuts: { bindings: {} },
   notices: {
     commandModeOffCount: 0,

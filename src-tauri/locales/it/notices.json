@@ -74,6 +74,7 @@
   "notice.paste.needAccessibility": "Shrimp ha bisogno di Accessibilità per incollare. La trascrizione è negli appunti.",
   "notice.paste.noTextField": "Nessun campo di testo attivo. La trascrizione è negli appunti.",
   "notice.pressEnterFailed": "Impossibile premere Invio: {error}",
+  "notice.pressEnter.prompt": "Shrimp ha omesso “press enter” alla fine. Premere Invio quando una dettatura finisce così?",
   "notice.quoted": "“{text}”",
   "notice.secureInput.anotherApp": "un'altra app",
   "notice.setup.globeKey": "Il tasto fn {conflict}. In Impostazioni di Sistema › Tastiera, imposta “Premi il tasto 🌐 per” su Non fare nulla.",

@@ -154,6 +154,10 @@ pub enum ControllerInput {
     },
     /// The different-language card's Add language.
     AddDetectedLanguage,
+    /// The "press enter" prompt's Great (true) or Disable (CORE-17).
+    AnswerPressEnter {
+        enable: bool,
+    },
     Bar(BarControl),
     /// Paste or copy last transcript from the tray menu.
     Menu(Action),
@@ -243,6 +247,9 @@ pub enum Outcome {
     InsertFailed(Delivered, String),
     /// "Press enter" alone: Enter was pressed, nothing pasted (CORE-16).
     EnterPressed,
+    /// "Press enter" alone with the command off: nothing pasted, and a
+    /// notice asks whether to turn the command on (CORE-17).
+    PressEnterAsked,
     /// A Command Mode answer to show (CMD-03).
     Answered(Answer),
     /// A Command Mode search opened in the browser (CMD-05).

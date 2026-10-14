@@ -337,6 +337,7 @@ impl Controller {
                 self.language_detected(code, probability);
             }
             ControllerInput::AddDetectedLanguage => self.add_detected_language(),
+            ControllerInput::AnswerPressEnter { enable } => self.answer_press_enter(enable),
             ControllerInput::SettingsChanged => self.refresh_bindings(),
             ControllerInput::Transform(action) => self.transform_action(action),
             ControllerInput::Bar(control) => self.gesture(Input::Bar(control)),

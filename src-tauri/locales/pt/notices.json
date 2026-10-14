@@ -74,6 +74,7 @@
   "notice.paste.needAccessibility": "O Shrimp precisa de Acessibilidade para colar. Sua transcrição está na área de transferência.",
   "notice.paste.noTextField": "Nenhum campo de texto em foco. Sua transcrição está na área de transferência.",
   "notice.pressEnterFailed": "Não foi possível pressionar Enter: {error}",
+  "notice.pressEnter.prompt": "O Shrimp omitiu “press enter” no final. Pressionar Enter sempre que um ditado terminar assim?",
   "notice.quoted": "“{text}”",
   "notice.secureInput.anotherApp": "outro app",
   "notice.setup.globeKey": "Pressionar fn também {conflict}. Em Ajustes do Sistema › Teclado, defina “Pressionar a tecla 🌐 para” como Não Fazer Nada.",

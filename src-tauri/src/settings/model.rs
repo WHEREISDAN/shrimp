@@ -175,6 +175,9 @@ pub struct ExperimentalSettings {
     pub command_mode_intro_seen: bool,
     /// Ending a dictation with "press enter" presses Enter (CORE-16).
     pub press_enter_command: bool,
+    /// The one-time prompt for the first "press enter" with the command off
+    /// has been shown (CORE-17).
+    pub press_enter_prompt_seen: bool,
 }
 
 /// The Dictionary page's settings.

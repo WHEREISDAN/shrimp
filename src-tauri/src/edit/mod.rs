@@ -26,7 +26,7 @@ use serde::{Deserialize, Serialize};
 
 pub use library::{FixedLibrary, Library, Snapshot};
 pub use markdown::Rendered;
-pub use pipeline::{EditTimeout, Edited, Editor, raw_inserted};
+pub use pipeline::{EditTimeout, Edited, Editor, PressEnter, raw_inserted};
 pub use style::{AppCategory, Style, Target};
 
 /// How much the AI edits (FMT-01). Mirrors `CleanupLevel` in src/lib/ipc.ts.

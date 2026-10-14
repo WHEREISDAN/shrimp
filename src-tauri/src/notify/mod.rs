@@ -107,6 +107,10 @@ pub enum NoticeAction {
     UpdateVoiceProfile,
     /// Installs the downloaded update and restarts (PKG-03).
     RestartToUpdate,
+    /// Great: turns the "press enter" command on and presses Enter (CORE-17).
+    EnablePressEnter,
+    /// Disable: types " press enter" back and leaves the command off.
+    DisablePressEnter,
 }
 
 static NEXT_ID: AtomicU64 = AtomicU64::new(1);

@@ -74,6 +74,7 @@
   "notice.paste.needAccessibility": "Shrimp braucht die Bedienungshilfen zum Einfügen. Dein Transkript liegt in der Zwischenablage.",
   "notice.paste.noTextField": "Kein Textfeld ausgewählt. Dein Transkript liegt in der Zwischenablage.",
   "notice.pressEnterFailed": "Enter konnte nicht gedrückt werden: {error}",
+  "notice.pressEnter.prompt": "Shrimp hat „press enter“ am Ende weggelassen. Enter drücken, wenn ein Diktat damit endet?",
   "notice.quoted": "„{text}“",
   "notice.secureInput.anotherApp": "eine andere App",
   "notice.setup.globeKey": "Die fn-Taste {conflict}. Stell unter Systemeinstellungen › Tastatur „Taste 🌐 drücken für“ auf „Keine Aktion“.",

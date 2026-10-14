@@ -148,7 +148,7 @@ fn next_word_is(text: &str, end: usize, word: &str) -> bool {
 }
 
 /// The words that end a dictation with Enter (CORE-16).
-const PRESS_ENTER: &str = "press enter";
+pub const PRESS_ENTER: &str = "press enter";
 
 /// Strips a final "press enter" and returns the text before it.
 pub fn press_enter_suffix(text: &str) -> Option<String> {

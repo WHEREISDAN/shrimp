@@ -41,6 +41,8 @@ export const core: CoreCatalog = {
       seeVoiceProfile: "Profil ansehen",
       updateVoiceProfile: "Profil aktualisieren",
       restartToUpdate: "Jetzt neu starten",
+      enablePressEnter: "Super",
+      disablePressEnter: "Deaktivieren",
     },
   },
   bar: {

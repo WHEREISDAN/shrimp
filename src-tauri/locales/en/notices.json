@@ -74,6 +74,7 @@
   "notice.paste.needAccessibility": "Shrimp needs Accessibility to paste. Your transcript is on the clipboard.",
   "notice.paste.noTextField": "No text field is focused. Your transcript is on the clipboard.",
   "notice.pressEnterFailed": "Couldn't press Enter: {error}",
+  "notice.pressEnter.prompt": "Shrimp left out “press enter” at the end. Press Enter whenever a dictation ends with it?",
   "notice.quoted": "“{text}”",
   "notice.secureInput.anotherApp": "another app",
   "notice.setup.globeKey": "Pressing fn also {conflict}. In System Settings › Keyboard, set “Press 🌐 key to” to Do Nothing.",

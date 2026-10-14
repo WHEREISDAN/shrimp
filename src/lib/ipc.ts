@@ -47,7 +47,9 @@ export type NoticeAction =
   | "openInsights"
   | "seeVoiceProfile"
   | "updateVoiceProfile"
-  | "restartToUpdate";
+  | "restartToUpdate"
+  | "enablePressEnter"
+  | "disablePressEnter";
 
 /** Mirrors `notify::Notice`. */
 export interface Notice {
@@ -275,7 +277,13 @@ export interface Settings {
     /** Only Whisper on this Mac and Ollama run. */
     privacyMode: boolean;
   };
-  experimental: { commandMode: boolean; commandModeIntroSeen: boolean; pressEnterCommand: boolean };
+  experimental: {
+    commandMode: boolean;
+    commandModeIntroSeen: boolean;
+    pressEnterCommand: boolean;
+    /** The one-time prompt after the first "press enter" was shown. */
+    pressEnterPromptSeen: boolean;
+  };
   /** Bindings per action ("pushToTalk", "transform:<id>"), e.g. ["Fn", "Mouse4"]; missing means the defaults. */
   shortcuts: { bindings: Record<string, string[]> };
   notices: {

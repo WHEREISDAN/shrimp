@@ -1021,7 +1021,13 @@ spacing, unless the dictation raised a notice, held snippets or followed another
 
 The "press enter" voice command (Settings › Experimental, CORE-16) strips a final "press
 enter" from the transcript before the edit and presses Enter 120 ms after a successful
-paste; "press enter" alone just presses Enter.
+paste; "press enter" alone just presses Enter. With the command off, the first dictation
+into an app that ends with it (not History's Retry) also loses the phrase, presses
+nothing, and, once pasted, shows a one-time prompt (CORE-17,
+`experimental.pressEnterPromptSeen`): Great turns the command on and presses Enter now;
+Disable pastes " press enter" back and keeps the command off, so the words stay text from
+then on; ignoring it leaves the command off too. Mid-sentence and Command Mode
+occurrences stay text.
 
 ### Dictionary auto-learn
 
@@ -1198,7 +1204,8 @@ the next one.
 Built sections: `stt` (engine, the local Whisper model, OpenAI and Groq models), `ai`
 (provider, cleanup level, model per provider, Ollama model and address), `styles` (one per
 category, Formal by default), `privacy` (`contextAwareness`, on by default),
-`experimental` (`commandMode`, `commandModeIntroSeen`, `pressEnterCommand`), `privacy.history`
+`experimental` (`commandMode`, `commandModeIntroSeen`, `pressEnterCommand`,
+`pressEnterPromptSeen`), `privacy.history`
 (`local`, `autoDelete` or `never`, HIS-07), `shortcuts`
 (`bindings` per action, see Shortcuts), `notices` (how often one-off notices were shown),
 `transforms`, `vibeCoding` (`fileTagging`, on by default) and `dictionary` (`autoLearn`, on
