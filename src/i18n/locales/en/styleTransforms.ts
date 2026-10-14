@@ -68,7 +68,7 @@ export const styleTransforms = {
     heading: "Rewrite any text with AI",
     toggle: "Transforms",
     toggleBody:
-      "Select text anywhere and press a transform's shortcut: the result replaces it, and “See changes” shows what changed. Your text is sent to your AI provider.",
+      "Select text anywhere and press a transform's shortcut, or hover the Flow Bar and click the wand: the result replaces it, and “See changes” shows what changed. Your text is sent to your AI provider.",
     newTransform: "New transform",
     afterDictation: "After dictation",
     autoApply: "Apply a transform after every dictation",

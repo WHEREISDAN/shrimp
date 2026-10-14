@@ -70,7 +70,7 @@ export const styleTransforms: StyleTransformsCatalog = {
     heading: "Beliebigen Text mit KI umschreiben",
     toggle: "Transformationen",
     toggleBody:
-      "Wähle irgendwo Text aus und drück den Kurzbefehl einer Transformation: Das Ergebnis ersetzt ihn, und „Änderungen ansehen“ zeigt, was sich geändert hat. Dein Text wird an deinen KI-Anbieter gesendet.",
+      "Wähle irgendwo Text aus und drück den Kurzbefehl einer Transformation oder klick in der Flow Bar auf den Zauberstab: Das Ergebnis ersetzt ihn, und „Änderungen ansehen“ zeigt, was sich geändert hat. Dein Text wird an deinen KI-Anbieter gesendet.",
     newTransform: "Neue Transformation",
     afterDictation: "Nach dem Diktat",
     autoApply: "Nach jedem Diktat eine Transformation anwenden",

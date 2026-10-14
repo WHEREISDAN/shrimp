@@ -70,7 +70,7 @@ export const styleTransforms: StyleTransformsCatalog = {
     heading: "Reescribe cualquier texto con IA",
     toggle: "Transformaciones",
     toggleBody:
-      "Selecciona texto en cualquier lugar y pulsa el atajo de una transformación: el resultado lo sustituye y “Ver cambios” muestra qué ha cambiado. Tu texto se envía a tu proveedor de IA.",
+      "Selecciona texto en cualquier lugar y pulsa el atajo de una transformación, o pasa el puntero por la Flow Bar y haz clic en la varita: el resultado lo sustituye y “Ver cambios” muestra qué ha cambiado. Tu texto se envía a tu proveedor de IA.",
     newTransform: "Nueva transformación",
     afterDictation: "Después de dictar",
     autoApply: "Aplicar una transformación después de cada dictado",
