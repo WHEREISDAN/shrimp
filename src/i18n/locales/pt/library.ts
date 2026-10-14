@@ -78,6 +78,7 @@ export const library: LibraryCatalog = {
     bold: "Negrito",
     italic: "Itálico",
     link: "Link",
+    expansionTooLong: "Essa expansão é longa demais. Encurte-a e tente de novo.",
     save: "Salvar",
     saveChanges: "Salvar alterações",
   },

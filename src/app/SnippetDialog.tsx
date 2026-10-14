@@ -33,6 +33,8 @@ export function SnippetDialog({ snippet, onSaved, onClose }: SnippetDialogProps)
   const [trigger, setTrigger] = useState(snippet?.trigger ?? "");
   const [expansion, setExpansion] = useState(snippet?.expansion ?? "");
   const [error, setError] = useState<string | null>(null);
+  /** Formatting would push the expansion past its limit (SNP-01). */
+  const [tooLong, setTooLong] = useState(false);
   const [busy, setBusy] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const pendingSelection = useRef<TextEdit | null>(null);
@@ -65,6 +67,7 @@ export function SnippetDialog({ snippet, onSaved, onClose }: SnippetDialogProps)
       return;
     }
     const next = apply(expansion, textarea.selectionStart, textarea.selectionEnd);
+    setTooLong(next.value.length > MAX_EXPANSION);
     if (next.value.length <= MAX_EXPANSION) {
       pendingSelection.current = next;
       setExpansion(next.value);
@@ -136,7 +139,10 @@ export function SnippetDialog({ snippet, onSaved, onClose }: SnippetDialogProps)
             maxLength={MAX_EXPANSION}
             rows={6}
             aria-describedby={`${ids}-expansion-hint`}
-            onChange={(event) => setExpansion(event.target.value)}
+            onChange={(event) => {
+              setTooLong(false);
+              setExpansion(event.target.value);
+            }}
             onKeyDown={onTextareaKeyDown}
           />
           <div className="field-foot">
@@ -146,9 +152,9 @@ export function SnippetDialog({ snippet, onSaved, onClose }: SnippetDialogProps)
             <span className="muted counter">{`${expansion.length}/${MAX_EXPANSION}`}</span>
           </div>
         </div>
-        {error && (
+        {(error !== null || tooLong) && (
           <p className="error" role="alert">
-            {error}
+            {error ?? t("snippets.expansionTooLong")}
           </p>
         )}
         <div className="dialog-actions">
