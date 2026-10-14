@@ -10,10 +10,16 @@ interface GreetingProps {
 
 type Part = "morning" | "afternoon" | "evening";
 
+/** Wispr Flow shows the push-to-talk shortcut only before this many dictated words. */
+const SHORTCUT_HINT_WORDS = 2_000;
+
 const partOfDay = (hour: number): Part =>
   hour < 12 ? "morning" : hour < 18 ? "afternoon" : "evening";
 
-/** Home's greeting with the push-to-talk shortcut, and the week's stats card (STA-02). */
+/**
+ * Home's greeting, with the push-to-talk shortcut until 2,000 words are dictated,
+ * and the week's stats card (STA-02).
+ */
 export function Greeting({ onOpenInsights }: GreetingProps) {
   const { t } = useTranslation();
   const [name, setName] = useState<string | null>(null);
@@ -38,11 +44,13 @@ export function Greeting({ onOpenInsights }: GreetingProps) {
   useTauriEvent(EVENTS.settings, loadShortcut);
 
   const greeting = name ? t(`home.${part}`, { name }) : t(`home.${part}Anonymous`);
+  const showShortcut =
+    shortcut !== null && insights !== null && insights.totalWords < SHORTCUT_HINT_WORDS;
   return (
     <>
       <header className="greeting">
         <h1>{greeting}</h1>
-        {shortcut && (
+        {showShortcut && (
           <p>
             <Trans
               i18nKey="home.holdToDictate"

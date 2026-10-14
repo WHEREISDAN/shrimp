@@ -42,7 +42,8 @@ function backend(models: ModelStatus[]) {
       case "list_history":
         return { entries: [], disabled: false };
       case "get_insights":
-        return INSIGHTS;
+        // A new user's: the greeting still shows the shortcut (STA-02).
+        return { ...INSIGHTS, totalWords: 1_200 };
       case "get_voice_profile":
         return VOICE_PROFILE;
       case "get_app_health":
