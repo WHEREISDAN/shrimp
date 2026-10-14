@@ -463,7 +463,9 @@ into another app still need them.
   AVX2, BMI2, FMA and F16C) instead of the build machine's own instructions, and signs every
   binary through `scripts/windows/sign.ps1` when `SHRIMP_WINDOWS_SIGN_THUMBPRINT` names a
   code-signing certificate in the certificate store (`SHRIMP_WINDOWS_TIMESTAMP_URL`
-  optional). Without it the installer is unsigned and the build says so.
+  optional). Without it the installer is unsigned and the build says so. It also needs the
+  updater key (`TAURI_SIGNING_PRIVATE_KEY`, `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`) and
+  takes the feed from `SHRIMP_UPDATE_FEED`; see [RELEASING.md](RELEASING.md#windows).
 - The installer (`tauri.windows.conf.json`) is NSIS, per user, into
   `%LOCALAPPDATA%\Shrimp` without administrator rights. A first install adds the login
   item (`src-tauri/windows/hooks.nsh`); updates keep the user's choice; uninstalling

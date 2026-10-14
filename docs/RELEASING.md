@@ -16,6 +16,11 @@ How to cut a Shrimp release and publish updates. The update code is described in
 | tauri-plugin-mcp  | Not registered                                     | Registered                                  |
 | Data, keychain    | `~/Library/Application Support/com.shrimp.desktop` | `…/com.shrimp.desktop.dev`                  |
 
+On Windows the release is built by `scripts/windows/release.ps1` and the debug app by
+`pnpm app:dev:win`; data lives in `%APPDATA%\com.shrimp.desktop` and
+`%APPDATA%\com.shrimp.desktop.dev`, API keys in Credential Manager. See
+[Windows](#windows).
+
 The two identifiers never collide, so a release install and the dev app keep separate
 settings, data, keychain entries and privacy grants.
 
@@ -148,6 +153,72 @@ xcrun stapler validate Shrimp_<version>_aarch64.dmg
 spctl -a -t open --context context:primary-signature -vv Shrimp_<version>_aarch64.dmg
 ```
 
+## Windows
+
+### One-time setup (Windows)
+
+1. **Build tools**: as in [DEVELOPMENT.md](DEVELOPMENT.md#windows), with the
+   [Vulkan SDK](https://vulkan.lunarg.com/) (`VULKAN_SDK`).
+2. **Updater signing key.** The same key pair as the macOS release: the Windows update is
+   signed with the private key whose public key is in `tauri.conf.json`. Copy the private
+   key file from the Mac (`~/.tauri/shrimp-updater.key`) to the Windows machine over a
+   channel you trust, keep it outside the repository, and give the build its path and
+   password:
+
+   ```powershell
+   $env:TAURI_SIGNING_PRIVATE_KEY = "$env:USERPROFILE\.tauri\shrimp-updater.key"
+   $env:TAURI_SIGNING_PRIVATE_KEY_PASSWORD = '<the key password>'
+   ```
+
+   Never generate a new key pair for a release: installed copies only accept updates
+   signed with the existing one.
+
+3. **Code signing (optional).** `SHRIMP_WINDOWS_SIGN_THUMBPRINT` names a code-signing
+   certificate in the certificate store, and `SHRIMP_WINDOWS_TIMESTAMP_URL` its
+   timestamp server (default DigiCert). Without it the installer and the app are
+   unsigned, and SmartScreen warns on download.
+
+### Cutting a Windows release
+
+```powershell
+$env:SHRIMP_UPDATE_FEED = 'https://example.com/shrimp/latest.json'
+scripts/windows/release.ps1            # or: pnpm release:win
+```
+
+The script checks the Vulkan SDK, the updater key and its password, and the feed (the same
+rules as on macOS), then builds with Whisper on the GPU (`--features vulkan`) and a
+portable CPU baseline into `C:\st` (MSBuild fails on longer paths; `CARGO_TARGET_DIR`
+overrides it). Tauri signs every binary through `scripts/windows/sign.ps1`. The update is
+the installer itself: the script copies it to `bundle\updater\`, signs it with the
+updater key, bound to the version (`tauri signer sign --app-version`), and with a feed
+writes `latest.json` for `windows-x86_64`. The key is kept out of the Tauri build.
+
+`-Version X.Y.Z` builds another version without editing the version files, and
+`-Config <file>` merges a JSON file into the configuration last (test builds).
+
+| File (under `$env:CARGO_TARGET_DIR\release\bundle`) | What                               |
+| --------------------------------------------------- | ---------------------------------- |
+| `nsis\Shrimp_<version>_x64-setup.exe`               | The installer, for new installs    |
+| `updater\Shrimp_<version>_x64-setup.exe`            | The same file, as the update       |
+| `updater\Shrimp_<version>_x64-setup.exe.sig`        | Its minisign signature             |
+| `updater\latest.json`                               | The feed for Windows (with a feed) |
+
+### Publishing both platforms
+
+One feed serves both platforms when they ship the same version: merge the `platforms`
+entries of the two `latest.json` files (`darwin-aarch64` from the Mac, `windows-x86_64`
+from Windows) into one file. Upload both update files first and the merged `latest.json`
+last.
+
+### How a Windows update installs
+
+The updater downloads the installer and checks its signature like on macOS. Restart to
+update runs it in passive mode (a progress window, no questions) with `/UPDATE`, and
+Tauri ends Shrimp right away; Shrimp first unloads Whisper and clears its crash marker,
+which a normal quit does at `RunEvent::Exit`. The installer replaces the files in
+`%LOCALAPPDATA%\Shrimp` and starts the new version with the arguments the old one had.
+An update keeps the user's launch-at-login choice (`src-tauri/windows/hooks.nsh`).
+
 ## The update feed
 
 `latest.json` follows tauri-plugin-updater's static format:
@@ -197,6 +268,30 @@ drive: build each version with
 pack and sign the newer `Shrimp Dev.app` as `release.sh` does, start a dictation with
 `flow_bar_control`, and run `run_notice_action` with `restartToUpdate`. Run `pnpm app:dev`
 afterwards to rebuild the normal dev app.
+
+### Testing an update on Windows
+
+With a throwaway key pair, never committed, and a loopback feed:
+
+1. In a scratch folder outside the repository, run
+   `node_modules\.bin\tauri.cmd signer generate --ci -p <password> -w <folder>\test.key`,
+   and write its public key into a file such as
+   `{"plugins":{"updater":{"pubkey":"<content of test.key.pub>"}}}`.
+2. Set `TAURI_SIGNING_PRIVATE_KEY` to `test.key`, its password, and
+   `SHRIMP_UPDATE_FEED=http://127.0.0.1:8765/latest.json`; build the older version with
+   `release.ps1 -Config <file>` and keep its installer, then the newer one with
+   `-Version 0.1.1 -Config <file>`.
+3. Serve the newer `updater\` folder:
+   `python -m http.server 8765 --bind 127.0.0.1 --directory <folder>`.
+4. Install the older version (`Shrimp_0.1.0_x64-setup.exe /S`) and start it. A fresh
+   install downloads the speech model at launch; hard-linking the dev app's files from
+   `%APPDATA%\com.shrimp.desktop.dev\models` into `%APPDATA%\com.shrimp.desktop\models`
+   first avoids that.
+5. A minute after launch Shrimp finds 0.1.1, downloads it and shows "Update ready,
+   restart now?"; Restart now installs it and the new version opens its main window.
+6. Uninstall (`%LOCALAPPDATA%\Shrimp\uninstall.exe /S`), stop the server, and delete
+   the key pair, the builds, `%APPDATA%\com.shrimp.desktop` and
+   `%LOCALAPPDATA%\com.shrimp.desktop`.
 
 ## Privacy grants across updates (PKG-05)
 
