@@ -903,6 +903,35 @@ there from outside the window on three sides with the page's own top border. Sna
 don't open from the maximize button, which is web content. Other display scales rest on
 `small_icon_size` and Tauri's DPI handling.
 
+Re-verified on macOS after the Windows redesign fixes, 0.1.1 (2026-10-14), at `ffbc2a8`:
+
+- `pnpm check` passed: 209 Vitest tests, 551 Rust tests, clippy with `-D warnings`.
+- The signed dev app ran with its hooks off (`SHRIMP_NO_HOTKEYS=1`). The page has
+  `data-platform="macos"` and `data-material="vibrancy"`, no resize borders (`[data-edge]`), no
+  caption buttons and no `data-maximized`; `main` keeps the system's overlay scrollbar.
+- Home, Settings › General, Dictionary, and the Add word and Languages dialogs were captured in
+  light and dark at 900 × 640. They match the approved redesign captures except for data: the
+  dev app's history and dictionary were empty, and the mic meter was idle. The traffic lights,
+  the sidebar and the toolbar are unchanged, and no window edge line is drawn.
+- `is_resizable` is true and nothing covers the window's edges. The toolbar keeps
+  `data-tauri-drag-region="deep"`, and `start_dragging` is allowed for the main window. The
+  Windows-only `start_resize_dragging` is refused ("not allowed"), and `show_window_menu`
+  answers "not supported on this platform". Resizing and dragging were not tried with a real
+  pointer, as synthetic mouse events were off limits.
+- `pnpm regression:mac` (the owner's Shrimp wasn't running): 77 of 85 cases passed, FMT-07 and
+  FMT-09 ended with the usual model warnings, and 6 failed. FMT-01, FMT-04 and TRF-02 passed
+  alone; Ollama had been slow while the Mac swapped (17 GB of swap in use). APP-12 and APP-08
+  failed twice: the walkthrough waits 2.5 s after the socket opens, and the webview answered IPC
+  only after 3.7 to 5.8 s, the same for a dev app built at `9551a71` measured alternately. Later
+  both cases passed on both builds. CORE-06 got the "You can recover your cancelled transcript"
+  card (HIS-10), as the saved dev data had never shown it; with the card marked as shown today,
+  CORE-06 passed.
+- Nothing changed for macOS: every change from the Windows branch sits behind `IS_WINDOWS`,
+  `html[data-platform="windows"]`, `cfg(target_os = "windows")` or a Windows-only capability.
+  Only the new `show_window_menu` command is compiled on macOS, and nothing calls it there. The
+  version stays 0.1.1, and `Shrimp_0.1.1_aarch64.dmg` (built at `9551a71`) stays current;
+  `codesign`, `spctl` (Notarized Developer ID) and `stapler` still accept it.
+
 ## Parity audit (AUD-01)
 
 On 2026-10-13, phase 6 re-read Wispr's what's-new page (entries up to 9 October 2026),
