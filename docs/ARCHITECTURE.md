@@ -249,7 +249,7 @@ Built so far:
 | Kind     | Names                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
 | -------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Commands | `app_info`, `get_dictation_state`, `flow_bar_control`, `flow_bar_ready`, `flow_bar_layout`, `run_notice_action`, `get_models`, `get_permissions`, `open_permission_settings`                                                                                                                                                                                                                                                                                                                                                                    |
-| Phase 3  | `transform_action` (the changes view's Copy, Retry, re-transforms and Undo)                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| Phase 3  | `transform_action` (the changes view's Copy, Retry, re-transforms and Undo), `flow_bar_wand` (the wand, TRF-07)                                                                                                                                                                                                                                                                                                                                                                                                                                 |
 | Phase 4  | `get_shortcuts` (every action's bindings, the overlap warning, Secure Keyboard Entry), `record_shortcut` (records through the hooks; progress as `shortcuts://recording`), `cancel_shortcut_recording`, `remove_shortcut`, `reset_shortcuts`; `retry_model`, `download_model`, `delete_model`; `get_microphones`, `select_microphone`, `rank_microphone`, `forget_microphone`, `start_mic_preview`, `stop_mic_preview`; `get_languages`, `set_languages`, `set_active_language`; `flow_bar_drag`, `flow_bar_action` (the right-click menu)      |
 | Phase 4b | `get_app_health`, `dismiss_crash`, `check_storage`, `open_storage_settings`, `repair_data`, `reset_app` (both restart the app); `get_insights`, `get_voice_profile`, `generate_voice_profile` (rejects with `{kind}`), `copy_image` and `save_image` (a raw PNG request body; the file name in an `x-file-name` header); `list_history`, `copy_history`, `set_history_raw` (Undo/Redo AI edit), `retry_history`, `history_audio` (raw WAV bytes), `extract_history_audio`, `delete_history`, `set_history_storage` ("never" needs "delete all") |
 | Phase 2  | `get_settings`, `update_settings`, `get_ai_options`, `get_api_keys`, `set_api_key`, `delete_api_key`, `list_ollama_models`, `test_ai_provider`; dictionary and snippet CRUD and imports (`list_dictionary`, `add_dictionary_entry`, `update_dictionary_entry`, `set_dictionary_pinned`, `delete_dictionary_entries`, `preview_dictionary_import`, `import_dictionary`, `list_snippets`, `add_snippet`, `update_snippet`, `delete_snippets`, `preview_snippet_import`, `import_snippets`)                                                        |
@@ -269,6 +269,18 @@ the bar moves there; over the bar, it emits `flow-bar://hover`, because the pane
 becomes key and WebKit sends it no hover events. Right-click opens an HTML menu inside
 the bar with the microphone list, Paste last transcript, Transcript history (Home),
 Settings and Hide for 1 hour (BAR-06).
+
+With Transforms on, hovering the resting pill also shows the wand beside it (TRF-07),
+in a row that keeps the pill's height and place: an invisible twin balances it on the
+bottom edge, and on a side edge it sits away from the edge. Clicking the wand sends
+`flow_bar_wand("run")`, and the controller runs the chosen transform
+(`settings.transforms.wand`, Polish by default) exactly as its shortcut would, on the
+app in front, which keeps focus. Its expander opens a menu in the bar: Polish, Prompt
+Engineer and the custom transforms that can run (`{choose: id}`), Auto Apply after
+dictation (`{autoApply: bool}`, which runs the wand's transform after every dictation)
+and Configure transforms (the Transforms page). While Auto Apply is on, the wand and
+Auto Apply run the same transform, also when it is chosen on the Transforms page
+(`TransformSettings::normalize_wand`); a deleted transform falls back to Polish.
 
 The Flow Bar calls `flow_bar_ready` once its notice listener is registered; notices raised
 before that (for example a missing permission at startup) are queued and delivered then. It
@@ -996,7 +1008,8 @@ it wrote "OK." instead of translating that sentence, and translated the rest.
 
 ### Transforms
 
-Turned on from the Transforms page, which binds their shortcuts (TRF-01..06): Polish
+Turned on from the Transforms page, which binds their shortcuts and shows the Flow
+Bar's wand (TRF-01..07): Polish
 (Opt+1) with five toggleable rules, two more that start off (Clarify main point, Refine
 phrasing for impact; a settings file without them reads them as off) and up to 5 custom
 instructions of at most 50 words ("A custom rule with this text already exists" for a

@@ -207,6 +207,49 @@ pub fn transform_action(action: TransformAction, controller: State<'_, Controlle
     controller.send(ControllerInput::Transform(action));
 }
 
+/// The Flow Bar's wand and its menu (TRF-07). Mirrors `WandAction` in src/lib/ipc.ts.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum WandAction {
+    /// Runs the chosen transform on the app in front, which keeps focus.
+    Run,
+    /// Chooses the transform the wand (and Auto Apply, when on) runs.
+    Choose(String),
+    /// Turns Auto Apply on with the chosen transform, or off.
+    AutoApply(bool),
+    /// Opens the Transforms page.
+    Configure,
+}
+
+#[tauri::command]
+pub fn flow_bar_wand(
+    action: WandAction,
+    app: AppHandle,
+    controller: State<'_, ControllerHandle>,
+    settings: State<'_, Arc<SettingsStore>>,
+) -> Result<(), CommandError> {
+    let transforms = settings.get().transforms;
+    let patch = match action {
+        WandAction::Run => {
+            controller.send(ControllerInput::Wand);
+            return Ok(());
+        }
+        WandAction::Configure => {
+            window::show_main(&app);
+            let _ = app.emit_to(window::MAIN_LABEL, NAVIGATE_EVENT, "transforms");
+            return Ok(());
+        }
+        WandAction::Choose(id) => transforms
+            .choose_wand(&id)
+            .map_err(|message| CommandError::new("invalid", message))?,
+        WandAction::AutoApply(on) => transforms.set_auto_apply(on),
+    };
+    settings
+        .update(&patch)
+        .map(|_| ())
+        .map_err(|err| CommandError::new("invalid", err))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -215,5 +258,20 @@ mod tests {
     fn bar_controls_deserialize_from_camel_case() {
         let control: BarControl = serde_json::from_str("\"confirm\"").unwrap();
         assert_eq!(control, BarControl::Confirm);
+    }
+
+    #[test]
+    fn wand_actions_deserialize_from_the_flow_bar() {
+        let parse = |json| serde_json::from_value::<WandAction>(json).unwrap();
+        assert_eq!(parse(serde_json::json!("run")), WandAction::Run);
+        assert_eq!(parse(serde_json::json!("configure")), WandAction::Configure);
+        assert_eq!(
+            parse(serde_json::json!({"choose": "promptEngineer"})),
+            WandAction::Choose("promptEngineer".into())
+        );
+        assert_eq!(
+            parse(serde_json::json!({"autoApply": true})),
+            WandAction::AutoApply(true)
+        );
     }
 }

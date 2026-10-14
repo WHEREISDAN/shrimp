@@ -104,6 +104,14 @@ export const controls = {
     done: "Done",
     save: "Save",
   },
+  wand: {
+    label: "Transform wand",
+    run: "Run {{name}} on the selection",
+    choose: "Choose a transform",
+    menu: "Transform wand menu",
+    autoApply: "Auto Apply after dictation",
+    configure: "Configure transforms",
+  },
   flowBarMenu: {
     label: "Flow Bar menu",
     microphone: "Microphone ›",

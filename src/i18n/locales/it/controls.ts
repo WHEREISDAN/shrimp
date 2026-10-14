@@ -110,6 +110,14 @@ export const controls: ControlsCatalog = {
     done: "Fine",
     save: "Salva",
   },
+  wand: {
+    label: "Bacchetta delle trasformazioni",
+    run: "Applica {{name}} alla selezione",
+    choose: "Scegli una trasformazione",
+    menu: "Menu della bacchetta delle trasformazioni",
+    autoApply: "Applica automaticamente dopo la dettatura",
+    configure: "Configura le trasformazioni",
+  },
   flowBarMenu: {
     label: "Menu della Flow Bar",
     microphone: "Microfono ›",

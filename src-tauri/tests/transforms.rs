@@ -458,3 +458,48 @@ fn an_auto_applied_custom_transform_is_named_and_no_change_says_nothing() {
         h.fakes.has_notice("No transform to show yet.")
     });
 }
+
+#[test]
+fn the_wand_runs_its_chosen_transform_like_its_shortcut() {
+    let mut settings = transforms_on();
+    settings.transforms.wand = "promptEngineer".into();
+    let h = Harness::with(
+        5.0,
+        0.3,
+        fast_timing(),
+        Setup {
+            settings,
+            app: Some(app("com.apple.TextEdit", "TextEdit")),
+            field: Some(selection("rename my photos by date")),
+            ..ai(CleanupLevel::None, vec![Ok("Goal: rename photos.".into())])
+        },
+    );
+    h.controller.send(ControllerInput::Wand);
+    wait_until("insertion", || {
+        h.fakes.inserted() == ["Goal: rename photos."]
+    });
+    let prompt = h.fakes.prompts.lock().unwrap()[0].clone();
+    assert!(prompt.system.contains("prompt for an AI assistant"));
+    assert_eq!(
+        prompt.messages[0].content,
+        "<text>rename my photos by date</text>"
+    );
+    wait_until("the notice", || h.fakes.has_notice("Done."));
+}
+
+#[test]
+fn the_wand_does_nothing_while_transforms_are_off() {
+    let h = Harness::with(
+        5.0,
+        0.3,
+        fast_timing(),
+        Setup {
+            field: Some(selection("text")),
+            ..ai(CleanupLevel::None, vec![Ok("Text.".into())])
+        },
+    );
+    h.controller.send(ControllerInput::Wand);
+    std::thread::sleep(Duration::from_millis(300));
+    assert!(h.fakes.prompts.lock().unwrap().is_empty());
+    assert!(h.fakes.inserted().is_empty());
+}

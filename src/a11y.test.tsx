@@ -177,4 +177,16 @@ describe("accessibility (A11Y-01, A11Y-02)", () => {
     );
     expect(await violations()).toEqual([]);
   });
+
+  it("the Flow Bar's wand, its menu and the changes view pass", async () => {
+    backend({ ...SETTINGS, transforms: { ...SETTINGS.transforms, enabled: true } });
+    render(<FlowBar />);
+    await screen.findByRole("button", { name: "Start dictation" });
+    await act(() => emit(EVENTS.flowBarHover, true));
+    fireEvent.click(await screen.findByRole("button", { name: "Choose a transform" }));
+    await act(() =>
+      emit(EVENTS.changes, { id: 1, name: "Polish", original: "teh plan", result: "The plan." }),
+    );
+    expect(await violations()).toEqual([]);
+  });
 });

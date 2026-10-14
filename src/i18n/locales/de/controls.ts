@@ -108,6 +108,14 @@ export const controls: ControlsCatalog = {
     done: "Fertig",
     save: "Speichern",
   },
+  wand: {
+    label: "Transformations-Zauberstab",
+    run: "{{name}} auf die Auswahl anwenden",
+    choose: "Transformation auswählen",
+    menu: "Menü des Transformations-Zauberstabs",
+    autoApply: "Nach dem Diktat automatisch anwenden",
+    configure: "Transformationen einrichten",
+  },
   flowBarMenu: {
     label: "Menü der Flow Bar",
     microphone: "Mikrofon ›",

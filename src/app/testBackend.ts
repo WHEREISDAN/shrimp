@@ -140,6 +140,7 @@ export const SETTINGS: Settings = {
     promptEngineer: { prompt: "Turn the text into a clear prompt." },
     custom: [],
     autoApply: null,
+    wand: "polish",
   },
   vibeCoding: { fileTagging: true },
   dictionary: { autoLearn: true },

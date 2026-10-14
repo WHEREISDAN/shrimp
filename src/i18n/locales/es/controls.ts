@@ -110,6 +110,14 @@ export const controls: ControlsCatalog = {
     done: "Listo",
     save: "Guardar",
   },
+  wand: {
+    label: "Varita de transformaciones",
+    run: "Aplicar {{name}} a la selección",
+    choose: "Elegir una transformación",
+    menu: "Menú de la varita de transformaciones",
+    autoApply: "Aplicar automáticamente tras el dictado",
+    configure: "Configurar transformaciones",
+  },
   flowBarMenu: {
     label: "Menú de la Flow Bar",
     microphone: "Micrófono ›",

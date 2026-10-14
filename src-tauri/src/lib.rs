@@ -54,6 +54,7 @@ pub fn run() {
                 commands::dictation::flow_bar_action,
                 commands::dictation::run_notice_action,
                 commands::dictation::transform_action,
+                commands::dictation::flow_bar_wand,
                 commands::shortcuts::get_shortcuts,
                 commands::shortcuts::record_shortcut,
                 commands::shortcuts::cancel_shortcut_recording,

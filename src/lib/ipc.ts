@@ -207,6 +207,8 @@ export interface TransformSettings {
   custom: CustomTransform[];
   /** "polish", "promptEngineer" or a custom transform's id. */
   autoApply: string | null;
+  /** What the Flow Bar's wand runs; follows `autoApply` while that is on (TRF-07). */
+  wand: string;
 }
 
 /** Mirrors `stt::ModelState`, flattened into `ModelStatus`. */
@@ -617,6 +619,12 @@ export type FlowBarAction = "pasteLast" | "history" | "settings" | "hide";
 
 export const flowBarAction = (action: FlowBarAction): Promise<void> =>
   invoke("flow_bar_action", { action });
+
+/** Mirrors `commands::dictation::WandAction`: the Flow Bar's wand and its menu (TRF-07). */
+export type WandAction = "run" | "configure" | { choose: string } | { autoApply: boolean };
+
+export const flowBarWand = (action: WandAction): Promise<void> =>
+  invoke("flow_bar_wand", { action });
 
 export const runNoticeAction = (action: NoticeAction): Promise<void> =>
   invoke("run_notice_action", { action });

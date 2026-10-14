@@ -108,6 +108,14 @@ export const controls: ControlsCatalog = {
     done: "Concluído",
     save: "Salvar",
   },
+  wand: {
+    label: "Varinha de transformações",
+    run: "Aplicar {{name}} à seleção",
+    choose: "Escolher uma transformação",
+    menu: "Menu da varinha de transformações",
+    autoApply: "Aplicar automaticamente após o ditado",
+    configure: "Configurar transformações",
+  },
   flowBarMenu: {
     label: "Menu da Flow Bar",
     microphone: "Microfone ›",

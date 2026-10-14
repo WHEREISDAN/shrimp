@@ -379,6 +379,7 @@ impl Settings {
     /// Moves values older versions stored elsewhere into place.
     pub fn normalize(&mut self) {
         self.shortcuts.normalize(&mut self.transforms);
+        self.transforms.normalize_wand();
     }
 
     /// Rejects values the UI should never send.
@@ -465,6 +466,8 @@ mod tests {
         assert_eq!(json["privacy"]["contextAwareness"], true);
         assert_eq!(json["experimental"]["commandMode"], false);
         assert_eq!(json["shortcuts"]["bindings"], serde_json::json!({}));
+        assert_eq!(json["transforms"]["wand"], "polish");
+        assert_eq!(json["transforms"]["polish"]["rules"]["mainPoint"], false);
     }
 
     #[test]

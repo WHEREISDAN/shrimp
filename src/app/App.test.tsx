@@ -183,6 +183,18 @@ describe("App", () => {
       );
     });
 
+    it("opens Transforms from the Flow Bar's wand", async () => {
+      mockIPC(backend([model({})]), { shouldMockEvents: true });
+      render(<App />);
+      await screen.findByTestId("app-info");
+
+      await act(async () => emit(EVENTS.navigate, "transforms"));
+
+      expect(
+        await screen.findByRole("heading", { level: 1, name: "Transforms" }),
+      ).toBeInTheDocument();
+    });
+
     it("opens the Shortcuts dialog over the current page", async () => {
       mockIPC(backend([model({})]), { shouldMockEvents: true });
       render(<App />);

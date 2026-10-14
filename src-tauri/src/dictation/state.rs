@@ -166,6 +166,8 @@ pub enum ControllerInput {
     SettingsChanged,
     /// The changes view's buttons and "See changes" (TRF-04).
     Transform(TransformAction),
+    /// The Flow Bar's wand runs its chosen transform (TRF-07).
+    Wand,
     /// A cancelled recording, kept so paste-last can transcribe it.
     Cancelled(AudioClip),
     /// History's Retry or Recover for an entry (HIS-05, HIS-06).

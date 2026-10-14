@@ -339,6 +339,7 @@ impl Controller {
             ControllerInput::AddDetectedLanguage => self.add_detected_language(),
             ControllerInput::SettingsChanged => self.refresh_bindings(),
             ControllerInput::Transform(action) => self.transform_action(action),
+            ControllerInput::Wand => self.run_wand(),
             ControllerInput::Bar(control) => self.gesture(Input::Bar(control)),
             ControllerInput::Menu(action) => {
                 self.paste_delay = self.timing.menu_paste_delay;
