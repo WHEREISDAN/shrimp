@@ -445,6 +445,11 @@ pub const TRAY_ACCELERATORS: [Option<&str>; 3] = if cfg!(target_os = "windows") 
     [Some("Ctrl+Cmd+V"), Some("Ctrl+Cmd+C"), Some("CmdOrCtrl+Q")]
 };
 
+/// Whether a left click on the tray icon opens the main window, with the
+/// menu on a right click: Windows' notification area (Wispr Flow opens its
+/// Hub, article 2503460374). The macOS menu bar icon opens the menu.
+pub const TRAY_CLICK_OPENS_WINDOW: bool = cfg!(target_os = "windows");
+
 /// Whether "Mute while dictating" starts on: off on macOS, on on Windows
 /// (SND-03, WIN-08).
 pub const MUTE_BY_DEFAULT: bool = cfg!(target_os = "windows");

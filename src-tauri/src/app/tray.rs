@@ -3,7 +3,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 
 use tauri::image::Image;
 use tauri::menu::{CheckMenuItem, Menu, MenuItem, PredefinedMenuItem};
-use tauri::tray::TrayIconBuilder;
+use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
 use tauri::{AppHandle, Emitter, Manager, Runtime, include_image};
 
 use super::events::{NAVIGATE_EVENT, TauriUi};
@@ -12,7 +12,7 @@ use crate::commands::system;
 use crate::dictation::{ControllerHandle, ControllerInput, DictationUi};
 use crate::hotkeys::Action;
 use crate::notify::Notice;
-use crate::platform::TRAY_ACCELERATORS;
+use crate::platform::{TRAY_ACCELERATORS, TRAY_CLICK_OPENS_WINDOW};
 use crate::settings::{Settings, SettingsStore};
 use crate::t;
 
@@ -36,7 +36,7 @@ pub fn create<R: Runtime>(app: &AppHandle<R>, settings: &Settings) -> tauri::Res
         .icon_as_template(true)
         .tooltip(tooltip(privacy))
         .menu(&menu(app, settings)?)
-        .show_menu_on_left_click(true)
+        .show_menu_on_left_click(!TRAY_CLICK_OPENS_WINDOW)
         .on_menu_event(|app, event| match event.id().as_ref() {
             OPEN_ID => window::show_main(app),
             SHORTCUTS_ID => {
@@ -50,6 +50,17 @@ pub fn create<R: Runtime>(app: &AppHandle<R>, settings: &Settings) -> tauri::Res
             RESTART_ID => restart(app),
             QUIT_ID => app.exit(0),
             _ => {}
+        })
+        .on_tray_icon_event(|tray, event| {
+            if let TrayIconEvent::Click {
+                button: MouseButton::Left,
+                button_state: MouseButtonState::Up,
+                ..
+            } = event
+                && TRAY_CLICK_OPENS_WINDOW
+            {
+                window::show_main(tray.app_handle());
+            }
         })
         .build(app)?;
     Ok(())
