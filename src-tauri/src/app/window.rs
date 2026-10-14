@@ -2,11 +2,11 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex, OnceLock};
 
 use serde::Serialize;
-use tauri::{AppHandle, Emitter, Manager, Runtime, Window, WindowEvent};
+use tauri::{AppHandle, Emitter, Manager, Runtime, WebviewWindow, Window, WindowEvent};
 
 use super::events::MAIN_VISIBLE_EVENT;
 use crate::mic::Microphones;
-use crate::platform::{AppIdentity, FocusInspector};
+use crate::platform::{AppIdentity, FocusInspector, PlatformError};
 use crate::settings::SettingsStore;
 
 pub const MAIN_LABEL: &str = "main";
@@ -115,6 +115,18 @@ fn mica<R: Runtime>(app: &AppHandle<R>) -> WindowMaterial {
 #[cfg(not(target_os = "windows"))]
 fn mica<R: Runtime>(_app: &AppHandle<R>) -> WindowMaterial {
     WindowMaterial::None
+}
+
+/// Windows: the window menu at the pointer, for a right click on the main
+/// window's title area.
+#[cfg(target_os = "windows")]
+pub fn show_window_menu<R: Runtime>(window: &WebviewWindow<R>) -> Result<(), PlatformError> {
+    crate::platform::main_window::show_window_menu(window)
+}
+
+#[cfg(not(target_os = "windows"))]
+pub fn show_window_menu<R: Runtime>(_window: &WebviewWindow<R>) -> Result<(), PlatformError> {
+    Err(PlatformError::Unsupported)
 }
 
 pub fn show_main<R: Runtime>(app: &AppHandle<R>) {
