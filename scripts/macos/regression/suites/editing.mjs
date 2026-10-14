@@ -3,7 +3,7 @@
 
 import { TARGET, expect, expectIncludes, soft } from "../context.mjs";
 
-const CURSOR = "com.todesktop.230313mzl4w4u92";
+const CURSOR = process.platform === "win32" ? "Cursor.exe" : "com.todesktop.230313mzl4w4u92";
 
 /** Ollama with its first installed model, loaded before the first check. */
 export async function withOllama(ctx, cleanup = "light") {

@@ -196,7 +196,7 @@ export const audit = [
         await navigate(ctx, "home");
         const greeting = (await ctx.app.readText(".greeting")).join(" ");
         expect(
-          /Hold fn/.test(greeting) === totalWords < 2000,
+          greeting.includes(`Hold ${ctx.pushToTalkLabel}`) === totalWords < 2000,
           `${totalWords} words, greeting: ${greeting}`,
         );
       } finally {
@@ -270,7 +270,7 @@ export const audit = [
     async run(ctx) {
       await navigate(ctx, "shortcuts");
       const dialog = (await ctx.app.readText("[role=dialog]")).join(" ");
-      expectIncludes(dialog, "Or double-tap fn", "Shortcuts dialog");
+      expectIncludes(dialog, `Or double-tap ${ctx.pushToTalkLabel}`, "Shortcuts dialog");
       await ctx.app.send("manage_ipc", {
         action: "emit",
         event: "app://navigate",
@@ -367,8 +367,9 @@ export const audit = [
     },
   },
   {
-    ids: ["APP-10", "APP-03"],
-    name: "the macOS menu bar and the tray menu",
+    ids: ["APP-10"],
+    name: "the macOS menu bar",
+    platforms: ["darwin"],
     async run(ctx) {
       const menus = ctx.helper("menubar", SHRIMP);
       const titles = (name) =>
@@ -390,7 +391,14 @@ export const audit = [
         "General",
         "settings tabs",
       );
-      const tray = ctx.helper("tray", SHRIMP).map((item) => item.title);
+      ctx.focusTarget();
+    },
+  },
+  {
+    ids: ["APP-03"],
+    name: "the tray menu; on Windows a left click on the icon opens the main window",
+    async run(ctx) {
+      const tray = ctx.trayItems().map((item) => item.title);
       for (const item of [
         "Open Shrimp",
         "Shortcuts…",
@@ -399,7 +407,16 @@ export const audit = [
         "Restart Shrimp",
         "Quit Shrimp",
       ]) {
-        expect(tray.includes(item), `tray lacks ${item}: ${tray}`);
+        expect(
+          tray.some((title) => title.startsWith(item)),
+          `tray lacks ${item}: ${tray}`,
+        );
+      }
+      if (ctx.trayClickOpensWindow) {
+        await ctx.app.send("manage_window", { operation: "close", window_label: "main" });
+        await ctx.waitFor("the closed window", async () => !(await ctx.windowVisible("main")));
+        ctx.trayClick("left");
+        await ctx.waitFor("the main window", async () => ctx.windowVisible("main"), 5_000);
       }
       ctx.focusTarget();
     },
@@ -407,6 +424,7 @@ export const audit = [
   {
     ids: ["APP-07"],
     name: "with Show app in Dock off, the Dock icon stays only while the window is open",
+    platforms: ["darwin"],
     async run(ctx) {
       await ctx.settings({ app: { showInDock: false } });
       try {

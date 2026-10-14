@@ -1,23 +1,25 @@
 // AUD-03: key-release-to-insert latency of a 5-second dictation in the signed
 // dev app, with AI edits off (cleanup None) and on (cleanup Light through the
 // local Ollama). Run it through `run.sh latency`, which prepares the app.
+// The Windows run (scripts/windows/regression) uses `measureLatency`.
 //
 // Arguments: --work <dir> (from run.sh), --runs <n> per mode (default 10),
 // --model <ollama model> (default: Shrimp's choice among the installed ones).
 
 import { execFileSync } from "node:child_process";
-import { existsSync } from "node:fs";
+import { existsSync, realpathSync } from "node:fs";
 import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 
 import { Ctx, TARGET, sleep } from "./context.mjs";
 import { McpClient } from "./mcp-client.mjs";
 
 /** 4.96 s with macOS's default voice, so a 5 s hold keeps every word. */
-const SENTENCE =
+export const SENTENCE =
   "Please send the quarterly report to the whole team before Friday afternoon, and copy me.";
 const HOLD_SECONDS = 5;
 
-function option(name, fallback) {
+export function option(name, fallback) {
   const index = process.argv.indexOf(name);
   return index >= 0 ? process.argv[index + 1] : fallback;
 }
@@ -61,23 +63,8 @@ async function mode(ctx, name, patch, runs) {
   };
 }
 
-async function main() {
-  const work = option("--work", join(process.env.TMPDIR ?? "/tmp", "shrimp-regression"));
-  const runs = Number(option("--runs", "10"));
-  const model = option("--model", "");
-  const fixtures = join(work, "fixtures");
-  const wav = join(fixtures, "five.wav");
-  if (!existsSync(wav)) {
-    execFileSync("mkdir", ["-p", fixtures]);
-    execFileSync("say", ["-o", wav, "--data-format=LEI16@16000", SENTENCE]);
-  }
-  const ctx = new Ctx({
-    app: await McpClient.connect(),
-    helper: join(work, "shrimp-helper"),
-    fixtures,
-    workDir: work,
-    ollama: true,
-  });
+/** Measures both modes over the fixture "five" and prints the table. */
+export async function measureLatency(ctx, { runs, model }) {
   await ctx.source("five");
   const results = [
     await mode(ctx, "AI edits off (cleanup None)", { ai: { cleanup: "none" } }, runs),
@@ -104,6 +91,25 @@ async function main() {
     );
   }
   for (const result of results) console.log(`${result.name}: ${JSON.stringify(result.example)}`);
+  return results;
 }
 
-await main();
+async function main() {
+  const work = option("--work", join(process.env.TMPDIR ?? "/tmp", "shrimp-regression"));
+  const fixtures = join(work, "fixtures");
+  const wav = join(fixtures, "five.wav");
+  if (!existsSync(wav)) {
+    execFileSync("mkdir", ["-p", fixtures]);
+    execFileSync("say", ["-o", wav, "--data-format=LEI16@16000", SENTENCE]);
+  }
+  const ctx = new Ctx({
+    app: await McpClient.connect(),
+    helper: join(work, "shrimp-helper"),
+    fixtures,
+    workDir: work,
+    ollama: true,
+  });
+  await measureLatency(ctx, { runs: Number(option("--runs", "10")), model: option("--model", "") });
+}
+
+if (realpathSync(process.argv[1]) === fileURLToPath(import.meta.url)) await main();

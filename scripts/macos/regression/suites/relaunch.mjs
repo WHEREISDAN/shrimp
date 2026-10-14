@@ -1,57 +1,23 @@
 // Cases that restart the app: a crash during a dictation (HIS-06, APP-09),
-// the no-Fn defaults (CORE-10) and a launch from the login item (APP-06).
-// The last case relaunches normally, so it runs last.
-
-import { execFileSync } from "node:child_process";
-import { statSync } from "node:fs";
-import { join } from "node:path";
+// the no-Fn defaults (CORE-10, macOS) and a launch from the login item
+// (APP-06). The last case relaunches normally, so it runs last.
 
 import { expect, expectIncludes, sleep } from "../context.mjs";
-import { McpClient } from "../mcp-client.mjs";
 
-const SOCKET = process.env.TAURI_MCP_IPC_PATH ?? "/tmp/tauri-mcp.sock";
-const DEV_APP = join(import.meta.dirname, "../../dev-app.sh");
-
-/** Relaunches Shrimp Dev with `env` and reconnects once its new socket answers. */
-async function restart(ctx, env = {}) {
-  const before = tokenTime();
-  ctx.app.close();
-  const args = [
-    "open",
-    ...Object.entries(env).flatMap(([name, value]) => ["--env", `${name}=${value}`]),
-  ];
-  execFileSync(DEV_APP, args, { stdio: "ignore" });
-  await ctx.waitFor("the new socket", async () => tokenTime() > before, 30_000);
-  await sleep(1500);
-  ctx.app = await McpClient.connect(SOCKET);
-  await ctx.waitFor(
-    "the app to answer",
-    async () => (await ctx.invoke("get_dictation_state").catch(() => null)) !== null,
-    30_000,
-  );
-  await sleep(1500);
-}
-
-function tokenTime() {
-  try {
-    return statSync(`${SOCKET}.token`).mtimeMs;
-  } catch {
-    return 0;
-  }
-}
+const MAC = process.platform === "darwin";
 
 export const relaunch = [
   {
-    ids: ["HIS-06", "APP-09", "CORE-10"],
+    ids: ["HIS-06", "APP-09", ...(MAC ? ["CORE-10"] : [])],
     name: "a crash mid-dictation: the crash screen, the recovered recording; no-Fn defaults",
     async run(ctx) {
       await ctx.source("lines");
       ctx.focusTarget();
       await ctx.invoke("flow_bar_control", { control: "start" });
       await sleep(4000);
-      execFileSync("kill", ["-9", String(ctx.appPid())]);
+      ctx.killApp();
       await sleep(1000);
-      await restart(ctx, { SHRIMP_FN_KEY: "0" });
+      await ctx.restart(MAC ? { SHRIMP_FN_KEY: "0" } : {});
       const health = await ctx.invoke("get_app_health");
       expect(health.crash, `no crash screen: ${JSON.stringify(health)}`);
       await ctx.invoke("dismiss_crash");
@@ -79,17 +45,19 @@ export const relaunch = [
             `${error.message}: ${JSON.stringify(entry)} ${(await ctx.logs(since)).slice(-8).join(" | ")}`,
           );
         });
-      const push = (await ctx.invoke("get_shortcuts")).rows.find(
-        (row) => row.action === "pushToTalk",
-      );
-      expect(push.shortcuts[0] === "⌃⌥", `no-Fn push to talk: ${push.shortcuts}`);
+      if (MAC) {
+        const push = (await ctx.invoke("get_shortcuts")).rows.find(
+          (row) => row.action === "pushToTalk",
+        );
+        expect(push.shortcuts[0] === "⌃⌥", `no-Fn push to talk: ${push.shortcuts}`);
+      }
     },
   },
   {
     ids: ["APP-06"],
     name: "a launch from the login item keeps the main window hidden",
     async run(ctx) {
-      await restart(ctx, { SHRIMP_LAUNCHED_AT_LOGIN: "1" });
+      await ctx.restart({ SHRIMP_LAUNCHED_AT_LOGIN: "1" });
       expect(!(await ctx.windowVisible("main")), "the main window opened");
       expect(await ctx.windowVisible("flow-bar"), "no Flow Bar");
     },
@@ -97,8 +65,9 @@ export const relaunch = [
   {
     ids: ["APP-11"],
     name: "outside the Applications folder Shrimp asks to be moved and no shortcut dictates",
+    platforms: ["darwin"],
     async run(ctx) {
-      await restart(ctx, { SHRIMP_PRETEND_OUTSIDE_APPLICATIONS: "1" });
+      await ctx.restart({ SHRIMP_PRETEND_OUTSIDE_APPLICATIONS: "1" });
       const health = await ctx.invoke("get_app_health");
       expect(health.misplaced, `health: ${JSON.stringify(health)}`);
       ctx.setText("");
@@ -118,7 +87,7 @@ export const relaunch = [
     ids: ["LANG-07", "CORE-18"],
     name: "in Canada Shrimp offers Canadian English, then a mouse button for dictating",
     async run(ctx) {
-      await restart(ctx, { SHRIMP_REGION: "CA", SHRIMP_FAKE_MOUSE_BUTTONS: "5" });
+      await ctx.restart({ SHRIMP_REGION: "CA", SHRIMP_FAKE_MOUSE_BUTTONS: "5" });
       await ctx.invoke("set_languages", { autoDetect: false, selected: ["en-US"] });
       await ctx.settings({
         ai: { cleanup: "none" },
@@ -144,14 +113,9 @@ export const relaunch = [
     ids: ["APP-12"],
     name: "Restart Shrimp in the tray relaunches with the main window and no crash screen",
     async run(ctx) {
-      await restart(ctx);
+      await ctx.restart();
       const pid = ctx.appPid();
-      const before = tokenTime();
-      ctx.app.close();
-      ctx.helper("tray", "com.shrimp.desktop.dev", "Restart Shrimp");
-      await ctx.waitFor("the restarted app", async () => tokenTime() > before, 60_000);
-      await sleep(2500);
-      ctx.app = await McpClient.connect(SOCKET);
+      await ctx.relaunched(async () => ctx.trayItems("Restart Shrimp"));
       expect(ctx.appPid() !== pid, "the same process is still running");
       await ctx.waitFor("the main window", async () => ctx.windowVisible("main"), 10_000);
       const health = await ctx.invoke("get_app_health");
@@ -163,14 +127,11 @@ export const relaunch = [
     ids: ["APP-08"],
     name: "Reset & restart starts over with the defaults and keeps the models",
     async run(ctx) {
-      const before = tokenTime();
-      ctx.app.close();
-      const client = await McpClient.connect(SOCKET);
-      await client.invoke("reset_app").catch(() => {});
-      client.close();
-      await ctx.waitFor("the restarted app", async () => tokenTime() > before, 60_000);
-      await sleep(2500);
-      ctx.app = await McpClient.connect(SOCKET);
+      await ctx.relaunched(async () => {
+        const client = await ctx.connect();
+        await client.invoke("reset_app").catch(() => {});
+        client.close();
+      });
       const settings = await ctx.invoke("get_settings");
       expect(!settings.onboarding.completed, `onboarding: ${JSON.stringify(settings.onboarding)}`);
       expect(
@@ -179,14 +140,14 @@ export const relaunch = [
       );
       const active = (await ctx.invoke("get_models")).find((model) => model.isDefault);
       expect(active.state !== "missing", `the default model is ${active.state}`);
-      ctx.note("APP-08 reset the dev app's data; run.sh puts the saved data back afterwards");
+      ctx.note("APP-08 reset the dev app's data; the run puts the saved data back afterwards");
     },
   },
   {
     ids: ["APP-01"],
     name: "a normal launch opens the main window",
     async run(ctx) {
-      await restart(ctx);
+      await ctx.restart();
       await ctx.waitFor("the main window", async () => ctx.windowVisible("main"), 10_000);
       await ctx.source("hello");
       ctx.focusTarget();

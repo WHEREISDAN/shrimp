@@ -1,8 +1,12 @@
 // A minimal client for tauri-plugin-mcp's socket in debug builds of Shrimp:
-// one JSON request per line, one JSON response per line, matched by id.
+// one JSON request per line, one JSON response per line, matched by id. On
+// Windows it is a named pipe that takes no token.
 
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { createConnection } from "node:net";
+
+const DEFAULT_PATH =
+  process.platform === "win32" ? String.raw`\\.\pipe\tmp\tauri-mcp.sock` : "/tmp/tauri-mcp.sock";
 
 export class McpClient {
   #socket;
@@ -11,9 +15,10 @@ export class McpClient {
   #nextId = 1;
   #token;
 
-  static async connect(path = process.env.TAURI_MCP_IPC_PATH ?? "/tmp/tauri-mcp.sock") {
+  static async connect(path = process.env.TAURI_MCP_IPC_PATH ?? DEFAULT_PATH) {
     const client = new McpClient();
-    client.#token = readFileSync(`${path}.token`, "utf8").trim();
+    const token = `${path}.token`;
+    client.#token = existsSync(token) ? readFileSync(token, "utf8").trim() : undefined;
     await new Promise((resolve, reject) => {
       client.#socket = createConnection(path, resolve);
       client.#socket.once("error", reject);

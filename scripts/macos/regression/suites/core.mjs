@@ -1,7 +1,6 @@
 // Core dictation, insertion, Flow Bar and sounds (phase 1 and its phase 3–4 additions).
 
-import { execFileSync } from "node:child_process";
-import { expect, expectIncludes, sleep } from "../context.mjs";
+import { TARGET, expect, expectIncludes, sleep } from "../context.mjs";
 
 const HELLO = "Hello from Shrimp";
 
@@ -54,11 +53,14 @@ export const core = [
   },
   {
     ids: ["CORE-02"],
-    name: "fn alone is the push-to-talk default",
+    name: "fn alone (Ctrl+Win on Windows) is the push-to-talk default",
     async run(ctx) {
       const { rows } = await ctx.invoke("get_shortcuts");
       const push = rows.find((row) => row.action === "pushToTalk");
-      expect(push?.shortcuts?.[0] === "fn", `push to talk: ${JSON.stringify(push?.shortcuts)}`);
+      expect(
+        push?.shortcuts?.[0] === ctx.pushToTalkLabel,
+        `push to talk: ${JSON.stringify(push?.shortcuts)}`,
+      );
     },
   },
   {
@@ -69,10 +71,11 @@ export const core = [
       ctx.setText("");
       const since = await ctx.cursor();
       ctx.helper("hold", "fn", 0.25);
-      await ctx.waitNotice(since, /Hold fn to dictate/);
+      const tip = `Hold ${ctx.pushToTalkLabel} to dictate`;
+      await ctx.waitNotice(since, new RegExp(literal(tip)));
       const shown = await ctx.app.readText(".notice-message", "flow-bar");
       expect(
-        shown.some((text) => /Hold fn to dictate/.test(text)),
+        shown.some((text) => text.includes(tip)),
         `Flow Bar notices: ${JSON.stringify(shown)}`,
       );
       await ctx.waitIdle();
@@ -175,7 +178,7 @@ export const core = [
       await sleep(800);
       const labels = await ctx.labels(".pill", "flow-bar");
       expect(labels.includes("Recording"), `pill labels: ${JSON.stringify(labels)}`);
-      expect(ctx.frontmost() === "com.shrimp.regression.target", "the Flow Bar took focus");
+      expect(ctx.frontmost() === TARGET, "the Flow Bar took focus");
       await sleep(2000);
       await ctx.invoke("flow_bar_control", { control: "stop" });
       await ctx.waitIdle();
@@ -199,7 +202,7 @@ export const core = [
       const since = await ctx.cursor();
       ctx.helper("down", "fn");
       await sleep(400);
-      ctx.helper("tap", "f");
+      ctx.helper("tap", ctx.interruptKey);
       await sleep(600);
       ctx.helper("up", "fn");
       await ctx.waitNotice(since, /another shortcut was pressed/);
@@ -211,11 +214,12 @@ export const core = [
     ids: ["CORE-13", "KEYS-10"],
     name: "Mouse 4 bound to push to talk dictates and is saved",
     async run(ctx) {
-      await ctx.settings({ shortcuts: { bindings: { pushToTalk: ["Fn", "Mouse4"] } } });
+      const bindings = [ctx.pushToTalkBinding, "Mouse4"];
+      await ctx.settings({ shortcuts: { bindings: { pushToTalk: bindings } } });
       try {
         const saved = ctx.readSettingsFile();
         expect(
-          JSON.stringify(saved.shortcuts?.bindings?.pushToTalk) === '["Fn","Mouse4"]',
+          JSON.stringify(saved.shortcuts?.bindings?.pushToTalk) === JSON.stringify(bindings),
           `settings.json: ${JSON.stringify(saved.shortcuts)}`,
         );
         const text = await ctx.dictate("hello", { hold: 4.5, button: "mouse4" });
@@ -362,13 +366,13 @@ export const core = [
       const samples = [];
       await ctx.invoke("flow_bar_control", { control: "start" });
       for (let sample = 0; sample < 20; sample++) {
-        samples.push(lsof(pid));
+        samples.push(ctx.sockets(pid));
         await sleep(150);
       }
       await ctx.invoke("flow_bar_control", { control: "stop" });
       await ctx.waitIdle();
       for (let sample = 0; sample < 10; sample++) {
-        samples.push(lsof(pid));
+        samples.push(ctx.sockets(pid));
         await sleep(100);
       }
       const open = samples.filter(Boolean);
@@ -430,13 +434,7 @@ export const core = [
   },
 ];
 
-/** Internet sockets the process has open, or "" when there are none. */
-function lsof(pid) {
-  try {
-    return execFileSync("lsof", ["-nP", "-a", "-i", "-p", String(pid)], {
-      encoding: "utf8",
-    }).trim();
-  } catch {
-    return "";
-  }
+/** `text` as a regular expression that matches it literally. */
+function literal(text) {
+  return text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }

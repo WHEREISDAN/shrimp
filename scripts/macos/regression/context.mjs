@@ -1,15 +1,28 @@
 // What every walkthrough case uses: the app over tauri-mcp, the test helper
 // (keys, clipboard, Accessibility), the target app and the WAV fixtures.
+// The cases also run on Windows (scripts/windows/regression), whose context
+// extends this one; the constants below name each platform's own.
 
 import { execFileSync } from "node:child_process";
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync, statSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
 
-export const DATA_DIR = join(homedir(), "Library/Application Support/com.shrimp.desktop.dev");
+import { McpClient } from "./mcp-client.mjs";
 
-export const TARGET = "com.shrimp.regression.target";
+const WINDOWS = process.platform === "win32";
+
+export const DATA_DIR = WINDOWS
+  ? join(process.env.APPDATA ?? "", "com.shrimp.desktop.dev")
+  : join(homedir(), "Library/Application Support/com.shrimp.desktop.dev");
+
+/** The target app as Shrimp names apps: its bundle ID, or its executable on Windows. */
+export const TARGET = WINDOWS ? "ShrimpRegressionTarget.exe" : "com.shrimp.regression.target";
 export const TARGET_NAME = "Shrimp Regression Target";
+
+const SHRIMP = "com.shrimp.desktop.dev";
+const SOCKET = process.env.TAURI_MCP_IPC_PATH ?? "/tmp/tauri-mcp.sock";
+const DEV_APP = join(import.meta.dirname, "../dev-app.sh");
 
 export class Skip extends Error {}
 
@@ -19,6 +32,14 @@ export class Soft extends Error {}
 export const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 export class Ctx {
+  /** The push-to-talk default as Shrimp shows it, and as settings store it. */
+  pushToTalkLabel = "fn";
+  pushToTalkBinding = "Fn";
+  /** A key that reaches no system shortcut while push to talk is held (CORE-12). */
+  interruptKey = "f";
+  /** Whether a left click on the tray icon opens the main window (APP-03, Windows). */
+  trayClickOpensWindow = false;
+
   constructor({ app, helper, fixtures, workDir, ollama, bundle }) {
     this.app = app;
     this.bundle = bundle;
@@ -195,6 +216,71 @@ export class Ctx {
     );
   }
 
+  /** Internet sockets the process has open, or "" when there are none (PRIV-01). */
+  sockets(pid) {
+    try {
+      return execFileSync("lsof", ["-nP", "-a", "-i", "-p", String(pid)], {
+        encoding: "utf8",
+      }).trim();
+    } catch {
+      return "";
+    }
+  }
+
+  /** Launches the app a second time, as a person would (APP-02). */
+  launchAgain() {
+    execFileSync("open", [this.bundle]);
+  }
+
+  /** The tray menu's items; `item` is then pressed, otherwise the menu closes (APP-03). */
+  trayItems(item) {
+    return this.helper("tray", SHRIMP, ...(item ? [item] : []));
+  }
+
+  killApp() {
+    execFileSync("kill", ["-9", String(this.appPid())]);
+  }
+
+  /** A new connection to the running app's tauri-mcp socket. */
+  connect() {
+    return McpClient.connect(SOCKET);
+  }
+
+  /**
+   * Runs `action`, which makes the app start again (a restart, a reset), then
+   * reconnects to the new instance.
+   */
+  async relaunched(action, timeoutMs = 60_000) {
+    const before = tokenTime();
+    this.app.close();
+    try {
+      await action();
+    } catch (error) {
+      this.app = await this.connect();
+      throw error;
+    }
+    await this.waitFor("the restarted app", async () => tokenTime() > before, timeoutMs);
+    await sleep(2500);
+    this.app = await this.connect();
+  }
+
+  /** Relaunches Shrimp Dev with `env` and reconnects once its new socket answers. */
+  async restart(env = {}) {
+    await this.relaunched(async () => {
+      const args = [
+        "open",
+        ...Object.entries(env).flatMap(([name, value]) => ["--env", `${name}=${value}`]),
+      ];
+      execFileSync(DEV_APP, args, { stdio: "ignore" });
+    }, 30_000);
+    await this.waitFor(
+      "the app to answer",
+      async () => (await this.invoke("get_dictation_state").catch(() => null)) !== null,
+      30_000,
+    );
+    await sleep(1500);
+  }
+
   /** Records every `event` from now on into the plugin's IPC buffer. */
   async arm(event, timeoutMs = 300_000) {
     await this.app.send("manage_ipc", {
@@ -249,6 +335,14 @@ export class Ctx {
 
   note(text) {
     this.notes.push(text);
+  }
+}
+
+function tokenTime() {
+  try {
+    return statSync(`${SOCKET}.token`).mtimeMs;
+  } catch {
+    return 0;
   }
 }
 

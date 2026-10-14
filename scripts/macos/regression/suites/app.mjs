@@ -1,7 +1,6 @@
 // Shortcut customisation, microphones, history, insights, languages,
 // notifications, privacy and the app shell (phase 4).
 
-import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync, readdirSync, rmSync } from "node:fs";
 import { join } from "node:path";
 
@@ -381,7 +380,8 @@ export const app = [
         let since = await ctx.cursor();
         ctx.helper("hold", "fn", 0.25);
         const tip = await ctx.waitFor("a tip", async () => (await ctx.notices(since))[0], 5_000);
-        expect(!/Hold fn/.test(tip) && /fn/.test(tip), `tip: ${tip}`);
+        const key = ctx.pushToTalkLabel;
+        expect(!tip.includes(`Hold ${key}`) && tip.includes(key), `tip: ${tip}`);
         await ctx.settings({ app: { language: "system" }, notifications: { suggestions: false } });
         await ctx.waitIdle();
         since = await ctx.cursor();
@@ -462,7 +462,7 @@ export const app = [
         5_000,
       );
       expect(ctx.appPid() === pid, "closing the window quit the app");
-      execFileSync("open", [ctx.bundle]);
+      ctx.launchAgain();
       await ctx.waitFor("the window to come back", async () => ctx.windowVisible("main"), 10_000);
       expect(ctx.appPid() === pid, "a second launch started another process");
       ctx.focusTarget();
