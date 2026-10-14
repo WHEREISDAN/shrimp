@@ -460,11 +460,11 @@ into another app still need them.
 
 `pnpm regression:mac` (`scripts/macos/regression/run.sh`) drives the signed dev app through
 every automatable PARITY item (AUD-02) and prints one line per case with the items it
-covers. It takes about 10 minutes.
+covers: 84 cases over 128 items, in about 10 minutes.
 
 ```sh
 pnpm regression:mac                         # every case
-pnpm regression:mac --only core,CMD-01      # suites (core, editing, library, commands, app, relaunch) or PARITY ids
+pnpm regression:mac --only core,CMD-01      # suites (core, editing, library, commands, app, audit, relaunch) or PARITY ids
 pnpm regression:mac --build --report out.json
 pnpm regression:mac latency --runs 10       # AUD-03 instead: key-release-to-insert latency
 ```
@@ -500,18 +500,27 @@ Results are `PASS`, `FAIL`, `WARN` (the pipeline worked but a local model's outp
 quality check, such as a list that wasn't formatted; model quality is measured by the eval
 in [AI edits](#ai-edits)) and `SKIP`. The exit status is 1 when a case failed.
 
+The `relaunch` suite runs last: it kills the app during a dictation, relaunches it with
+the debug overrides (`SHRIMP_FN_KEY`, `SHRIMP_LAUNCHED_AT_LOGIN`,
+`SHRIMP_PRETEND_OUTSIDE_APPLICATIONS`, `SHRIMP_REGION`, `SHRIMP_FAKE_MOUSE_BUTTONS`),
+restarts it from the tray and resets it (APP-08); the saved data folder comes back
+afterwards. The `latency` mode holds fn for 5 s over a 4.96 s sentence and times from the
+release until the target field changes, polling Accessibility every 2 ms; it runs one
+unmeasured dictation per mode first.
+
 Not covered, and why:
 
-| Items                                                                    | Why                                                                                                                                  |
-| ------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------ |
-| ENG-04, MIC-01, ENG-05, ENG-06                                           | Need a microphone or cloud keys with credits (the owner's checks).                                                                   |
-| SND-03, SND-04                                                           | Mute and pause act on whatever the Mac is playing.                                                                                   |
-| INS-03, INS-09, INS-10, INS-11, CORE-08, CORE-14, HIS-04, FMT-13, FMT-14 | Keyboard layouts, terminals and remote desktops, and long or dated timings: unit and controller tests.                               |
-| KEYS-04, KEYS-09, CORE-02 (the emoji picker)                             | Caps Lock and Secure Keyboard Entry change system state; the Globe key needs a physical press.                                       |
-| DEV-01, DEV-02, STY-04, STY-05, CTX-04                                   | Cursor, Windsurf and browsers aren't launched; unit and controller tests.                                                            |
-| ONB-_, A11Y-_, APP-03, MIC-10, STA-03, STA-04, TRF-03                    | Onboarding needs a fresh data folder; the tray needs real clicks; UI covered by Vitest and axe; the voice profile needs 2,000 words. |
-| PKG-*                                                                    | Release builds: see [RELEASING.md](RELEASING.md).                                                                                    |
-| WIN-*                                                                    | Windows.                                                                                                                             |
+| Items                                                                    | Why                                                                                                      |
+| ------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------- |
+| ENG-04, MIC-01, ENG-05, ENG-06                                           | Need a microphone or cloud keys with credits (the owner's checks).                                       |
+| SND-03, SND-04                                                           | Mute and pause act on whatever the Mac is playing.                                                       |
+| INS-03, INS-09, INS-10, INS-11, CORE-08, CORE-14, HIS-04, FMT-13, FMT-14 | Keyboard layouts, terminals and remote desktops, and long or dated timings: unit and controller tests.   |
+| KEYS-04, KEYS-09, CORE-02 (the emoji picker)                             | Caps Lock and Secure Keyboard Entry change system state; the Globe key needs a physical press.           |
+| DEV-01, DEV-02, STY-03, STY-04, STY-05, CTX-04, DIC-07                   | Cursor, Windsurf and browsers aren't launched, and respelling needs a person: unit and controller tests. |
+| ONB-01 to ONB-08, A11Y-01, A11Y-02, MIC-10, TRF-03                       | Onboarding needs a fresh data folder; the rest is UI covered by Vitest and axe.                          |
+| STA-03, STA-04                                                           | Sharing opens the browser; the voice profile needs 2,000 words.                                          |
+| PKG-01 to PKG-05                                                         | Release builds: see [RELEASING.md](RELEASING.md).                                                        |
+| WIN-01 to WIN-12                                                         | Windows.                                                                                                 |
 
 ## Windows
 

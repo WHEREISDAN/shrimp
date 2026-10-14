@@ -215,7 +215,7 @@ export const app = [
         await ctx.waitNotice(since, /Is your microphone muted\?/);
         await ctx.waitIdle();
         await ctx.settings({
-          notices: { bluetoothAdviceCount: 0, bluetoothAdviceAt: 0, bluetoothAdviceOff: false },
+          notices: { bluetoothAdviceAt: 0, bluetoothAdviceOff: false },
         });
         await fakeMicrophones(ctx, [
           { id: "pods", name: "AirPods Pro", kind: "bluetooth", behaviour: WAV(ctx, "hello") },

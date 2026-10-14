@@ -151,8 +151,11 @@ export class Ctx {
    * Holds fn over a WAV fixture with the target app's text view focused and
    * empty, and returns what was inserted once the dictation is over.
    */
-  async dictate(name, { hold = 6, keepText = false, field = "text", button = "fn" } = {}) {
-    await this.source(name);
+  async dictate(
+    name,
+    { hold = 6, keepText = false, field = "text", button = "fn", source = true } = {},
+  ) {
+    if (source) await this.source(name);
     if (!keepText) this.setText("");
     this.focusTarget(field);
     const before = this.text();
@@ -228,9 +231,11 @@ export class Ctx {
     }));
   }
 
-  /** After a failed case: no dictation running, no key left down, raw transcripts. */
+  /**
+   * After a failed case: no dictation running, raw transcripts. No key-ups are
+   * posted: an unpaired FlagsChanged leaves the hook believing a modifier is held.
+   */
   async recover() {
-    for (const key of ["fn", "ctrl", "opt", "cmd", "shift"]) this.helper("up", key);
     if ((await this.state()) !== "idle") {
       await this.invoke("flow_bar_control", { control: "cancel" });
       await this.waitIdle();

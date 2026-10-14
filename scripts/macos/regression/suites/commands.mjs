@@ -27,6 +27,8 @@ export const commands = [
     name: "Command Mode's shortcut while it is off explains how to turn it on",
     async run(ctx) {
       await commandMode(ctx, false);
+      // The notice shows at most once a day and three times in all.
+      await ctx.settings({ notices: { commandModeOffCount: 0, commandModeOffDay: "" } });
       await ctx.source("instruction");
       ctx.setText("");
       const since = await ctx.cursor();

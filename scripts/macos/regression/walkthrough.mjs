@@ -16,6 +16,7 @@ import { fileURLToPath } from "node:url";
 import { Ctx, Skip, Soft } from "./context.mjs";
 import { McpClient } from "./mcp-client.mjs";
 import { app } from "./suites/app.mjs";
+import { audit } from "./suites/audit.mjs";
 import { commands } from "./suites/commands.mjs";
 import { core } from "./suites/core.mjs";
 import { editing } from "./suites/editing.mjs";
@@ -46,7 +47,7 @@ const COPIED = {
   nguyen: "ask-nguyen.wav",
 };
 
-const SUITES = { core, editing, library, commands, app, relaunch };
+const SUITES = { core, editing, library, commands, app, audit, relaunch };
 
 function options() {
   const args = process.argv.slice(2);

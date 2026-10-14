@@ -6,7 +6,7 @@ import { execFileSync } from "node:child_process";
 import { statSync } from "node:fs";
 import { join } from "node:path";
 
-import { expect, sleep } from "../context.mjs";
+import { expect, expectIncludes, sleep } from "../context.mjs";
 import { McpClient } from "../mcp-client.mjs";
 
 const SOCKET = process.env.TAURI_MCP_IPC_PATH ?? "/tmp/tauri-mcp.sock";
@@ -45,10 +45,10 @@ export const relaunch = [
     ids: ["HIS-06", "APP-09", "CORE-10"],
     name: "a crash mid-dictation: the crash screen, the recovered recording; no-Fn defaults",
     async run(ctx) {
-      await ctx.source("padded");
+      await ctx.source("lines");
       ctx.focusTarget();
       await ctx.invoke("flow_bar_control", { control: "start" });
-      await sleep(3000);
+      await sleep(4000);
       execFileSync("kill", ["-9", String(ctx.appPid())]);
       await sleep(1000);
       await restart(ctx, { SHRIMP_FN_KEY: "0" });
@@ -68,7 +68,7 @@ export const relaunch = [
             const list = await ctx.invoke("list_history", { query: "" });
             return list.entries
               .find((entry) => entry.id === interrupted.id)
-              ?.finalText?.includes("Hello");
+              ?.finalText?.includes("line");
           },
           40_000,
         )
@@ -92,6 +92,71 @@ export const relaunch = [
       await restart(ctx, { SHRIMP_LAUNCHED_AT_LOGIN: "1" });
       expect(!(await ctx.windowVisible("main")), "the main window opened");
       expect(await ctx.windowVisible("flow-bar"), "no Flow Bar");
+    },
+  },
+  {
+    ids: ["APP-11"],
+    name: "outside the Applications folder Shrimp asks to be moved and no shortcut dictates",
+    async run(ctx) {
+      await restart(ctx, { SHRIMP_PRETEND_OUTSIDE_APPLICATIONS: "1" });
+      const health = await ctx.invoke("get_app_health");
+      expect(health.misplaced, `health: ${JSON.stringify(health)}`);
+      ctx.setText("");
+      ctx.focusTarget();
+      const since = await ctx.cursor();
+      ctx.helper("hold", "fn", 2);
+      await sleep(1500);
+      expect(
+        !(await ctx.logs(since)).some((line) => /recording a dictation/.test(line)),
+        "fn dictated",
+      );
+      await ctx.invoke("move_to_applications").catch(() => {});
+      await ctx.waitLog(since, /would copy/);
+    },
+  },
+  {
+    ids: ["LANG-07", "CORE-18"],
+    name: "in Canada Shrimp offers Canadian English, then a mouse button for dictating",
+    async run(ctx) {
+      await restart(ctx, { SHRIMP_REGION: "CA", SHRIMP_FAKE_MOUSE_BUTTONS: "5" });
+      await ctx.invoke("set_languages", { autoDetect: false, selected: ["en-US"] });
+      await ctx.settings({
+        ai: { cleanup: "none" },
+        notices: { canadianEnglishShown: false, mouseButtonsShown: false },
+      });
+      let since = await ctx.cursor();
+      await ctx.dictate("hello", { hold: 4.5 });
+      await ctx.waitNotice(since, /Switch to Canadian English\?/);
+      await ctx.invoke("run_notice_action", { action: "switchToCanadianEnglish" });
+      await ctx.waitFor(
+        "English (Canada)",
+        async () => (await ctx.invoke("get_settings")).languages.selected.includes("en-CA"),
+        5_000,
+      );
+      // The next dictation, with Canadian English already offered, reads the mice.
+      since = await ctx.cursor();
+      expectIncludes(await ctx.dictate("favourite", { hold: 5 }), "favourite colour");
+      await ctx.waitNotice(since, /Your mouse has extra buttons/);
+      await ctx.invoke("set_languages", { autoDetect: false, selected: ["en-US"] });
+    },
+  },
+  {
+    ids: ["APP-12"],
+    name: "Restart Shrimp in the tray relaunches with the main window and no crash screen",
+    async run(ctx) {
+      await restart(ctx);
+      const pid = ctx.appPid();
+      const before = tokenTime();
+      ctx.app.close();
+      ctx.helper("tray", "com.shrimp.desktop.dev", "Restart Shrimp");
+      await ctx.waitFor("the restarted app", async () => tokenTime() > before, 60_000);
+      await sleep(2500);
+      ctx.app = await McpClient.connect(SOCKET);
+      expect(ctx.appPid() !== pid, "the same process is still running");
+      await ctx.waitFor("the main window", async () => ctx.windowVisible("main"), 10_000);
+      const health = await ctx.invoke("get_app_health");
+      expect(!health.crash, `crash screen after a restart: ${JSON.stringify(health)}`);
+      ctx.focusTarget();
     },
   },
   {

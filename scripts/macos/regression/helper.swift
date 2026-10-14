@@ -221,6 +221,82 @@ func measureRelease(_ spec: String, held: useconds_t, timeout: Double, _ bundleI
     fail("the field didn't change within \(timeout) s")
 }
 
+// MARK: Menus
+
+func children(_ element: AXUIElement) -> [AXUIElement] {
+    attribute(element, "AXChildren") as? [AXUIElement] ?? []
+}
+
+func title(_ element: AXUIElement) -> String {
+    attribute(element, "AXTitle") as? String ?? ""
+}
+
+func appElement(_ bundleId: String) -> AXUIElement {
+    guard let app = runningApp(bundleId) else { fail("\(bundleId) isn't running") }
+    let element = AXUIElementCreateApplication(app.processIdentifier)
+    AXUIElementSetMessagingTimeout(element, 2)
+    return element
+}
+
+/// A menu's items: title, whether enabled, and the check mark.
+func items(_ menu: AXUIElement) -> [[String: Any]] {
+    children(menu).filter { !title($0).isEmpty }.map { item in
+        [
+            "title": title(item),
+            "enabled": attribute(item, "AXEnabled") as? Bool ?? false,
+            "checked": !(attribute(item, "AXMenuItemMarkChar") as? String ?? "").isEmpty,
+        ]
+    }
+}
+
+/// The app's menu bar (APP-10): each menu with its items.
+func menuBar(_ bundleId: String) {
+    guard let bar = attribute(appElement(bundleId), "AXMenuBar") else { fail("no menu bar") }
+    output(children(bar as! AXUIElement).map { menu in
+        ["title": title(menu), "items": children(menu).flatMap(items)]
+    })
+}
+
+func pressMenu(_ bundleId: String, _ menuTitle: String, _ itemTitle: String) {
+    guard let bar = attribute(appElement(bundleId), "AXMenuBar") else { fail("no menu bar") }
+    let menu = children(bar as! AXUIElement).first { title($0) == menuTitle }
+    let item = menu.flatMap { children($0).flatMap(children).first { title($0) == itemTitle } }
+    guard let item else { fail("no \(menuTitle) › \(itemTitle)") }
+    AXUIElementPerformAction(item, "AXPress" as CFString)
+    output(["ok": true])
+}
+
+/// Opens the app's menu-bar extra (the tray) with a real click, lists its
+/// items, then presses `itemTitle` or closes the menu with Esc.
+func tray(_ bundleId: String, _ itemTitle: String?) {
+    guard let extras = attribute(appElement(bundleId), "AXExtrasMenuBar"),
+          let status = children(extras as! AXUIElement).first
+    else { fail("no menu-bar extra") }
+    var origin = CGPoint.zero
+    var size = CGSize.zero
+    if let position = attribute(status, "AXPosition") { AXValueGetValue(position as! AXValue, .cgPoint, &origin) }
+    if let extent = attribute(status, "AXSize") { AXValueGetValue(extent as! AXValue, .cgSize, &size) }
+    let center = CGPoint(x: origin.x + size.width / 2, y: origin.y + size.height / 2)
+    for type in [CGEventType.leftMouseDown, .leftMouseUp] {
+        post(CGEvent(mouseEventSource: source, mouseType: type, mouseCursorPosition: center, mouseButton: .left))
+    }
+    var menu: AXUIElement?
+    for _ in 0..<40 {
+        menu = children(status).first
+        if let menu, !children(menu).isEmpty { break }
+        usleep(50_000)
+    }
+    guard let menu else { fail("the menu didn't open") }
+    let listed = items(menu)
+    if let itemTitle, let item = children(menu).first(where: { title($0) == itemTitle }) {
+        AXUIElementPerformAction(item, "AXPress" as CFString)
+    } else {
+        combo("esc", down: true)
+        combo("esc", down: false)
+    }
+    output(listed)
+}
+
 func frontmost() {
     let app = NSWorkspace.shared.frontmostApplication
     output(["bundleId": app?.bundleIdentifier ?? "", "pid": app?.processIdentifier ?? 0])
@@ -235,6 +311,7 @@ guard let command = args.first else {
       down <combo> | up <combo> | tap <combo> | hold <combo> <seconds>
       clipboard-save <file> | clipboard-restore <file> | clipboard-text | clipboard-set <text>
       frontmost | notify <distributed notification> <object>
+      menubar <bundle id> | press-menu <bundle id> <menu> <item> | tray <bundle id> [item]
       field [bundle id] | set-field <text> [bundle id] | select <start> <length> [bundle id]
       measure <combo> <held seconds> <timeout seconds> [bundle id]
     """)
@@ -268,6 +345,9 @@ case "notify":
     DistributedNotificationCenter.default().postNotificationName(
         NSNotification.Name(arg(0)), object: arg(1), userInfo: nil, deliverImmediately: true)
     usleep(150_000)
+case "menubar": menuBar(arg(0))
+case "press-menu": pressMenu(arg(0), arg(1), arg(2))
+case "tray": tray(arg(0), optional(1))
 case "frontmost": frontmost()
 case "measure": measureRelease(arg(0), held: seconds(arg(1)), timeout: Double(arg(2)) ?? 30, optional(3))
 case "field": readField(optional(0))
