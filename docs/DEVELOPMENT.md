@@ -261,7 +261,8 @@ hands-free dictation without any shortcut, which needs no Accessibility grant.
 
 ### Fake microphones
 
-This Mac has no microphone, so debug builds can replace the devices with fakes at runtime.
+Debug builds can replace the devices with fakes at runtime, for states a real microphone
+can't easily produce.
 `dev_set_microphones` takes the devices to report (a missing one is "unplugged", and a
 source recording from it fails as a disconnect), the default input and whether the lid
 is closed; `{"devices": null}` goes back to the real devices:
@@ -341,6 +342,12 @@ To work on the dev app while a release Shrimp is in use on the same Mac:
   install), then put it back. The login item is visible with
   `osascript -e 'tell application "System Events" to get the name of every login item'`;
   don't use `sfltool dumpbtm`, which asks for an administrator password.
+- To check the real microphone without pasting, start with `flow_bar_control` `start` and
+  end with `cancel` after at least 0.5 s. History keeps the audio (`recordings/<id>.wav`,
+  16 kHz mono), and `retry_history` transcribes it as a dictation would, without inserting
+  anything. `delete_history` removes the entry and its WAV. While it records, the journal
+  `recordings/active-<started>-<part>.wav` shows the device's own format. Retries count
+  towards Insights.
 
 ### Keyboards without an Fn key
 

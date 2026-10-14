@@ -45,7 +45,7 @@ phase 6 audit (`AUD-01`, see "Parity audit"). Sources are listed at the end of t
 | [x]    | ENG-01 | Local Whisper    | whisper.cpp (whisper-rs, Metal on Apple Silicon) transcribes the `hello-shrimp.wav` fixture offline with the default model.                          | 1     |
 | [x]    | ENG-02 | Model download   | On first use, the default model downloads with visible progress, is checked against its pinned SHA-256 and is reused afterwards.                     | 1     |
 | [x]    | ENG-03 | Silence handling | A silence-only recording produces no text (no hallucinated words), and leading and trailing silence is trimmed before STT.                           | 1     |
-| [ ]    | ENG-04 | First words kept | The first word of a dictation is never cut off: audio from the key press onwards is captured.                                                        | 1     |
+| [x]    | ENG-04 | First words kept | The first word of a dictation is never cut off: audio from the key press onwards is captured.                                                        | 1     |
 | [ ]    | ENG-05 | Cloud STT        | Groq and OpenAI transcription engines work with the user's own API key and can be selected in settings.                                              | 2     |
 | [ ]    | ENG-06 | LLM providers    | Anthropic (the default), OpenAI, Groq and local Ollama each complete a cleanup request; provider and model are selectable.                           | 2     |
 | [x]    | ENG-07 | Provider errors  | A missing key, no network, a rate limit or a timeout shows a clear notice, and the raw transcript is inserted instead.                               | 2     |
@@ -213,7 +213,7 @@ phase 6 audit (`AUD-01`, see "Parity audit"). Sources are listed at the end of t
 
 | Status | ID     | Feature              | Acceptance criterion                                                                                                                                                    | Phase |
 | ------ | ------ | -------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----- |
-| [ ]    | MIC-01 | Capture              | Shrimp records from the default input device at its native format and converts the audio to 16 kHz mono for STT.                                                        | 1     |
+| [x]    | MIC-01 | Capture              | Shrimp records from the default input device at its native format and converts the audio to 16 kHz mono for STT.                                                        | 1     |
 | [x]    | MIC-02 | Picker               | Settings and the Flow Bar menu list Auto-detect, the built-in mic and named devices, with a live level meter for the selected one.                                      | 4     |
 | [x]    | MIC-03 | Ranking and fallback | Devices can be ranked and forgotten; Auto-detect uses the highest-ranked available device and falls back mid-dictation without a break.                                 | 4     |
 | [x]    | MIC-04 | New mic prompt       | Connecting a new microphone asks Switch or Don't switch (not for AirPods).                                                                                              | 4     |
@@ -372,6 +372,7 @@ tap, with a WAV file as the audio source.
 | ENG-01  | `tests/whisper_local.rs` (default model, offline): "Hello from Shrimp. This sentence is a test of local dictation." in 0.52 s; live, the same text from the fixture.                                                                                                                                                                                                                                                                                                                     |
 | ENG-02  | Live first launch: the main window showed "Downloading 22% … 42%", then "Ready"; both files matched their pinned SHA-256 (`shasum`); the next launch loaded the model without downloading. `tests/model_download.rs` covers progress and a checksum mismatch (file discarded).                                                                                                                                                                                                           |
 | ENG-03  | `tests/whisper_local.rs`: 3 s of silence gives no text, with and without the energy trim; the padded fixture is trimmed from 7.69 s to 4.26 s and transcribes the same. `tests/controller.rs`: silence never reaches STT.                                                                                                                                                                                                                                                                |
+| ENG-04  | Live with a microphone (see "Verified with a microphone" below): with `say` speech timed to reach the Scarlett just as `flow_bar_control` started the dictation, cross-correlation put the speech onset 45 and 90 ms before the first captured sample, and both transcripts were exact: "Pineapples arrive on Tuesday, so please clear the kitchen table before noon." The input opens about 30–55 ms after the start; that audio is lost, yet the first word survived.                  |
 | CORE-01 | Live: holding fn for 3 s pasted the transcript into TextEdit, read back through System Events; two dictations in a row both pasted.                                                                                                                                                                                                                                                                                                                                                      |
 | CORE-02 | Live: fn alone is the push-to-talk default. With "Press 🌐 key to" set to emoji, a startup notice guides the user to Do Nothing and its button opens Keyboard settings; this Mac's setting is Do Nothing. Whether swallowing fn alone suppresses the emoji picker needs a physical key.                                                                                                                                                                                                  |
 | CORE-03 | Live: a 0.3 s tap showed "Hold fn to dictate, or double-tap it for hands-free." and inserted nothing. Unit and controller tests.                                                                                                                                                                                                                                                                                                                                                         |
@@ -391,6 +392,7 @@ tap, with a WAV file as the audio source.
 | BAR-01  | Live screenshots: resting pill, recording (✕, live waveform, ■ or ✓) and processing states at the bottom centre; above a full-screen TextEdit Space; clicking the bar kept TextEdit frontmost.                                                                                                                                                                                                                                                                                           |
 | BAR-02  | Live: ✕ (real click) cancelled, ■ stopped, ✓ finished a held recording. Vitest covers the IPC each button sends.                                                                                                                                                                                                                                                                                                                                                                         |
 | BAR-03  | Live screenshots: Accessibility, no-microphone, cancel and fn-key notices above the bar without taking focus.                                                                                                                                                                                                                                                                                                                                                                            |
+| MIC-01  | Live with a microphone (see "Verified with a microphone" below): Auto-detect used the default input ("recording from Scarlett Solo USB (Wired)"); the journal was 48 kHz, 2 channels, 32-bit float, the device's own format, and History kept the 16 kHz mono clip that Whisper transcribed. `hello-shrimp.wav` from the speakers came back as "Hello from shrimp. This sentence is a test of local dictation." The Flow Bar level moved with the words. No stream errors.               |
 | SND-01  | Unit test: the five cues are distinct; controller tests assert Start, Stop, Lock, Cancel and Warning at the right moments; live logs show `NSSound` started each cue.                                                                                                                                                                                                                                                                                                                    |
 | PRIV-01 | Live: `lsof -i` sampled 69 times during a full dictation found no socket; `nettop` showed no traffic. The only network use is the model download.                                                                                                                                                                                                                                                                                                                                        |
 | ENG-07  | Live: no Anthropic key → "AI edits need your Anthropic API key…" once, raw text pasted; the OpenAI key with no credits → HTTP 429 → "Your OpenAI account is out of credits. Inserted the transcript without AI edits."; dummy keys against Groq's and Anthropic's real endpoints → 401 → "… rejected your API key"; a wrong Ollama address → "Ollama isn't running"; each time the raw transcript was inserted. Rate limits and timeouts: `tests/controller.rs` and `llm/http.rs` tests. |
@@ -807,9 +809,34 @@ Open in phase 2:
   cleanup; a successful cloud completion and transcription still need a working key.
   Request and response shapes are pinned by unit tests.
 
-Open in phase 1: ENG-04 and MIC-01 need a microphone. This Mac has no audio input device; with
-the WAV source every sample from the key press reaches STT (controller test and live), and
-with no device Shrimp shows "No microphone found" without a permission prompt.
+Open in phase 1 (closed on 2026-10-14, below): ENG-04 and MIC-01 need a microphone. This Mac
+had no audio input device; with the WAV source every sample from the key press reaches STT
+(controller test and live), and with no device Shrimp shows "No microphone found" without a
+permission prompt.
+
+Verified with a microphone, 2026-10-14 (ENG-04, MIC-01): a Focusrite Scarlett Solo USB, the
+default input, picked up speech played through the Mac mini Speakers at 75 % volume. The dev
+app ran with its hooks off (`SHRIMP_NO_HOTKEYS=1`) and with the Microphone grant it already
+had. Each dictation started with `flow_bar_control` `start` and ended with `cancel`, so
+nothing was pasted. History kept the audio, and `retry_history` transcribed it through the
+same `transcribe_clip` as a dictation. Each entry and its WAV were then deleted.
+
+- Timing: capture started 4–12 ms after the start command. The device's first samples were
+  seen 65–92 ms after that, polled every 33 ms. Clip length against the wall clock puts the
+  first captured sample about 30–55 ms after the command.
+- The microphone heard the speakers faintly: speech on input 1 at −47 to −61 dBFS RMS,
+  about 10 dB above the room, and input 2 silent. Shrimp's normalisation raised it before
+  STT (by 26.9 dB in the first run). The mono downmix averages both inputs, which halves the
+  level of a microphone on input 1 only; normalisation makes up for it.
+- Another app was playing audio in the room during the first five dictations, and Whisper
+  picked up its speech. Three of them kept the first word, with later words misheard or cut
+  off. Two did not: one timed like the strict ENG-04 case lost its first words, and one
+  whose speech started 121 ms after capture came back as unrelated words. Silence trimming
+  kept the whole clip in all five, so the other sound filled every pause. The three
+  dictations in the quiet room (the fixture and two strict ENG-04 runs) were exact, apart
+  from a lower-case "shrimp".
+- Not run: the fn key itself (`flow_bar_control` calls the same `start_recording`), pasting,
+  and a person speaking into the microphone.
 
 Redesign, 0.1.1 (2026-10-14), macOS: every page, dialog, menu, onboarding step, error
 screen and Flow Bar state was captured live in light and dark at 900 × 640 and 660 × 600
