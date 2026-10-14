@@ -224,6 +224,10 @@ pub struct NoticeSettings {
     pub language_card_off: bool,
     /// Formatting tips shown so far (FMT-13).
     pub formatting_tips: FormattingTips,
+    /// "You can recover your cancelled transcript": at most 3 times, once a day (HIS-10).
+    pub cancel_recover_count: u32,
+    /// The local date it was last shown, YYYY-MM-DD.
+    pub cancel_recover_day: String,
 }
 
 /// How many times each formatting tip was shown: one explanation, then up
@@ -465,6 +469,8 @@ mod tests {
         assert_eq!(json["privacy"]["contextAwareness"], true);
         assert_eq!(json["experimental"]["commandMode"], false);
         assert_eq!(json["shortcuts"]["bindings"], serde_json::json!({}));
+        assert_eq!(json["notices"]["cancelRecoverCount"], 0);
+        assert_eq!(json["notices"]["cancelRecoverDay"], "");
     }
 
     #[test]

@@ -1,3 +1,4 @@
+import type { TFunction } from "i18next";
 import { useTranslation } from "react-i18next";
 import type { HistoryItem } from "../lib/ipc";
 import { languageName } from "./historyGroups";
@@ -27,6 +28,20 @@ interface HistoryRowProps {
 const hasText = (item: HistoryItem) =>
   item.status === "inserted" || item.status === "copied" || item.status === "transcribed";
 
+/** What a row without a transcript says instead. */
+function problemText(item: HistoryItem, t: TFunction): string {
+  switch (item.status) {
+    case "interrupted":
+      return t("history.statusInterrupted");
+    case "cancelled":
+      return t("history.statusCancelled");
+    case "empty":
+      return t("history.statusEmpty");
+    default:
+      return item.error ?? t("history.statusFailed");
+  }
+}
+
 export function HistoryRow({ item, current, audioUrl, busy, actions, onFocus }: HistoryRowProps) {
   const { t, i18n } = useTranslation();
   const tabIndex = current ? 0 : -1;
@@ -37,11 +52,7 @@ export function HistoryRow({ item, current, audioUrl, busy, actions, onFocus }: 
     ? item.showRaw
       ? item.rawText
       : item.finalText
-    : item.status === "interrupted"
-      ? t("history.statusInterrupted")
-      : item.status === "empty"
-        ? t("history.statusEmpty")
-        : (item.error ?? t("history.statusFailed"));
+    : problemText(item, t);
   const edited = hasText(item) && item.rawText.trim() !== item.finalText.trim();
   const language = languageName(item.language, i18n.language);
 

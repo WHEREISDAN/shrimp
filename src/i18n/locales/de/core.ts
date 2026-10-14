@@ -337,6 +337,7 @@ export const core: CoreCatalog = {
     statusEmpty: "Keine Sprache erkannt",
     statusInterrupted:
       "Aufnahme unterbrochen. Stell sie wieder her, um das Gesagte zu transkribieren.",
+    statusCancelled: "Diktat abgebrochen. Stell es wieder her, um das Gesagte zu transkribieren.",
     notPasted: "Nicht eingefügt",
     unformatted: "Unformatiert",
     unformattedHint: "Keine KI-Bearbeitung: Das Rohtranskript wurde eingefügt.",

@@ -165,8 +165,12 @@ pub enum ControllerInput {
     SettingsChanged,
     /// The changes view's buttons and "See changes" (TRF-04).
     Transform(TransformAction),
-    /// A cancelled recording, kept so paste-last can transcribe it.
-    Cancelled(AudioClip),
+    /// A cancelled recording, kept so paste-last can transcribe it, and
+    /// the History entry it was stored as (HIS-10).
+    Cancelled {
+        clip: AudioClip,
+        history_id: Option<i64>,
+    },
     /// History's Retry or Recover for an entry (HIS-05, HIS-06).
     RetryHistory(i64),
     Processed(Box<Processed>),

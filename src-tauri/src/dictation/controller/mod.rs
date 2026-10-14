@@ -1,6 +1,7 @@
 //! The dictation actor: one task owns all session state and reacts to
 //! shortcuts, Flow Bar clicks, timers and pipeline results on one channel.
 
+mod cancelled;
 mod language;
 mod microphone;
 mod recording;
@@ -360,14 +361,8 @@ impl Controller {
             }
             ControllerInput::SessionWarning(_) | ControllerInput::SessionLimit(_) => {}
             ControllerInput::RetryHotkeys => self.start_hotkeys(),
-            ControllerInput::Cancelled(clip) => {
-                self.last = Some(LastDictation {
-                    status: LastStatus::Cancelled,
-                    text: None,
-                    clip: Some(clip),
-                    history_id: None,
-                });
-                self.ui.last_transcript(true);
+            ControllerInput::Cancelled { clip, history_id } => {
+                self.remember_cancelled(clip, history_id);
             }
             ControllerInput::RetryHistory(id) => self.retry_history(id),
             ControllerInput::Processed(outcome) => self.processed(*outcome),
@@ -570,32 +565,8 @@ impl Controller {
         self.set_state(DictationState::Idle);
         let command = self.gestures.is_command();
         match reason {
-            CancelReason::User => {
-                self.sounds.play(Cue::Cancel);
-                self.ui.notice(if command {
-                    Notice::info(t!("notice.command.cancelled"))
-                } else {
-                    Notice::info(t!("notice.dictation.cancelled"))
-                        .with_action(NoticeAction::UndoCancel)
-                });
-                let tx = self.tx.clone();
-                let Recording {
-                    recorder, journal, ..
-                } = recording;
-                if let Some(journal) = journal {
-                    journal.finish().delete();
-                }
-                tauri::async_runtime::spawn_blocking(move || {
-                    if let Ok(clip) = recorder.finish() {
-                        let _ = tx.send(ControllerInput::Cancelled(clip));
-                    }
-                });
-            }
-            CancelReason::Interrupted => {
-                recording.discard();
-                self.sounds.play(Cue::Cancel);
-                self.ui
-                    .notice(Notice::info(t!("notice.dictation.interrupted")));
+            CancelReason::User | CancelReason::Interrupted => {
+                self.set_aside(recording, reason, command);
             }
             CancelReason::ShortTap if command => {
                 recording.discard();
@@ -634,7 +605,7 @@ impl Controller {
                     let mut processed = pipeline.transcribe_and_insert(clip, context, delay).await;
                     if let Some(record) = processed.record.as_mut() {
                         record.replaces = replaces;
-                        // A failed entry already has its recording.
+                        // A failed or cancelled entry already has its recording.
                         record.clip = record.clip.take().filter(|_| replaces.is_none());
                     }
                     pipeline.store(&mut processed).await;

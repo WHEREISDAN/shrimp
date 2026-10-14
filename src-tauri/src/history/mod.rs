@@ -1,7 +1,7 @@
-//! Transcript history (HIS-01..09): every dictation with its recording for
-//! 14 days, retries, crash recovery, and what `retention` deletes and backs
-//! up. Usage stats are counted here too, apart from the transcripts, so they
-//! survive deletion (STA-05).
+//! Transcript history (HIS-01..10): every dictation with its recording for
+//! 14 days, retries, crash recovery, cancelled dictations, and what
+//! `retention` deletes and backs up. Usage stats are counted here too, apart
+//! from the transcripts, so they survive deletion (STA-05).
 
 pub mod fixes;
 pub mod journal;
@@ -9,6 +9,7 @@ mod retention;
 
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
+use std::time::Duration;
 
 use chrono::{Datelike, Local, TimeZone, Timelike};
 use serde::Serialize;
@@ -30,6 +31,9 @@ use journal::Journal;
 pub const AUDIO_DAYS: i64 = 14;
 /// Failed or empty entries need this much audio to be retried (HIS-05).
 pub const MIN_RETRY_MS: i64 = 5_000;
+/// Cancelled audio shorter than this is not stored (HIS-10, Wispr Flow's
+/// half second, article 4363488655).
+pub const MIN_CANCELLED_AUDIO: Duration = Duration::from_millis(500);
 const DAY_MS: i64 = 86_400_000;
 const LIST_LIMIT: usize = 1_000;
 
@@ -39,7 +43,7 @@ const LIST_LIMIT: usize = 1_000;
 pub enum RetryKind {
     /// A failed or empty transcription (HIS-05).
     Retry,
-    /// A recording interrupted by a quit or crash (HIS-06).
+    /// A recording interrupted by a quit or crash (HIS-06), or cancelled (HIS-10).
     Recover,
 }
 
@@ -159,10 +163,16 @@ impl History {
         self.settings.get().privacy.history
     }
 
+    /// Whether new dictations are stored ("Never store" is off).
+    pub fn stores_dictations(&self) -> bool {
+        self.storage() != HistoryStorage::Never
+    }
+
     /// Where the recording in progress is saved as it arrives (HIS-06);
     /// nothing is saved with "Never store".
     pub fn start_journal(&self) -> Option<Journal> {
-        (self.storage() != HistoryStorage::Never).then(|| Journal::new(&self.recordings, now_ms()))
+        self.stores_dictations()
+            .then(|| Journal::new(&self.recordings, now_ms()))
     }
 
     /// Stores a dictation and counts its words. Blocking: call from the
@@ -173,6 +183,19 @@ impl History {
             id: self.store(dictation, status),
             milestone,
         }
+    }
+
+    /// Stores a cancelled recording to recover later (HIS-10); its words
+    /// count once it is transcribed. Blocking: call from the blocking pool.
+    pub fn record_cancelled(&self, clip: &AudioClip, app: Option<AppIdentity>) -> Option<i64> {
+        let dictation = Dictation {
+            created_at: now_ms(),
+            app,
+            audio_ms: clip.duration().as_millis() as i64,
+            clip: Some(clip.clone()),
+            ..Dictation::default()
+        };
+        self.record(dictation, HistoryStatus::Cancelled).id
     }
 
     fn store(&self, dictation: Dictation, status: HistoryStatus) -> Option<i64> {
@@ -411,7 +434,7 @@ fn item(entry: HistoryEntry, now: i64) -> HistoryItem {
     let has_audio = entry.audio_path.is_some() && now - entry.created_at < AUDIO_DAYS * DAY_MS;
     let retry = match entry.status {
         _ if !has_audio => None,
-        HistoryStatus::Interrupted => Some(RetryKind::Recover),
+        HistoryStatus::Interrupted | HistoryStatus::Cancelled => Some(RetryKind::Recover),
         HistoryStatus::Failed | HistoryStatus::Empty if entry.audio_ms >= MIN_RETRY_MS => {
             Some(RetryKind::Retry)
         }
@@ -545,6 +568,30 @@ mod tests {
         assert_eq!(list.entries[0].entry.status, HistoryStatus::Interrupted);
         assert_eq!(list.entries[0].retry, Some(RetryKind::Recover));
         assert_eq!(f.history.recover_interrupted(), 0);
+    }
+
+    #[test]
+    fn cancelled_recordings_can_be_recovered_and_count_once_transcribed() {
+        let f = fixture();
+        let clip = AudioClip::from_mono_16k(vec![0.1; 8_000]);
+        let id = f.history.record_cancelled(&clip, None).unwrap();
+        let item = f.history.get(id).unwrap();
+        assert_eq!(item.entry.status, HistoryStatus::Cancelled);
+        assert_eq!(item.entry.audio_ms, 500);
+        assert_eq!(item.retry, Some(RetryKind::Recover), "any length");
+        assert_eq!(f.history.retry_clip(id).unwrap().samples().len(), 8_000);
+        assert_eq!(total_words(&f.history), 0);
+        let mut pasted = dictation("Pasted at last.", 1);
+        pasted.replaces = Some(id);
+        f.history.record(pasted, HistoryStatus::Inserted);
+        assert_eq!(total_words(&f.history), 3);
+        assert_eq!(f.history.list("").unwrap().entries.len(), 1);
+
+        f.settings
+            .update(&serde_json::json!({"privacy": {"history": "never"}}))
+            .unwrap();
+        assert!(!f.history.stores_dictations());
+        assert_eq!(f.history.record_cancelled(&clip, None), None);
     }
 
     #[test]

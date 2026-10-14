@@ -28,6 +28,7 @@
   "notice.copyFailed": "Kopieren fehlgeschlagen: {error}",
   "notice.dictation.busy": "Transkript wird noch verarbeitet",
   "notice.dictation.cancelled": "Diktat abgebrochen",
+  "notice.dictation.recoverCancelled": "Du kannst dein abgebrochenes Transkript wiederherstellen",
   "notice.dictation.cannotRetry": "Wiederholen ist während eines Diktats nicht möglich.",
   "notice.dictation.interrupted": "Diktat abgebrochen, weil ein anderer Kurzbefehl gedrückt wurde.",
   "notice.dictation.lastCopied": "Letztes Transkript kopiert",

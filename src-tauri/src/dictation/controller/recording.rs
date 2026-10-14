@@ -1,14 +1,13 @@
 //! Recording new shortcuts for the Shortcuts dialog (KEYS-01..07), and the
 //! shortcut events that are not gestures: another app's shortcut during a
-//! held dictation (CORE-12), Secure Keyboard Entry (KEYS-09) and the cancel
-//! notice's Undo (CORE-11).
+//! held dictation (CORE-12) and Secure Keyboard Entry (KEYS-09).
 
 use std::time::Duration;
 
 use super::Controller;
 use crate::dictation::bindings;
 use crate::dictation::gestures::{CancelReason, RecordingMode};
-use crate::dictation::state::{ControllerInput, LastStatus, RecordingStatus};
+use crate::dictation::state::RecordingStatus;
 use crate::hotkeys::{Action, RecordUpdate, Recording};
 use crate::notify::Notice;
 use crate::t;
@@ -132,17 +131,6 @@ impl Controller {
         if let (Some(app), false) = (owner, was_on) {
             let message = t!("notice.shortcuts.secureInput", app = app);
             self.ui.notice(Notice::warning(message));
-        }
-    }
-
-    /// Transcribes the cancelled dictation and inserts it (CORE-11).
-    pub(super) fn undo_cancel(&mut self) {
-        let cancelled = self
-            .last
-            .as_ref()
-            .is_some_and(|last| last.status == LastStatus::Cancelled);
-        if cancelled && !self.gestures.is_recording() && !self.gestures.is_busy() {
-            self.handle(ControllerInput::Menu(Action::PasteLast));
         }
     }
 }

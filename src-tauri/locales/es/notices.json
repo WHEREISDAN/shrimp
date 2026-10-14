@@ -28,6 +28,7 @@
   "notice.copyFailed": "No se pudo copiar: {error}",
   "notice.dictation.busy": "Ya se está procesando una transcripción",
   "notice.dictation.cancelled": "Dictado cancelado",
+  "notice.dictation.recoverCancelled": "Puedes recuperar tu transcripción cancelada",
   "notice.dictation.cannotRetry": "No se puede reintentar mientras dictas.",
   "notice.dictation.interrupted": "Dictado cancelado porque se pulsó otro atajo.",
   "notice.dictation.lastCopied": "Última transcripción copiada",

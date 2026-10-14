@@ -325,6 +325,7 @@ export const core = {
     statusFailed: "Transcription failed",
     statusEmpty: "No speech detected",
     statusInterrupted: "Recording interrupted. Recover it to transcribe what was said.",
+    statusCancelled: "Dictation cancelled. Recover it to transcribe what was said.",
     notPasted: "Not pasted",
     unformatted: "Unformatted",
     unformattedHint: "AI edits weren't applied: the raw transcript was inserted.",

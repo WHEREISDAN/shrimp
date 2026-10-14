@@ -287,6 +287,8 @@ export interface Settings {
     languageCardDay: string;
     languageCardOff: boolean;
     formattingTips: { list: number; email: number; backtrack: number; day: string };
+    cancelRecoverCount: number;
+    cancelRecoverDay: string;
   };
   transforms: TransformSettings;
   vibeCoding: { fileTagging: boolean };
@@ -474,7 +476,7 @@ export type HistoryStorage = "local" | "autoDelete" | "never";
 
 /** Mirrors `storage::HistoryStatus`. */
 export type HistoryStatus =
-  "inserted" | "copied" | "transcribed" | "failed" | "empty" | "interrupted";
+  "inserted" | "copied" | "transcribed" | "failed" | "empty" | "interrupted" | "cancelled";
 
 /** Mirrors `history::RetryKind`. */
 export type RetryKind = "retry" | "recover";

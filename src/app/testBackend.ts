@@ -122,6 +122,8 @@ export const SETTINGS: Settings = {
     languageCardDay: "",
     languageCardOff: false,
     formattingTips: { list: 0, email: 0, backtrack: 0, day: "" },
+    cancelRecoverCount: 0,
+    cancelRecoverDay: "",
   },
   transforms: {
     enabled: false,

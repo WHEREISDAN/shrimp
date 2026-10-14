@@ -336,6 +336,7 @@ export const core: CoreCatalog = {
     statusEmpty: "Nessuna voce rilevata",
     statusInterrupted:
       "Registrazione interrotta. Recuperala per trascrivere ciò che è stato detto.",
+    statusCancelled: "Dettatura annullata. Recuperala per trascrivere ciò che è stato detto.",
     notPasted: "Non incollato",
     unformatted: "Non formattato",
     unformattedHint: "Modifiche IA non applicate: è stata inserita la trascrizione grezza.",

@@ -28,6 +28,7 @@
   "notice.copyFailed": "Impossibile copiare: {error}",
   "notice.dictation.busy": "Trascrizione in corso",
   "notice.dictation.cancelled": "Dettatura annullata",
+  "notice.dictation.recoverCancelled": "Puoi recuperare la trascrizione annullata",
   "notice.dictation.cannotRetry": "Impossibile riprovare durante la dettatura.",
   "notice.dictation.interrupted": "Dettatura annullata perché è stata premuta un'altra scorciatoia.",
   "notice.dictation.lastCopied": "Ultima trascrizione copiata",

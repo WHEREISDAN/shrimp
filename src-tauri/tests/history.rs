@@ -1,8 +1,10 @@
 //! History through the dictation controller: what each dictation stores,
-//! retries, paste last of a failed dictation, and the crash journal.
+//! retries, paste last of a failed dictation, cancelled dictations (HIS-10)
+//! and the crash journal.
 
 mod support;
 
+use shrimp_lib::notify::NoticeAction;
 use support::*;
 
 fn harness(seconds: f32, amplitude: f32, mut setup: Setup) -> Harness {
@@ -135,17 +137,163 @@ fn the_recording_is_saved_while_it_happens_and_removed_after() {
     wait_until("the journal is gone", || journals() == 0);
 }
 
-#[test]
-fn a_cancelled_dictation_is_not_stored() {
-    let h = harness(6.0, 0.3, Setup::default());
+/// Holds push to talk for `held`, then cancels with Esc.
+fn cancel_after(h: &Harness, held: Duration) {
     h.shortcut(Action::PushToTalk, true);
-    std::thread::sleep(Duration::from_millis(600));
+    std::thread::sleep(held);
     h.shortcut(Action::Cancel, true);
     h.shortcut(Action::Cancel, false);
     h.shortcut(Action::PushToTalk, false);
     wait_until("idle", || {
         h.fakes.last_state() == Some(DictationState::Idle)
     });
+}
+
+fn notice(h: &Harness, message: &str) -> Notice {
+    wait_until(message, || h.fakes.has_notice(message));
+    let notices = h.fakes.notices.lock().unwrap();
+    notices
+        .iter()
+        .rev()
+        .find(|notice| notice.message == message)
+        .cloned()
+        .unwrap()
+}
+
+#[test]
+fn a_cancelled_dictation_is_kept_for_recovery() {
+    let h = harness(6.0, 0.3, Setup::default());
+    cancel_after(&h, Duration::from_millis(700));
+    wait_for_entries(&h, 1);
+    let cancelled = list(&h).entries.remove(0);
+    assert_eq!(cancelled.entry.status, HistoryStatus::Cancelled);
+    assert_eq!(cancelled.entry.app_name.as_deref(), Some("Slack"));
+    assert_eq!(cancelled.retry, Some(RetryKind::Recover));
+    assert!(cancelled.has_audio);
+    let card = notice(&h, "You can recover your cancelled transcript");
+    assert_eq!(
+        card.actions,
+        [NoticeAction::UndoCancel, NoticeAction::OpenHistory]
+    );
+    assert_eq!(h.settings.get().notices.cancel_recover_count, 1);
+
+    h.controller
+        .send(ControllerInput::RetryHistory(cancelled.entry.id));
+    wait_until("the recovery", || {
+        list(&h).entries[0].entry.status == HistoryStatus::Transcribed
+    });
+    assert_eq!(list(&h).entries[0].entry.final_text, TEXT);
+    assert!(h.fakes.inserted().is_empty(), "recovering never pastes");
+}
+
+#[test]
+fn undo_of_a_cancelled_dictation_updates_its_entry() {
+    let h = harness(6.0, 0.3, Setup::default());
+    cancel_after(&h, Duration::from_millis(700));
+    wait_for_entries(&h, 1);
+    h.controller.send(ControllerInput::UndoCancel);
+    wait_until("the paste", || h.fakes.inserted() == [TEXT]);
+    wait_until("the update", || {
+        list(&h).entries[0].entry.status == HistoryStatus::Inserted
+    });
+    assert_eq!(list(&h).entries.len(), 1);
+    wait_until("idle", || {
+        h.fakes.last_state() == Some(DictationState::Idle)
+    });
+
+    // The card showed today already; the next cancel shows the usual notice.
+    cancel_after(&h, Duration::from_millis(700));
+    let pill = notice(&h, "Dictation cancelled");
+    assert_eq!(pill.actions, [NoticeAction::UndoCancel]);
+    wait_for_entries(&h, 2);
+    h.shortcut(Action::PasteLast, true);
+    h.shortcut(Action::PasteLast, false);
+    wait_until("the second paste", || h.fakes.inserted().len() == 2);
+    wait_until("the second update", || {
+        list(&h)
+            .entries
+            .iter()
+            .all(|item| item.entry.status == HistoryStatus::Inserted)
+    });
+    assert_eq!(list(&h).entries.len(), 2);
+}
+
+#[test]
+fn a_cancel_under_half_a_second_is_not_stored_but_can_be_undone() {
+    let h = harness(6.0, 0.3, Setup::default());
+    cancel_after(&h, Duration::from_millis(150));
+    let pill = notice(&h, "Dictation cancelled");
+    assert_eq!(pill.actions, [NoticeAction::UndoCancel]);
+    std::thread::sleep(Duration::from_millis(300));
+    assert!(list(&h).entries.is_empty());
+    h.controller.send(ControllerInput::UndoCancel);
+    wait_until("the paste", || h.fakes.inserted() == [TEXT]);
+    wait_for_entries(&h, 1);
+    assert_eq!(h.settings.get().notices.cancel_recover_count, 0);
+}
+
+#[test]
+fn nothing_cancelled_is_stored_with_never_store() {
+    let mut settings = Settings::default();
+    settings.privacy.history = shrimp_lib::settings::HistoryStorage::Never;
+    let h = harness(
+        6.0,
+        0.3,
+        Setup {
+            settings,
+            ..Setup::default()
+        },
+    );
+    cancel_after(&h, Duration::from_millis(700));
+    notice(&h, "Dictation cancelled");
+    std::thread::sleep(Duration::from_millis(300));
+    assert!(list(&h).entries.is_empty());
+}
+
+#[test]
+fn an_interrupted_start_is_stored_but_paste_last_keeps_the_last_transcript() {
+    let h = harness(6.0, 0.3, Setup::default());
+    dictate(&h);
+    wait_for_entries(&h, 1);
+    wait_until("idle", || {
+        h.fakes.last_state() == Some(DictationState::Idle)
+    });
+    h.shortcut(Action::PushToTalk, true);
+    std::thread::sleep(Duration::from_millis(600));
+    h.controller.send(ControllerInput::OtherKey);
+    h.shortcut(Action::PushToTalk, false);
+    notice(
+        &h,
+        "Dictation cancelled because another shortcut was pressed.",
+    );
+    wait_for_entries(&h, 2);
+    assert_eq!(list(&h).entries[0].entry.status, HistoryStatus::Cancelled);
+
+    h.shortcut(Action::PasteLast, true);
+    h.shortcut(Action::PasteLast, false);
+    wait_until("the paste", || h.fakes.inserted().len() == 2);
+    assert_eq!(h.fakes.inserted(), [TEXT, TEXT]);
+    assert_eq!(list(&h).entries[0].entry.status, HistoryStatus::Cancelled);
+}
+
+#[test]
+fn a_cancelled_command_is_not_stored() {
+    let mut settings = Settings::default();
+    settings.experimental.command_mode = true;
+    let h = harness(
+        6.0,
+        0.3,
+        Setup {
+            settings,
+            ..Setup::default()
+        },
+    );
+    h.shortcut(Action::CommandMode, true);
+    std::thread::sleep(Duration::from_millis(700));
+    h.shortcut(Action::Cancel, true);
+    h.shortcut(Action::Cancel, false);
+    h.shortcut(Action::CommandMode, false);
+    notice(&h, "Command cancelled");
     std::thread::sleep(Duration::from_millis(300));
     assert!(list(&h).entries.is_empty());
 }

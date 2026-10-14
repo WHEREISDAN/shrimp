@@ -336,6 +336,7 @@ export const core: CoreCatalog = {
     statusFailed: "Falha na transcrição",
     statusEmpty: "Nenhuma fala detectada",
     statusInterrupted: "Gravação interrompida. Recupere-a para transcrever o que foi dito.",
+    statusCancelled: "Ditado cancelado. Recupere-o para transcrever o que foi dito.",
     notPasted: "Não colado",
     unformatted: "Sem formatação",
     unformattedHint: "As edições da IA não foram aplicadas: a transcrição bruta foi inserida.",

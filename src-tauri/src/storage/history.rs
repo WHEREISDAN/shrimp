@@ -1,4 +1,4 @@
-//! Transcript history (HIS-01..07): one row per dictation, newest first.
+//! Transcript history (HIS-01..10): one row per dictation, newest first.
 //! Recordings live next to the database; a row only names its file.
 
 use rusqlite::{Connection, OptionalExtension, Row, params};
@@ -22,6 +22,8 @@ pub enum HistoryStatus {
     Empty,
     /// Shrimp quit or crashed while recording; the audio was saved (HIS-06).
     Interrupted,
+    /// Cancelled while recording; the audio was saved (HIS-10).
+    Cancelled,
 }
 
 impl HistoryStatus {
@@ -33,6 +35,7 @@ impl HistoryStatus {
             Self::Failed => "failed",
             Self::Empty => "empty",
             Self::Interrupted => "interrupted",
+            Self::Cancelled => "cancelled",
         }
     }
 
@@ -43,6 +46,7 @@ impl HistoryStatus {
             "failed" => Self::Failed,
             "empty" => Self::Empty,
             "interrupted" => Self::Interrupted,
+            "cancelled" => Self::Cancelled,
             _ => Self::Inserted,
         }
     }
@@ -380,6 +384,30 @@ mod tests {
                 Ok(())
             })
             .unwrap();
+    }
+
+    #[test]
+    fn statuses_are_stored_as_text() {
+        let database = Database::open_in_memory().unwrap();
+        database
+            .with(|db| {
+                let mut cancelled = new("", 1);
+                cancelled.status = Some(HistoryStatus::Cancelled);
+                let id = insert(db, &cancelled)?.id;
+                let stored: String =
+                    db.query_row("SELECT status FROM history WHERE id = ?1", [id], |row| {
+                        row.get(0)
+                    })?;
+                assert_eq!(stored, "cancelled");
+                assert_eq!(get(db, id)?.status, HistoryStatus::Cancelled);
+                assert!(!HistoryStatus::Cancelled.has_text());
+                Ok(())
+            })
+            .unwrap();
+        assert_eq!(
+            serde_json::to_value(HistoryStatus::Cancelled).unwrap(),
+            "cancelled"
+        );
     }
 
     #[test]

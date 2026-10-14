@@ -28,6 +28,7 @@
   "notice.copyFailed": "Couldn't copy: {error}",
   "notice.dictation.busy": "Transcript currently processing",
   "notice.dictation.cancelled": "Dictation cancelled",
+  "notice.dictation.recoverCancelled": "You can recover your cancelled transcript",
   "notice.dictation.cannotRetry": "Cannot retry while dictating.",
   "notice.dictation.interrupted": "Dictation cancelled because another shortcut was pressed.",
   "notice.dictation.lastCopied": "Last transcript copied",

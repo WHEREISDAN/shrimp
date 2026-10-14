@@ -126,7 +126,7 @@ edit/                   AI edit pipeline                                        
   tips.rs               formatting tips: list, email, backtrack (FMT-13)               (built)
   command.rs            Command Mode prompt, tagged reply parsing (CMD-01..03)         (built)
   transforms.rs         Polish, Prompt Engineer, custom transforms, auto-apply         (built)
-history/                transcript history (HIS-01..09)                                (built)
+history/                transcript history (HIS-01..10)                                (built)
   mod.rs                History: store a dictation and count its stats, list, Undo AI
                         edit, delete, retry audio, Play and Extract audio              (built)
   retention.rs          Local data storage, Delete all transcripts, the hourly sweep
@@ -142,8 +142,9 @@ insights/               Insights (STA-01..05)                                   
 dictation/              orchestration                                                  (built)
   controller/           the dictation actor (state machine below); shortcuts.rs for
                         Press Enter and bindings, transforms.rs for transform runs,
-                        recording.rs for recording shortcuts, interrupts (CORE-12),
-                        Secure Keyboard Entry and the cancel notice's Undo (CORE-11),
+                        recording.rs for recording shortcuts, interrupts (CORE-12) and
+                        Secure Keyboard Entry, cancelled.rs for cancelled dictations
+                        (the notice, Undo, CORE-11, and History, HIS-10),
                         microphone.rs for the source and its warnings, language.rs
                         for the different-language card (LANG-04)                     (built)
   gestures.rs           hold / double-tap / short-tap / busy recognition, pure         (built)
@@ -329,7 +330,8 @@ Processing ── any dictation shortcut ──▶ rejected, "Transcript current
 
 Every step in this diagram runs. The last dictation (its text, or its audio when it
 failed or was cancelled, and its History entry) is kept in memory for paste and copy last
-transcript; pasting a failed one updates its History entry instead of adding one.
+transcript; pasting a failed or cancelled one updates its History entry instead of adding
+one.
 
 Notes:
 
@@ -1134,7 +1136,8 @@ Schema (migration 1 is phase 2, migration 2 phase 4):
 CREATE TABLE history (                                  -- P4
   id INTEGER PRIMARY KEY, created_at INTEGER NOT NULL,   -- unix ms
   mode TEXT NOT NULL,              -- 'dictation' (Command Mode and transforms aren't stored)
-  status TEXT NOT NULL,            -- inserted | copied | transcribed | failed | empty | interrupted
+  status TEXT NOT NULL,            -- inserted | copied | transcribed | failed | empty
+                                   --   | interrupted | cancelled
   app_id TEXT, app_name TEXT,
   raw_text TEXT NOT NULL DEFAULT '', final_text TEXT NOT NULL DEFAULT '',
   formatted INTEGER NOT NULL DEFAULT 1,   -- 0 when AI edits were off, skipped or failed (FMT-10)
@@ -1161,13 +1164,18 @@ History search is a `LIKE` over the final and raw text and the app name (with `%
 and `\` escaped), not FTS5: history stays small, and FTS5's tokenizer doesn't split
 Chinese or Japanese.
 
-### History (HIS-01..09)
+### History (HIS-01..10)
 
 Every finished dictation goes to `History::record` on the blocking pool, from the task
 that ran the pipeline, before the controller hears the result. The status comes from
 the outcome: pasted → inserted; on the clipboard or a failed paste → copied; failed STT
-→ failed; no speech → empty. Command Mode, transforms, cancelled dictations and
-"never mind" are not stored. A dictation with words is counted in the stats even with
+→ failed; no speech → empty. Command Mode, transforms and "never mind" are not stored.
+A dictation cancelled after recording for at least 0.5 s (Esc, the Flow Bar's ✕, a
+third quick press, or another app's shortcut early in a hold, CORE-12) is stored as
+"cancelled" with its recording and offers Recover (HIS-10); a shorter one, or one with
+"Never store", is not. Undo on the cancel notice and paste last transcript (CORE-11)
+update that entry instead of adding one, as with a failed dictation. An interrupted
+start doesn't replace the last transcript, so paste last still pastes the one before. A dictation with words is counted in the stats even with
 "Never store". History's Retry and Recover go through the controller (refused while
 recording: "Cannot retry while dictating."; while processing: "Transcript currently
 processing"), transcribe and edit the stored audio again and update the entry without
@@ -1243,6 +1251,13 @@ or `<ul>` in the HTML), an email layout (an Email app and a blank line) or a bac
 (a cue such as "actually" or "scratch that" in the transcript but not in the result).
 The first of each gets an explanation, then up to 3 reminders, at most one tip a day
 (`notices.formattingTips`). Muted tips aren't counted.
+
+The cancel notice (CORE-11) is "Dictation cancelled" with Undo. When the cancelled
+dictation was stored in History (HIS-10), the same notice instead says "You can recover
+your cancelled transcript" with Undo and Open History, at most 3 times in all and once
+a day (`notices.cancelRecoverCount`, `notices.cancelRecoverDay`), as Wispr Flow's
+larger card does; the Flow Bar shows one notice at a time, so it replaces the short one
+rather than following it.
 
 French typography (`lang/french.rs`): when the dictation was in French and the app
 isn't a code editor or terminal, a narrow no-break space (U+202F) goes before `; : ! ?`,
