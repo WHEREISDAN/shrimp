@@ -57,7 +57,7 @@ if pgrep -xq "Wispr Flow"; then
   echo "Warning: Wispr Flow is running and also reacts to fn; quit it for a clean run." >&2
 fi
 
-echo "Building the helper and the target app in $WORK…"
+echo "Building the helper and the target app in ${WORK}…"
 swiftc -O -o "$HELPER" "$HERE/helper.swift"
 mkdir -p "$TARGET_APP/Contents/MacOS"
 swiftc -O -o "$TARGET_APP/Contents/MacOS/target" "$HERE/target.swift"
