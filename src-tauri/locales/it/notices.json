@@ -51,6 +51,7 @@
   "notice.history.retryFailed": "Nuovo tentativo non riuscito. Riprova.",
   "notice.language.detected": "Stai parlando un'altra lingua? Sembrava {language}.",
   "notice.launchAtLoginFailed": "Impossibile modificare “Apri al login”: {error}",
+  "notice.restartFailed": "Impossibile riavviare Shrimp: {error}",
   "notice.listAnd": "{rest} e {last}",
   "notice.mic.allow": "Consenti a Shrimp di usare il microfono, poi detta di nuovo.",
   "notice.mic.bluetooth": "I microfoni Bluetooth come {name} suonano ovattati e possono essere lenti ad attivarsi. Un microfono integrato o a filo funziona meglio.",

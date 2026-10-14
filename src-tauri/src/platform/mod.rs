@@ -434,6 +434,10 @@ pub use windows::{
     relaunch_after_exit, set_own_field_focused,
 };
 
+/// What a restart passes the new instance, so it opens its main window even
+/// when the launch looks like one at login (APP-12).
+pub const RELAUNCH_ARG: &str = "--relaunched";
+
 /// The shortcut hints of the tray menu: paste last, copy last and Quit.
 pub const TRAY_ACCELERATORS: [Option<&str>; 3] = if cfg!(target_os = "windows") {
     [Some("Shift+Alt+Z"), Some("Shift+Alt+X"), None]

@@ -29,7 +29,7 @@ phase that adds it (phases are defined in [PARITY.md](PARITY.md)).
 | ------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Main window   | `main` webview: Home, Insights, Dictionary, Snippets, Style, Transforms, Settings, onboarding. Closing hides it **(built)**.                                                                                                                                                     |
 | Flow Bar      | `flow-bar` webview in a transparent, always-on-top window that never takes focus, on the bottom, left or right edge of the display under the cursor. On macOS it is a non-activating `NSPanel` (tauri-nspanel); on Windows a topmost `WS_EX_NOACTIVATE` tool window **(built)**. |
-| Tray          | Menu-bar / notification-area icon and menu: Open Shrimp, Shortcuts…, Check for updates…, Paste last transcript, Copy last transcript, Privacy mode, Quit **(built)**.                                                                                                            |
+| Tray          | Menu-bar / notification-area icon and menu: Open Shrimp, Shortcuts…, Check for updates…, Paste last transcript, Copy last transcript, Privacy mode, Restart Shrimp, Quit **(built)**.                                                                                            |
 | Hotkey thread | Owns the OS keyboard hook (a CGEventTap run loop on macOS, Shrimp's own `WH_KEYBOARD_LL` and `WH_MOUSE_LL` hooks on Windows) **(built)**.                                                                                                                                        |
 | Audio thread  | The cpal input stream callback, which only converts samples to f32 and sends them **(built)**.                                                                                                                                                                                   |
 | Async runtime | Tauri's tokio runtime: the dictation controller task, IPC commands, HTTP calls.                                                                                                                                                                                                  |
@@ -1281,7 +1281,7 @@ alone.
 
 - **Main window.** It starts hidden (`visible: false`) and setup shows it, unless the
   launch came from the login item (or `--background`) and nothing needs attention
-  (`app/system.rs`). The sidebar lists Home, Insights, Dictionary, Snippets, Style and
+  (`app/system.rs`); a launch by Shrimp's own restart (`--relaunched`) always shows it. The sidebar lists Home, Insights, Dictionary, Snippets, Style and
   Transforms, with Settings and Help at the bottom. ⌘[ and ⌘] go back and forward
   through the pages visited, ⌥↑/⌥↓ move through the sidebar (`usePageHistory`), and on
   Settings ⌥↑/⌥↓ move through its pages instead.
@@ -1297,10 +1297,17 @@ alone.
   Dock, so the switch is hidden there. The main window is created hidden and unfocused
   (`focus: false`), so a background launch never takes focus (WebView2 would otherwise
   focus the hidden window); `show_main` focuses it when it is shown.
-- **Reset & restart (APP-08)** writes `reset-requested` and restarts with
-  `request_restart` (which runs the normal exit, so Whisper is unloaded). The next launch
+- **Reset & restart (APP-08)** writes `reset-requested` and restarts. The next launch
   deletes everything in the data folder except `models/` before opening anything, and
   removes the API keys from the keychain; onboarding then starts again.
+- **Restarting.** Every restart (Reset & restart, the repairs, an installed update, the
+  tray's Restart Shrimp) goes through `commands::system::restart`:
+  `platform::relaunch_after_exit` starts a small waiter (a shell on macOS that then runs
+  `open -n`, PowerShell on Windows) that opens the app with `--relaunched` once this
+  process has gone, and Shrimp quits normally (`RunEvent::Exit` runs `app::before_exit`:
+  Whisper unloads and the crash marker goes, so no crash screen follows). Restart Shrimp
+  (APP-12, Wispr Flow's Restart Flow) asks nothing first and the new instance shows its
+  main window.
 - **Error screens (APP-09).** `health/`: a `running` marker is written at launch and
   removed at a normal exit (`RunEvent::Exit`), so a leftover marker means the last run
   crashed or was killed; a panic hook saves the message for the screen's Details. The

@@ -6,10 +6,12 @@ use tauri::menu::{CheckMenuItem, Menu, MenuItem, PredefinedMenuItem};
 use tauri::tray::TrayIconBuilder;
 use tauri::{AppHandle, Emitter, Manager, Runtime, include_image};
 
-use super::events::NAVIGATE_EVENT;
+use super::events::{NAVIGATE_EVENT, TauriUi};
 use super::{updates, window};
-use crate::dictation::{ControllerHandle, ControllerInput};
+use crate::commands::system;
+use crate::dictation::{ControllerHandle, ControllerInput, DictationUi};
 use crate::hotkeys::Action;
+use crate::notify::Notice;
 use crate::platform::TRAY_ACCELERATORS;
 use crate::settings::{Settings, SettingsStore};
 use crate::t;
@@ -21,6 +23,7 @@ const SHORTCUTS_ID: &str = "shortcuts";
 const PASTE_LAST_ID: &str = "paste-last";
 const COPY_LAST_ID: &str = "copy-last";
 const PRIVACY_ID: &str = "privacy-mode";
+const RESTART_ID: &str = "restart";
 const QUIT_ID: &str = "quit";
 
 /// Paste last transcript is greyed out until there is one (WIN-09).
@@ -44,6 +47,7 @@ pub fn create<R: Runtime>(app: &AppHandle<R>, settings: &Settings) -> tauri::Res
             COPY_LAST_ID => send(app, Action::CopyLast),
             PRIVACY_ID => toggle_privacy_mode(app),
             updates::MENU_ID => updates::menu_clicked(app),
+            RESTART_ID => restart(app),
             QUIT_ID => app.exit(0),
             _ => {}
         })
@@ -103,6 +107,7 @@ fn menu<R: Runtime>(app: &AppHandle<R>, settings: &Settings) -> tauri::Result<Me
         settings.privacy.privacy_mode,
         None::<&str>,
     )?;
+    let restart = item(RESTART_ID, t!("tray.restart"), true, None)?;
     let quit = item(QUIT_ID, t!("tray.quit"), true, quit_keys)?;
     Menu::with_items(
         app,
@@ -116,6 +121,7 @@ fn menu<R: Runtime>(app: &AppHandle<R>, settings: &Settings) -> tauri::Result<Me
             &PredefinedMenuItem::separator(app)?,
             &privacy,
             &PredefinedMenuItem::separator(app)?,
+            &restart,
             &quit,
         ],
     )
@@ -161,6 +167,22 @@ fn toggle_privacy_mode<R: Runtime>(app: &AppHandle<R>) {
     let on = !settings.get().privacy.privacy_mode;
     if let Err(error) = settings.update(&serde_json::json!({"privacy": {"privacyMode": on}})) {
         log::warn!("could not switch Privacy mode: {error}");
+    }
+}
+
+/// "Restart Shrimp" (APP-12): a normal quit, so Whisper unloads and no crash
+/// screen follows, then the app opens again with its main window, without
+/// asking first (Wispr Flow's Restart Flow, article 7492559320).
+fn restart<R: Runtime>(app: &AppHandle<R>) {
+    let Err(error) = system::restart(app) else {
+        return;
+    };
+    log::error!("could not restart: {}", error.message);
+    if let Some(ui) = app.try_state::<Arc<TauriUi>>() {
+        ui.notice(Notice::error(t!(
+            "notice.restartFailed",
+            error = error.message
+        )));
     }
 }
 

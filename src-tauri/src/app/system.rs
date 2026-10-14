@@ -15,7 +15,7 @@ use crate::commands::system::free_bytes;
 use crate::dictation::DictationUi;
 use crate::health::{self, Health, Pending};
 use crate::notify::{Notice, NoticeAction};
-use crate::platform::{LoginItem, Permission, PermissionStatus, Permissions};
+use crate::platform::{LoginItem, Permission, PermissionStatus, Permissions, RELAUNCH_ARG};
 use crate::secrets::{KeyAccount, Secrets};
 use crate::settings::SettingsStore;
 use crate::storage::Database;
@@ -130,8 +130,12 @@ pub fn follow_system_settings(
 }
 
 /// Whether this launch should stay in the background: launched at login
-/// (or with `--background`), unless something needs the main window.
+/// (or with `--background`), unless Shrimp restarted itself or something
+/// needs the main window.
 pub fn starts_in_background(login_item: &dyn LoginItem, health: &Health) -> bool {
+    if std::env::args().any(|arg| arg == RELAUNCH_ARG) {
+        return false;
+    }
     let asked = std::env::args().any(|arg| arg == BACKGROUND_ARG) || login_item.launched_at_login();
     if asked {
         log::info!("started in the background");

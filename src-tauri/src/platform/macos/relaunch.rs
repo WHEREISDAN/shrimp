@@ -1,13 +1,13 @@
-//! Restarting Shrimp (APP-08, APP-09). Tauri's restart opens the new
+//! Restarting Shrimp (APP-08, APP-09, APP-12). Tauri's restart opens the new
 //! instance while this one still runs, so the single-instance check hands
 //! over to this one and quits, and this one then exits: nothing is left.
 //! Instead a small shell waits for this process to end, then opens the
-//! bundle through LaunchServices.
+//! bundle through LaunchServices with `RELAUNCH_ARG`.
 
 use std::path::Path;
 use std::process::{Command, Stdio};
 
-use crate::platform::PlatformError;
+use crate::platform::{PlatformError, RELAUNCH_ARG};
 use crate::t;
 
 /// Opens the app again once this process has exited. The caller exits next.
@@ -25,7 +25,8 @@ fn spawn_waiter(pid: u32, bundle: &Path) -> Result<(), PlatformError> {
     Command::new("/bin/sh")
         .arg("-c")
         .arg(format!(
-            "while kill -0 {pid} 2>/dev/null; do sleep 0.2; done; exec /usr/bin/open -n \"$0\""
+            "while kill -0 {pid} 2>/dev/null; do sleep 0.2; done; \
+             exec /usr/bin/open -n \"$0\" --args {RELAUNCH_ARG}"
         ))
         .arg(bundle)
         .stdin(Stdio::null())

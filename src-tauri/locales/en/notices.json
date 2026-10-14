@@ -51,6 +51,7 @@
   "notice.history.retryFailed": "Retry failed. Please try again.",
   "notice.language.detected": "Speaking a different language? That sounded like {language}.",
   "notice.launchAtLoginFailed": "Couldn't change Launch at login: {error}",
+  "notice.restartFailed": "Couldn't restart Shrimp: {error}",
   "notice.listAnd": "{rest} and {last}",
   "notice.mic.allow": "Allow Shrimp to use the microphone, then dictate again.",
   "notice.mic.bluetooth": "Bluetooth microphones like {name} sound muffled and can be slow to start. A built-in or wired microphone works better.",

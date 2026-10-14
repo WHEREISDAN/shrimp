@@ -51,6 +51,7 @@
   "notice.history.retryFailed": "Wiederholen fehlgeschlagen. Versuch es noch einmal.",
   "notice.language.detected": "Sprichst du eine andere Sprache? Das klang nach {language}.",
   "notice.launchAtLoginFailed": "„Beim Anmelden öffnen“ konnte nicht geändert werden: {error}",
+  "notice.restartFailed": "Shrimp konnte nicht neu gestartet werden: {error}",
   "notice.listAnd": "{rest} und {last}",
   "notice.mic.allow": "Erlaube Shrimp den Zugriff auf das Mikrofon und diktiere dann erneut.",
   "notice.mic.bluetooth": "Bluetooth-Mikrofone wie {name} klingen dumpf und starten oft langsam. Ein integriertes oder kabelgebundenes Mikrofon funktioniert besser.",
