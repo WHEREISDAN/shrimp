@@ -254,6 +254,22 @@ export type Style = "formal" | "casual" | "veryCasual" | "excited";
 /** Mirrors `edit::AppCategory`. */
 export type AppCategory = "personal" | "work" | "email" | "other";
 
+/** Mirrors `edit::TranscriptFormat`: how an app's dictations are formatted. */
+export type TranscriptFormat = "automatic" | "unformatted" | "properNouns" | "lowercase";
+
+/** Mirrors `settings::AppFormat`: one app's format, by bundle ID or executable name. */
+export interface AppFormat {
+  appId: string;
+  appName: string;
+  format: TranscriptFormat;
+}
+
+/** Mirrors `settings::KnownApp`: an app that can get a format of its own. */
+export interface KnownApp {
+  id: string;
+  name: string;
+}
+
 /** Mirrors `settings::Settings`. */
 export interface Settings {
   version: number;
@@ -271,6 +287,8 @@ export interface Settings {
     ollamaUrl: string;
   };
   styles: Record<AppCategory, Style>;
+  /** Formatting per app; apps not listed are formatted automatically. */
+  appFormats: AppFormat[];
   privacy: {
     contextAwareness: boolean;
     history: HistoryStorage;
@@ -352,6 +370,8 @@ export interface SettingsPatch {
   stt?: Partial<Settings["stt"]>;
   ai?: Partial<Settings["ai"]>;
   styles?: Partial<Settings["styles"]>;
+  /** The whole list replaces the saved one. */
+  appFormats?: AppFormat[];
   privacy?: Partial<Settings["privacy"]>;
   experimental?: Partial<Settings["experimental"]>;
   vibeCoding?: Partial<Settings["vibeCoding"]>;
@@ -683,6 +703,9 @@ export const getSettings = (): Promise<Settings> => invoke<Settings>("get_settin
 
 export const updateSettings = (patch: SettingsPatch): Promise<Settings> =>
   invoke<Settings>("update_settings", { patch });
+
+/** The apps Style › Formatting per app offers: the one in front before Shrimp, then those dictated into. */
+export const getFormatApps = (): Promise<KnownApp[]> => invoke<KnownApp[]>("get_format_apps");
 
 export const transformAction = (action: TransformAction): Promise<void> =>
   invoke("transform_action", { action });

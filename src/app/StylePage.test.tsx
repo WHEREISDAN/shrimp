@@ -5,16 +5,23 @@ import { EVENTS, type Settings, type SettingsPatch } from "../lib/ipc";
 import { StylePage } from "./StylePage";
 import { mockBackend, SETTINGS } from "./testBackend";
 
+const APPS = [
+  { id: "com.apple.Terminal", name: "Terminal" },
+  { id: "com.tinyspeck.slackmacgap", name: "Slack" },
+];
+
 function backend(initial: Settings = SETTINGS) {
   let settings = initial;
   return mockBackend({
     get_settings: () => settings,
+    get_format_apps: () => APPS,
     update_settings: (args) => {
       const patch = args.patch as SettingsPatch;
       settings = {
         ...settings,
         ai: { ...settings.ai, ...patch.ai },
         styles: { ...settings.styles, ...patch.styles },
+        appFormats: patch.appFormats ?? settings.appFormats,
       };
       return settings;
     },
@@ -136,9 +143,70 @@ describe("StylePage", () => {
     );
   });
 
+  it("adds an app with a format, changes it and removes it", async () => {
+    const { argsOf } = backend();
+    render(<StylePage />);
+    const section = await screen.findByRole("region", { name: "Formatting per app" });
+    const app = await within(section).findByRole("combobox", { name: "App" });
+    expect(
+      within(app)
+        .getAllByRole("option")
+        .map((option) => option.textContent),
+    ).toEqual(["Terminal", "Slack"]);
+    fireEvent.change(within(section).getByRole("combobox", { name: "Format" }), {
+      target: { value: "lowercase" },
+    });
+    fireEvent.click(within(section).getByRole("button", { name: "Add app" }));
+    await waitFor(() =>
+      expect(argsOf("update_settings")).toEqual([
+        {
+          patch: {
+            appFormats: [{ appId: "com.apple.Terminal", appName: "Terminal", format: "lowercase" }],
+          },
+        },
+      ]),
+    );
+
+    const format = await within(section).findByRole("combobox", { name: "Format for Terminal" });
+    expect(format).toHaveValue("lowercase");
+    expect(within(section).getByRole("combobox", { name: "App" })).toHaveValue(
+      "com.tinyspeck.slackmacgap",
+    );
+    fireEvent.change(format, { target: { value: "properNouns" } });
+    await waitFor(() =>
+      expect(argsOf("update_settings")[1]).toEqual({
+        patch: {
+          appFormats: [{ appId: "com.apple.Terminal", appName: "Terminal", format: "properNouns" }],
+        },
+      }),
+    );
+    expect(
+      within(format)
+        .getAllByRole("option")
+        .map((option) => option.textContent),
+    ).toEqual([
+      "Automatic formatting",
+      "Unformatted transcription",
+      "Proper-noun capitals only",
+      "All lowercase",
+    ]);
+
+    fireEvent.click(within(section).getByRole("button", { name: "Remove Terminal" }));
+    await waitFor(() =>
+      expect(argsOf("update_settings")[2]).toEqual({ patch: { appFormats: [] } }),
+    );
+  });
+
+  it("says where apps come from before any dictation", async () => {
+    mockBackend({ get_settings: () => SETTINGS, get_format_apps: () => [] });
+    render(<StylePage />);
+    expect(await screen.findByText("Apps you dictate into appear here.")).toBeInTheDocument();
+  });
+
   it("shows a rejected save", async () => {
     mockBackend({
       get_settings: () => SETTINGS,
+      get_format_apps: () => [],
       update_settings: () => {
         throw { code: "invalid", message: "Could not save settings" };
       },

@@ -46,7 +46,8 @@ lib.rs                  Tauri builder: plugins, commands, setup                 
 app/                    shell                                                          (built)
   mod.rs                run-loop events (Dock reopen)                                  (built)
   setup.rs              builds the services at startup, managed state                  (built)
-  window.rs             main window show/hide, close-to-tray, the Dock icon            (built)
+  window.rs             main window show/hide, close-to-tray, the Dock icon, the app
+                        in front before the window opened (FMT-15)                    (built)
   system.rs             startup: pending reset or repair, crash and storage checks,
                         launch at login, background start (APP-06..09)                (built)
   tray.rs               tray icon and menu                                             (built)
@@ -116,6 +117,7 @@ edit/                   AI edit pipeline                                        
   snippets.rs           trigger matching and expansion                                 (built)
   dictionary.rs         corrections, vocabulary hints, usage counting                  (built)
   style.rs              app category, casing and trailing-period rules                 (built)
+  format.rs             per-app formats: proper-noun capitals, all lowercase (FMT-15) (built)
   markdown.rs           plain text plus HTML for lists and rich snippets               (built)
   library.rs            Library: the dictionary and snippets a dictation reads         (built)
   context_format.rs     casing and spacing from the text around the cursor (FMT-11)    (built)
@@ -189,7 +191,8 @@ storage/                SQLite                                                  
   stats.rs              daily, per-app, hourly and speed counts; key-value meta        (built)
   backup.rs             daily `VACUUM INTO` copy, newest two kept                      (built)
 settings/               typed Settings, JSON file, merge-patch updates, change events;
-                        shortcuts.rs for the bindings per action                      (built)
+                        shortcuts.rs for the bindings per action, app_formats.rs for
+                        the format per app (FMT-15)                                    (built)
 secrets/                API keys in the OS keychain (keyring), cached in memory        (built)
 sounds/                 start/stop/lock/cancel/warning/paste cues and the notice and
                         achievement sounds, synthesised; SettingsCues and
@@ -254,6 +257,7 @@ Built so far:
 | Phase 4  | `get_shortcuts` (every action's bindings, the overlap warning, Secure Keyboard Entry), `record_shortcut` (records through the hooks; progress as `shortcuts://recording`), `cancel_shortcut_recording`, `remove_shortcut`, `reset_shortcuts`; `retry_model`, `download_model`, `delete_model`; `get_microphones`, `select_microphone`, `rank_microphone`, `forget_microphone`, `start_mic_preview`, `stop_mic_preview`; `get_languages`, `set_languages`, `set_active_language`; `flow_bar_drag`, `flow_bar_action` (the right-click menu)      |
 | Phase 4b | `get_app_health`, `dismiss_crash`, `check_storage`, `open_storage_settings`, `repair_data`, `reset_app` (both restart the app); `get_insights`, `get_voice_profile`, `generate_voice_profile` (rejects with `{kind}`), `copy_image` and `save_image` (a raw PNG request body; the file name in an `x-file-name` header); `list_history`, `copy_history`, `set_history_raw` (Undo/Redo AI edit), `retry_history`, `history_audio` (raw WAV bytes), `extract_history_audio`, `delete_history`, `set_history_storage` ("never" needs "delete all") |
 | Phase 2  | `get_settings`, `update_settings`, `get_ai_options`, `get_api_keys`, `set_api_key`, `delete_api_key`, `list_ollama_models`, `test_ai_provider`; dictionary and snippet CRUD and imports (`list_dictionary`, `add_dictionary_entry`, `update_dictionary_entry`, `set_dictionary_pinned`, `delete_dictionary_entries`, `preview_dictionary_import`, `import_dictionary`, `list_snippets`, `add_snippet`, `update_snippet`, `delete_snippets`, `preview_snippet_import`, `import_snippets`)                                                        |
+| Phase 6  | `get_format_apps` (the apps Style › Formatting per app offers: the app in front before Shrimp's window opened, then the apps dictated into, most words first)                                                                                                                                                                                                                                                                                                                                                                                   |
 | Dev only | `dev_get_audio_source`, `dev_set_audio_source`, `dev_set_app_category`, `dev_edit_text`, `dev_read_context`, `dev_set_microphones`, `dev_set_permissions` (debug builds; see DEVELOPMENT.md)                                                                                                                                                                                                                                                                                                                                                    |
 | Events   | `dictation://state`, `dictation://level` (Flow Bar only), `notify://notice`, `command://answer` and `transform://changes` (Flow Bar only), `models://status`, `app://navigate`, `settings://changed`, `shortcuts://recording`, `notify://dismiss` (a notice whose cause went away), `mic://devices`, `mic://level`, `flow-bar://hover` (Flow Bar only), `app://main-visible` (main window shown or closed to the tray)                                                                                                                          |
 
@@ -882,11 +886,30 @@ settings, the dictionary and snippets (`Library`, read from SQLite per dictation
    selection keeps its lowercase start, its surrounding spaces and a final `,`, `?` or
    `!`; Chinese and Japanese join without spaces. This runs on the device whatever the
    context awareness setting.
-9. **Rendering.** `edit/markdown.rs` produces plain text always and HTML when the text has
-   lists or snippet formatting (INS-08, SNP-03). Inline markup is read only inside snippet
-   expansions, so dictated `snake_case` stays literal. Dictionary terms found in the final
-   text count as uses (DIC-04).
-10. **Language variant (LANG-03).** The user's variant for the transcript's language
+9. **Formatting per app (FMT-15).** Style › Formatting per app (`settings.appFormats`, a
+   list of `{appId, appName, format}` keyed by the bundle ID on macOS and the executable
+   name on Windows, at most 100) gives an app one of Wispr's four formats; apps not listed
+   get Automatic formatting, today's pipeline. **Unformatted transcription** skips the
+   AI edit, the developer pass, spoken punctuation words, the style rules, auto-applied
+   transforms, file tagging, French typography and context casing (only the spaces around
+   the dictation are fitted). Following Wispr's help, which says line break and paragraph
+   commands work whatever the formatting setting, line commands still apply, and so do
+   dictionary corrections, names respelled from the screen, snippets and "press enter",
+   which are not formatting. **Proper-noun capitals only** and **All lowercase** run the
+   whole pipeline, then recase the text outside snippet expansions (`edit/format.rs`):
+   proper-noun capitals keeps a capitalised word only when it is "I", has capitals inside
+   (acronyms, iPhone, McDonald's), is a dictionary term, a name on screen, a word Whisper
+   capitalised mid-sentence, a weekday or month, a very common first name, a famous name,
+   or not an everyday English word; all lowercase lowercases everything, sentence starts, names and
+   "I" included. URLs, paths, emails and code keep their case in both. The Style page
+   offers the app that was in front when Shrimp's window opened from the tray, the Flow
+   Bar or a notice (`window::PreviousApp`, never Shrimp itself), then the apps dictated
+   into (`stats::apps`).
+10. **Rendering.** `edit/markdown.rs` produces plain text always and HTML when the text has
+    lists or snippet formatting (INS-08, SNP-03). Inline markup is read only inside snippet
+    expansions, so dictated `snake_case` stays literal. Dictionary terms found in the final
+    text count as uses (DIC-04).
+11. **Language variant (LANG-03).** The user's variant for the transcript's language
     (the Flow Bar's choice, or the selected language with that Whisper code) adds a rule
     to the prompt ("Use British English spelling…") and, whatever the model wrote, shapes
     the text deterministically: US, UK or Canadian spelling for about 45 common words,
@@ -1205,7 +1228,7 @@ the next one.
 
 Built sections: `stt` (engine, the local Whisper model, OpenAI and Groq models), `ai`
 (provider, cleanup level, model per provider, Ollama model and address), `styles` (one per
-category, Formal by default), `privacy` (`contextAwareness`, on by default),
+category, Formal by default), `appFormats` (the format per app, FMT-15), `privacy` (`contextAwareness`, on by default),
 `experimental` (`commandMode`, `commandModeIntroSeen`, `pressEnterCommand`,
 `pressEnterPromptSeen`), `privacy.history`
 (`local`, `autoDelete` or `never`, HIS-07), `shortcuts`

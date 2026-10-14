@@ -3,6 +3,7 @@
 
 use serde::{Deserialize, Serialize};
 
+use super::app_formats::{self, AppFormat};
 use super::audio::{MediaSettings, MicrophoneSettings, SoundSettings};
 use super::flow_bar::FlowBarSettings;
 use super::languages::LanguageSettings;
@@ -27,6 +28,8 @@ pub struct Settings {
     pub stt: SttSettings,
     pub ai: AiSettings,
     pub styles: StyleSettings,
+    /// Formatting per app (FMT-15); apps not listed are formatted automatically.
+    pub app_formats: Vec<AppFormat>,
     pub privacy: PrivacySettings,
     pub experimental: ExperimentalSettings,
     pub shortcuts: ShortcutSettings,
@@ -52,6 +55,7 @@ impl Default for Settings {
             stt: SttSettings::default(),
             ai: AiSettings::default(),
             styles: StyleSettings::default(),
+            app_formats: Vec::new(),
             privacy: PrivacySettings::default(),
             experimental: ExperimentalSettings::default(),
             shortcuts: ShortcutSettings::default(),
@@ -421,6 +425,7 @@ impl Settings {
                 model = self.stt.local_model
             ));
         }
+        app_formats::validate(&self.app_formats)?;
         self.shortcuts.validate(&self.transforms)?;
         self.microphone.validate()?;
         self.media.validate()?;
@@ -467,6 +472,7 @@ mod tests {
         assert_eq!(json["privacy"]["contextAwareness"], true);
         assert_eq!(json["experimental"]["commandMode"], false);
         assert_eq!(json["shortcuts"]["bindings"], serde_json::json!({}));
+        assert_eq!(json["appFormats"], serde_json::json!([]));
     }
 
     #[test]

@@ -9,6 +9,7 @@ mod context_format;
 pub mod dictionary;
 mod failure;
 pub mod file_tags;
+pub mod format;
 pub mod guard;
 pub mod library;
 pub mod markdown;
@@ -24,9 +25,11 @@ pub mod transforms;
 
 use serde::{Deserialize, Serialize};
 
+pub use format::TranscriptFormat;
 pub use library::{FixedLibrary, Library, Snapshot};
 pub use markdown::Rendered;
-pub use pipeline::{EditTimeout, Edited, Editor, PressEnter, raw_inserted};
+pub use pipeline::{EditTimeout, Edited, Editor, raw_inserted};
+pub use spoken::PressEnter;
 pub use style::{AppCategory, Style, Target};
 
 /// How much the AI edits (FMT-01). Mirrors `CleanupLevel` in src/lib/ipc.ts.

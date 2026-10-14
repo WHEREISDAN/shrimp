@@ -2,6 +2,7 @@
 //! The webview reads them with `get_settings` and changes them with
 //! `update_settings(patch)`; Rust validates, saves and announces each change.
 
+pub mod app_formats;
 pub mod audio;
 pub mod flow_bar;
 pub mod languages;
@@ -16,6 +17,7 @@ use serde_json::Value;
 
 use crate::t;
 
+pub use app_formats::{AppFormat, KnownApp};
 pub use audio::{KnownMicrophone, MediaSettings, MicrophoneSettings, SoundSettings};
 pub use flow_bar::FlowBarSettings;
 pub use languages::LanguageSettings;

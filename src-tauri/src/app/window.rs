@@ -1,13 +1,62 @@
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 
 use tauri::{AppHandle, Emitter, Manager, Runtime, Window, WindowEvent};
 
 use super::events::MAIN_VISIBLE_EVENT;
 use crate::mic::Microphones;
+use crate::platform::{AppIdentity, FocusInspector};
 
 pub const MAIN_LABEL: &str = "main";
 
+/// The app in front when Shrimp's window was last opened from another app
+/// (the tray, the Flow Bar, a notice), which the Style page offers for a
+/// format of its own (FMT-15).
+pub struct PreviousApp {
+    focus: Arc<dyn FocusInspector>,
+    /// Shrimp's own identities: its bundle ID and executable name.
+    own_ids: Vec<String>,
+    app: Mutex<Option<AppIdentity>>,
+}
+
+impl PreviousApp {
+    pub fn new(focus: Arc<dyn FocusInspector>, own_ids: Vec<String>) -> Self {
+        Self {
+            focus,
+            own_ids,
+            app: Mutex::new(None),
+        }
+    }
+
+    fn remember(&self) {
+        let Some(app) = self.focus.frontmost_app() else {
+            return;
+        };
+        if self.is_own(&app.bundle_id) {
+            return;
+        }
+        *self.app.lock().unwrap_or_else(|err| err.into_inner()) = Some(app);
+    }
+
+    pub fn get(&self) -> Option<AppIdentity> {
+        self.app
+            .lock()
+            .unwrap_or_else(|err| err.into_inner())
+            .clone()
+    }
+
+    pub fn own_ids(&self) -> &[String] {
+        &self.own_ids
+    }
+
+    fn is_own(&self, id: &str) -> bool {
+        self.own_ids.iter().any(|own| own.eq_ignore_ascii_case(id))
+    }
+}
+
 pub fn show_main<R: Runtime>(app: &AppHandle<R>) {
+    if let Some(previous) = app.try_state::<PreviousApp>() {
+        previous.remember();
+    }
     let Some(window) = app.get_webview_window(MAIN_LABEL) else {
         log::warn!("main window is missing");
         return;

@@ -62,7 +62,23 @@ pub fn fit(text: &str, around: Surroundings<'_>, protected: &[String]) -> String
         body = body.trim_end_matches(['.', ',', '!', '?', '…']).to_owned();
         body.push(mark);
     }
+    spaced(&body, around)
+}
 
+/// Only the spaces around `text`, for unformatted dictations (FMT-15):
+/// its casing and punctuation stay as they are.
+pub fn space(text: &str, around: Surroundings<'_>) -> String {
+    let body = text.trim();
+    if body.is_empty() {
+        return text.to_owned();
+    }
+    spaced(body, around)
+}
+
+/// A leading space when the text before needs one, a trailing one when a
+/// word follows, or the selection's own spaces.
+fn spaced(body: &str, around: Surroundings<'_>) -> String {
+    let selected = around.selected;
     let first = body.chars().next().unwrap_or(' ');
     let lead = if selected.is_empty() {
         needs_space_before(around.before, first)
@@ -254,6 +270,15 @@ mod tests {
             fit("감사합니다.", at("안녕하세요.", ""), &[]),
             " 감사합니다."
         );
+    }
+
+    #[test]
+    fn spacing_alone_keeps_case_and_punctuation() {
+        assert_eq!(
+            space("Tomorrow at noon.", at("we should talk about it", "today")),
+            " Tomorrow at noon. "
+        );
+        assert_eq!(space("Hello.", at("", "")), "Hello.");
     }
 
     #[test]

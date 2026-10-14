@@ -126,6 +126,47 @@ fn words(text: &str) -> Vec<String> {
         .collect()
 }
 
+/// Puts back the dictated line and paragraph breaks when the model kept the
+/// lines but merged the separators (a paragraph turned into a line break).
+pub fn restore_breaks(prepared: &str, edited: &str) -> String {
+    let wanted = separators(prepared);
+    if wanted.iter().all(|separator| *separator == 1) || edited.contains("\n\n") {
+        return edited.to_owned();
+    }
+    let lines: Vec<&str> = edited
+        .split('\n')
+        .filter(|line| !line.trim().is_empty())
+        .collect();
+    if lines.len() != wanted.len() + 1 {
+        return edited.to_owned();
+    }
+    let mut out = String::from(lines[0]);
+    for (line, breaks) in lines[1..].iter().zip(&wanted) {
+        out.push_str(&"\n".repeat(*breaks));
+        out.push_str(line);
+    }
+    out
+}
+
+/// How many line breaks separate each pair of non-empty lines.
+fn separators(text: &str) -> Vec<usize> {
+    let mut separators = Vec::new();
+    let mut breaks = 0;
+    let mut seen_text = false;
+    for line in text.split('\n') {
+        if line.trim().is_empty() {
+            breaks += 1;
+            continue;
+        }
+        if seen_text {
+            separators.push(breaks + 1);
+        }
+        seen_text = true;
+        breaks = 0;
+    }
+    separators
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -239,6 +280,23 @@ mod tests {
             )
             .unwrap(),
             "Sure thing, see you there."
+        );
+    }
+
+    #[test]
+    fn restores_paragraphs_the_model_merged() {
+        assert_eq!(
+            restore_breaks(
+                "first part\n\nsecond part\nthird",
+                "First part.\nSecond part.\nThird."
+            ),
+            "First part.\n\nSecond part.\nThird."
+        );
+        assert_eq!(restore_breaks("one\ntwo", "One.\nTwo."), "One.\nTwo.");
+        assert_eq!(
+            restore_breaks("a\n\nb", "A list:\n1. b\n2. c"),
+            "A list:\n1. b\n2. c",
+            "a different shape is left alone"
         );
     }
 }

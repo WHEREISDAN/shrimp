@@ -110,6 +110,7 @@ export const SETTINGS: Settings = {
     ollamaUrl: "http://localhost:11434",
   },
   styles: { personal: "veryCasual", work: "formal", email: "formal", other: "casual" },
+  appFormats: [],
   privacy: { contextAwareness: true, history: "local", privacyMode: false },
   experimental: {
     commandMode: false,
