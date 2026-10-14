@@ -12,8 +12,8 @@ Tick an item only when its criterion has been verified in the real app (tauri-mc
 a recorded manual check). Note how it was verified in the commit that ticks it.
 
 The baseline is Wispr Flow's desktop app as documented on 2026-10-13: the help center, the
-changelog at wisprflow.ai/whats-new and the product pages. Sources are listed at the end of
-this file.
+changelog at wisprflow.ai/whats-new and the product pages, re-checked in full by the
+phase 6 audit (`AUD-01`, see "Parity audit"). Sources are listed at the end of this file.
 
 ## Phases
 
@@ -24,12 +24,14 @@ this file.
 | 3     | Command Mode, Transforms, context awareness, coding/IDE features.                                       |
 | 4     | History, insights, full settings, languages, whisper mode, media, launch at login, privacy, onboarding. |
 | 5     | Windows parity, packaging (DMG, Windows installer) and updates.                                         |
-| 6     | Parity audit and full regression.                                                                       |
+| 6     | Parity audit, the features it found, full regression and latency.                                       |
 
 ## Rules
 
 - Phases 1–4 are accepted on macOS. Phase 5 re-verifies every phase 1–4 item on Windows
   (`WIN-01`) and adds the Windows-only items.
+- Phase 6 items are ticked once verified on macOS. Those listed under "Verified in phase 6"
+  as "Windows pending" still need a Windows run, which `WIN-01` covers.
 - Shortcut names below are the macOS defaults. The Windows defaults are in `WIN-02`.
 - Where Wispr's own documents contradict each other, the criterion states the behaviour
   Shrimp adopts.
@@ -51,55 +53,58 @@ this file.
 
 ## Core dictation
 
-| Status | ID      | Feature               | Acceptance criterion                                                                                                                                                                    | Phase |
-| ------ | ------- | --------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----- |
-| [x]    | CORE-01 | Push to talk          | Holding the push-to-talk shortcut records; releasing it transcribes and inserts the text at the cursor of the focused app.                                                              | 1     |
-| [x]    | CORE-02 | Fn default            | Fn alone is the default push-to-talk shortcut, and pressing it never opens the emoji picker or system dictation (suppressed, or onboarding guides the Globe key setting to Do Nothing). | 1     |
-| [x]    | CORE-03 | Short-tap guard       | A press released in under 0.5 s inserts nothing: Shrimp waits briefly for a second press, then cancels and shows the "hold the shortcut" tip.                                           | 1     |
-| [x]    | CORE-04 | Hands-free shortcut   | Fn+Space starts recording without holding; pressing it again stops and inserts.                                                                                                         | 1     |
-| [x]    | CORE-05 | Hands-free double-tap | Double-pressing push to talk within 0.5 s locks recording hands-free; a third quick press cancels.                                                                                      | 1     |
-| [x]    | CORE-06 | Cancel                | Esc cancels an active dictation without inserting anything, and the Esc press does not reach the focused app.                                                                           | 1     |
-| [x]    | CORE-07 | Busy guard            | Shortcuts pressed while a dictation is still processing are rejected (not queued) with a "Transcript currently processing" notice.                                                      | 1     |
-| [x]    | CORE-08 | Session limit         | A warning sound and notice come at 19 minutes; at 20 minutes recording stops, then transcribes and inserts.                                                                             | 1     |
-| [x]    | CORE-09 | Click to dictate      | Clicking the Flow Bar starts hands-free recording, ■ stops and inserts, ✕ cancels, and a click within 0.5 s of starting cancels.                                                        | 1     |
-| [x]    | CORE-10 | No-Fn fallback        | On a Mac keyboard without an Apple Fn key, the defaults become Ctrl+Opt, Ctrl+Opt+Space and Cmd+Ctrl+Opt (Command Mode).                                                                | 4     |
-| [x]    | CORE-11 | Cancel undo           | The cancel notice offers Undo, which transcribes the cancelled audio and inserts it into the current field.                                                                             | 4     |
-| [x]    | CORE-12 | Interrupting shortcut | Pressing another app's shortcut within the first second of a held dictation cancels it with a notification.                                                                             | 4     |
-| [x]    | CORE-13 | Mouse buttons         | Middle, Mouse 4/5 and Mouse 6–10 can be bound to push to talk, hands-free or Enter, and bound buttons don't pass through to apps.                                                       | 4     |
-| [x]    | CORE-14 | Stuck-key recovery    | A key or mouse button left in a stuck "down" state recovers automatically after 10 s.                                                                                                   | 4     |
-| [x]    | CORE-15 | Press Enter shortcut  | An unbound-by-default "Press Enter" shortcut sends Enter, and extra modifiers pass through (Shift+Enter).                                                                               | 3     |
-| [x]    | CORE-16 | "press enter" command | With the experimental setting on, ending a dictation with "press enter" removes the phrase and presses Enter after a successful paste.                                                  | 3     |
+| Status | ID      | Feature               | Acceptance criterion                                                                                                                                                                              | Phase |
+| ------ | ------- | --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----- |
+| [x]    | CORE-01 | Push to talk          | Holding the push-to-talk shortcut records; releasing it transcribes and inserts the text at the cursor of the focused app.                                                                        | 1     |
+| [x]    | CORE-02 | Fn default            | Fn alone is the default push-to-talk shortcut, and pressing it never opens the emoji picker or system dictation (suppressed, or onboarding guides the Globe key setting to Do Nothing).           | 1     |
+| [x]    | CORE-03 | Short-tap guard       | A press released in under 0.5 s inserts nothing: Shrimp waits briefly for a second press, then cancels and shows the "hold the shortcut" tip.                                                     | 1     |
+| [x]    | CORE-04 | Hands-free shortcut   | Fn+Space starts recording without holding; pressing it again stops and inserts.                                                                                                                   | 1     |
+| [x]    | CORE-05 | Hands-free double-tap | Double-pressing push to talk within 0.5 s locks recording hands-free; a third quick press cancels.                                                                                                | 1     |
+| [x]    | CORE-06 | Cancel                | Esc cancels an active dictation without inserting anything, and the Esc press does not reach the focused app.                                                                                     | 1     |
+| [x]    | CORE-07 | Busy guard            | Shortcuts pressed while a dictation is still processing are rejected (not queued) with a "Transcript currently processing" notice.                                                                | 1     |
+| [x]    | CORE-08 | Session limit         | A warning sound and notice come at 19 minutes; at 20 minutes recording stops, then transcribes and inserts.                                                                                       | 1     |
+| [x]    | CORE-09 | Click to dictate      | Clicking the Flow Bar starts hands-free recording, ■ stops and inserts, ✕ cancels, and a click within 0.5 s of starting cancels.                                                                  | 1     |
+| [x]    | CORE-10 | No-Fn fallback        | On a Mac keyboard without an Apple Fn key, the defaults become Ctrl+Opt, Ctrl+Opt+Space and Cmd+Ctrl+Opt (Command Mode).                                                                          | 4     |
+| [x]    | CORE-11 | Cancel undo           | The cancel notice offers Undo, which transcribes the cancelled audio and inserts it into the current field.                                                                                       | 4     |
+| [x]    | CORE-12 | Interrupting shortcut | Pressing another app's shortcut within the first second of a held dictation cancels it with a notification.                                                                                       | 4     |
+| [x]    | CORE-13 | Mouse buttons         | Middle, Mouse 4/5 and Mouse 6–10 can be bound to push to talk, hands-free or Enter, and bound buttons don't pass through to apps.                                                                 | 4     |
+| [x]    | CORE-14 | Stuck-key recovery    | A key or mouse button left in a stuck "down" state recovers automatically after 10 s.                                                                                                             | 4     |
+| [x]    | CORE-15 | Press Enter shortcut  | An unbound-by-default "Press Enter" shortcut sends Enter, and extra modifiers pass through (Shift+Enter).                                                                                         | 3     |
+| [x]    | CORE-16 | "press enter" command | With the experimental setting on, ending a dictation with "press enter" removes the phrase and presses Enter after a successful paste.                                                            | 3     |
+| [x]    | CORE-17 | "press enter" prompt  | With the "press enter" command off, the first dictation ending with "press enter" leaves the phrase out and asks once: Great turns the command on and presses Enter, Disable puts the words back. | 6     |
+| [x]    | CORE-18 | Mouse button tip      | After a shortcut-started dictation, with a mouse of more than three buttons connected and no mouse button bound, a one-time suggestion offers Set up (the Shortcuts dialog).                      | 6     |
 
 ## Shortcut customisation
 
-| Status | ID      | Feature            | Acceptance criterion                                                                                                                                               | Phase |
-| ------ | ------- | ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ----- |
-| [x]    | KEYS-01 | Shortcuts dialog   | Settings and the tray open a dialog listing every action; clicking a binding records a replacement (keys save on release, mouse buttons on press); Done closes it. | 4     |
-| [x]    | KEYS-02 | Multiple bindings  | Each action takes up to 4 bindings (Cancel takes 1); a trash icon removes one; required actions keep at least one.                                                 | 4     |
-| [x]    | KEYS-03 | Validation         | Combinations need a modifier or a mouse button, at most 3 keys, no duplicates across actions and no left+right pair of one modifier, with Wispr's error texts.     | 4     |
-| [x]    | KEYS-04 | Standalone keys    | Caps Lock alone is allowed for push to talk or hands-free (and stops toggling caps); Esc alone only for Cancel.                                                    | 4     |
-| [x]    | KEYS-05 | Reserved shortcuts | Cmd+Backspace, Cmd+Delete, Cmd+Space, Cmd+Ctrl+F, Cmd+C and Cmd+V are rejected with "This shortcut is not allowed".                                                | 4     |
-| [x]    | KEYS-06 | Recording cancel   | While a shortcut is being recorded, Esc alone, a mouse click or ✕ cancels without a change; pressing Ctrl then Esc records Ctrl+Esc.                               | 4     |
-| [x]    | KEYS-07 | Overlap warning    | A hands-free combination contained in push to talk saves with a conflict warning.                                                                                  | 4     |
-| [x]    | KEYS-08 | Reset to defaults  | Reset restores the platform defaults, including clearing unbound-by-default actions, after a confirmation.                                                         | 4     |
-| [x]    | KEYS-09 | Secure input       | When another app turns on Secure Keyboard Entry, Fn-only holds keep working and Shrimp explains why key combinations are blocked.                                  | 4     |
-| [x]    | KEYS-10 | Persistence        | Shortcuts are stored per device and survive restarts and updates.                                                                                                  | 4     |
+| Status | ID      | Feature            | Acceptance criterion                                                                                                                                                | Phase |
+| ------ | ------- | ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----- |
+| [x]    | KEYS-01 | Shortcuts dialog   | Settings and the tray open a dialog listing every action; clicking a binding records a replacement (keys save on release, mouse buttons on press); Done closes it.  | 4     |
+| [x]    | KEYS-02 | Multiple bindings  | Each action takes up to 4 bindings (Cancel takes 1); a trash icon removes one; required actions keep at least one.                                                  | 4     |
+| [x]    | KEYS-03 | Validation         | Combinations need a modifier or a mouse button, at most 3 keys, no duplicates across actions and no left+right pair of one modifier, with Wispr's error texts.      | 4     |
+| [x]    | KEYS-04 | Standalone keys    | Caps Lock alone is allowed for push to talk or hands-free (and stops toggling caps); Esc alone only for Cancel.                                                     | 4     |
+| [x]    | KEYS-05 | Reserved shortcuts | Cmd+Backspace, Cmd+Delete, Cmd+Space, Cmd+Ctrl+F, Cmd+C and Cmd+V are rejected with "This shortcut is not allowed".                                                 | 4     |
+| [x]    | KEYS-06 | Recording cancel   | While a shortcut is being recorded, Esc alone, a mouse click or ✕ cancels without a change; pressing Ctrl then Esc records Ctrl+Esc.                                | 4     |
+| [x]    | KEYS-07 | Overlap warning    | A hands-free combination contained in push to talk saves with a conflict warning.                                                                                   | 4     |
+| [x]    | KEYS-08 | Reset to defaults  | Reset restores the platform defaults, including clearing unbound-by-default actions, after a confirmation.                                                          | 4     |
+| [x]    | KEYS-09 | Secure input       | When another app turns on Secure Keyboard Entry, Fn-only holds keep working and Shrimp explains why key combinations are blocked.                                   | 4     |
+| [x]    | KEYS-10 | Persistence        | Shortcuts are stored per device and survive restarts and updates.                                                                                                   | 4     |
+| [x]    | KEYS-11 | Double-tap hint    | The Shortcuts dialog's Hands-free row shows a live "Or double-tap …" hint built from the push-to-talk bindings, and Hands-free can be left unbound across restarts. | 6     |
 
 ## Text insertion and clipboard
 
-| Status | ID     | Feature               | Acceptance criterion                                                                                                                                       | Phase |
-| ------ | ------ | --------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- | ----- |
-| [x]    | INS-01 | Paste at cursor       | Text is inserted through the clipboard and Cmd+V into the focused field of native, browser and Electron apps.                                              | 1     |
-| [x]    | INS-02 | Clipboard restore     | The previous clipboard (text, rich text, images) is restored about 0.5 s after the paste; something copied during that window is kept.                     | 1     |
-| [x]    | INS-03 | Keyboard layouts      | Pasting works on non-QWERTY layouts (Dvorak, AZERTY) because Shrimp resolves which key types "v".                                                          | 1     |
-| [x]    | INS-04 | Failed insertion      | If no editable field is focused or the paste fails, the text stays on the clipboard and a notification offers Copy.                                        | 1     |
-| [x]    | INS-05 | Paste last transcript | Cmd+Ctrl+V pastes the last transcript, retrying a failed or cancelled one first, and does nothing when there is none.                                      | 1     |
-| [x]    | INS-06 | Copy last transcript  | Cmd+Ctrl+C copies the last transcript to the clipboard.                                                                                                    | 1     |
-| [x]    | INS-07 | Undo in target app    | Cmd+Z in the target app removes the inserted text in one step.                                                                                             | 1     |
-| [x]    | INS-08 | Rich text output      | One spoken line break gives a new line and two give a new paragraph; rich text pastes where the field accepts it, and plain text where it doesn't.         | 2     |
-| [x]    | INS-09 | AI coding CLIs        | In Claude Code and Codex CLI, long dictations paste in parts, so they don't collapse into "[Pasted N lines]".                                              | 3     |
-| [x]    | INS-10 | Remote desktops       | In remote-desktop clients (Windows App, Citrix, Horizon, VNC and Screen Sharing), the clipboard is held about 5 s and no context-based spacing is applied. | 3     |
-| [x]    | INS-11 | Terminals             | Pasting works in Terminal.app, iTerm2, Warp, Ghostty, kitty, Alacritty and IDE terminals.                                                                  | 3     |
+| Status | ID     | Feature               | Acceptance criterion                                                                                                                                                                                                             | Phase |
+| ------ | ------ | --------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----- |
+| [x]    | INS-01 | Paste at cursor       | Text is inserted through the clipboard and Cmd+V into the focused field of native, browser and Electron apps.                                                                                                                    | 1     |
+| [x]    | INS-02 | Clipboard restore     | The previous clipboard (text, rich text, images) is restored about 0.5 s after the paste; something copied during that window is kept.                                                                                           | 1     |
+| [x]    | INS-03 | Keyboard layouts      | Pasting works on non-QWERTY layouts (Dvorak, AZERTY) because Shrimp resolves which key types "v".                                                                                                                                | 1     |
+| [x]    | INS-04 | Failed insertion      | If no editable field is focused or the paste fails, the text stays on the clipboard and a notification offers Copy.                                                                                                              | 1     |
+| [x]    | INS-05 | Paste last transcript | Cmd+Ctrl+V pastes the last transcript, retrying a failed or cancelled one first, and does nothing when there is none.                                                                                                            | 1     |
+| [x]    | INS-06 | Copy last transcript  | Cmd+Ctrl+C copies the last transcript to the clipboard.                                                                                                                                                                          | 1     |
+| [x]    | INS-07 | Undo in target app    | Cmd+Z in the target app removes the inserted text in one step.                                                                                                                                                                   | 1     |
+| [x]    | INS-08 | Rich text output      | One spoken line break gives a new line and two give a new paragraph; rich text pastes where the field accepts it, and plain text where it doesn't.                                                                               | 2     |
+| [x]    | INS-09 | AI coding CLIs        | In Claude Code and Codex CLI, long dictations paste in parts, so they don't collapse into "[Pasted N lines]".                                                                                                                    | 3     |
+| [x]    | INS-10 | Remote desktops       | In remote-desktop clients (Windows App and Remote Desktop, Citrix, Horizon, VNC, Screen Sharing, AnyDesk, TeamViewer, Amazon WorkSpaces and Splashtop), the clipboard is held about 5 s and no context-based spacing is applied. | 3     |
+| [x]    | INS-11 | Terminals             | Pasting works in Terminal.app, iTerm2, Warp, Ghostty, kitty, Alacritty, WezTerm, Hyper, PowerShell and IDE terminals.                                                                                                            | 3     |
 
 ## Formatting and cleanup
 
@@ -109,8 +114,8 @@ this file.
 | [x]    | FMT-02 | Filler removal         | "um", "uh", false starts and repetitions are removed at Light and above.                                                                                                                                                                | 2     |
 | [x]    | FMT-03 | Backtrack              | Clear self-corrections ("coffee at 2, actually 3", "scratch that", "never mind") keep only the corrected version.                                                                                                                       | 2     |
 | [x]    | FMT-04 | Lists                  | Spoken enumerations ("one… two…", "first… second…") become a formatted list.                                                                                                                                                            | 2     |
-| [x]    | FMT-05 | Spoken punctuation     | "period" / "full stop", "comma", "question mark", "exclamation point", "colon", "semicolon" and "em dash" insert the symbol; Shrimp never adds an em dash on its own.                                                                   | 2     |
-| [x]    | FMT-06 | Line commands          | "new line", "next line", "line break", "skip a line" and "new paragraph" insert breaks whatever the other settings are.                                                                                                                 | 2     |
+| [x]    | FMT-05 | Spoken punctuation     | "period" / "full stop", "comma", "question mark", "exclamation point", "colon", "semicolon" and "em dash" (also "em-dash", "emdash") insert the symbol; Shrimp never adds an em dash on its own.                                        | 2     |
+| [x]    | FMT-06 | Line commands          | "new line", "next line", "line break", "skip a line", "new paragraph" and "start a new paragraph" insert breaks whatever the other settings are.                                                                                        | 2     |
 | [x]    | FMT-07 | Trailing periods       | Trailing periods are stripped per style (Formal never, Casual up to 10 sentences, Very casual always, otherwise up to 2 in messaging apps), keeping `!` and `?`.                                                                        | 2     |
 | [x]    | FMT-08 | Email formatting       | Email-category apps get a greeting, body and sign-off separated by line breaks.                                                                                                                                                         | 2     |
 | [x]    | FMT-09 | AI apps unformatted    | Dictation into AI chat apps skips style formatting.                                                                                                                                                                                     | 2     |
@@ -118,35 +123,36 @@ this file.
 | [x]    | FMT-11 | Context casing/spacing | Mid-sentence insertions lowercase the first word and add a leading space (unless it is a proper noun or dictionary term), drop ending punctuation when the text after the cursor continues, and add no spaces for Chinese and Japanese. | 3     |
 | [x]    | FMT-12 | Undo/Redo AI edit      | History offers Undo AI edit (restores the raw text) and Redo AI edit whenever the two differ.                                                                                                                                           | 4     |
 | [x]    | FMT-13 | Formatting tips        | The first lists, emails and backtracks show one explanation and up to 3 reminders, which the Announcements toggle mutes.                                                                                                                | 4     |
-| [x]    | FMT-14 | French typography      | French output gets narrow no-break spaces before `; : ! ?`, except in developer apps.                                                                                                                                                   | 4     |
+| [x]    | FMT-14 | French typography      | French output gets narrow no-break spaces before `; : ! ? »` and after `«`, except in developer apps.                                                                                                                                   | 4     |
+| [x]    | FMT-15 | Formatting per app     | Style › Formatting per app sets an app to Automatic formatting, Unformatted transcription, Proper-noun capitals only or All lowercase, from the next dictation.                                                                         | 6     |
 
 ## Styles
 
-| Status | ID     | Feature            | Acceptance criterion                                                                                                                                                | Phase |
-| ------ | ------ | ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----- |
-| [x]    | STY-01 | App categories     | The frontmost app maps to Personal messages, Work messages, Email or Other; AI assistants and terminals are Other.                                                  | 2     |
-| [x]    | STY-02 | Style options      | Formal, Casual, Very casual (Personal only) and Excited (Work, Email, Other) change only capitalisation, punctuation and spacing, never wording.                    | 2     |
-| [x]    | STY-03 | Style setup        | The Style page walks through each category; a choice saves on selection, and every category defaults to Formal.                                                     | 2     |
-| [x]    | STY-04 | Built-in app map   | Documented apps land in the right category (Messages, WhatsApp, Discord, Signal, Instagram: Personal; Slack, Teams, LinkedIn: Work; Mail, Outlook, Missive: Email). | 2     |
-| [x]    | STY-05 | Web apps by domain | In browsers, the active tab's domain decides the category (gmail.com: Email; app.slack.com: Work).                                                                  | 3     |
+| Status | ID     | Feature            | Acceptance criterion                                                                                                                                                                                                                        | Phase |
+| ------ | ------ | ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----- |
+| [x]    | STY-01 | App categories     | The frontmost app maps to Personal messages, Work messages, Email or Other; AI assistants and terminals are Other.                                                                                                                          | 2     |
+| [x]    | STY-02 | Style options      | Formal, Casual, Very casual (Personal only) and Excited (Work, Email, Other) change only capitalisation, punctuation and spacing, never wording.                                                                                            | 2     |
+| [x]    | STY-03 | Style setup        | The Style page walks through each category; a choice saves on selection, and every category defaults to Formal.                                                                                                                             | 2     |
+| [x]    | STY-04 | Built-in app map   | Documented apps land in the right category (Messages, WhatsApp, Discord, Signal, Instagram: Personal; Slack, Teams, LinkedIn: Work; Mail, Outlook, Missive: Email).                                                                         | 2     |
+| [x]    | STY-05 | Web apps by domain | In browsers (Chrome, Safari, Arc, Brave, Edge, Firefox, Opera, Vivaldi, Zen, Yandex, Sidekick, Shift), the active tab's domain decides the category (gmail.com: Email; app.slack.com and Google Chat: Work; Gemini and AI Studio: AI apps). | 3     |
 
 ## Dictionary
 
-| Status | ID     | Feature              | Acceptance criterion                                                                                                                                                                              | Phase |
-| ------ | ------ | -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----- |
-| [x]    | DIC-01 | Add word             | Dictionary > Add word saves a term of up to 60 characters; empty, punctuation-only and duplicate entries are rejected.                                                                            | 2     |
-| [x]    | DIC-02 | Vocabulary biasing   | Dictionary terms reach the STT engine (Whisper initial prompt, cloud prompt or keywords), and a fixture term that was misrecognised is spelled correctly.                                         | 2     |
-| [x]    | DIC-03 | Replacements         | "Correct a misspelling" replaces whole words, case-insensitively, longest match first, keeping the saved casing; "n't" contractions are left alone, possessives are fixed.                        | 2     |
-| [x]    | DIC-04 | Pin and usage order  | Terms can be pinned so they take priority, and the list sorts by usage.                                                                                                                           | 2     |
-| [x]    | DIC-05 | Search, edit, delete | Entries can be searched, edited and deleted, one at a time or in bulk (Cmd+Backspace on selected rows).                                                                                           | 2     |
-| [x]    | DIC-06 | Bulk import          | CSV import (`word` or `misspelling,correction`, up to 3 MB and 1,000 rows) shows a duplicate preview and marks rows "Imported from file".                                                         | 2     |
-| [x]    | DIC-07 | Auto-learn           | With "Auto-add to dictionary" on, words the user respells after a paste are added with a badge and a notification; paths, URLs, code, numbers, emoji, common words and deleted words are skipped. | 3     |
+| Status | ID     | Feature              | Acceptance criterion                                                                                                                                                                                                                                                                         | Phase |
+| ------ | ------ | -------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----- |
+| [x]    | DIC-01 | Add word             | Dictionary > Add word saves a term of up to 60 characters; empty, punctuation-only and duplicate entries are rejected.                                                                                                                                                                       | 2     |
+| [x]    | DIC-02 | Vocabulary biasing   | Dictionary terms reach the STT engine (Whisper initial prompt, cloud prompt or keywords), and a fixture term that was misrecognised is spelled correctly.                                                                                                                                    | 2     |
+| [x]    | DIC-03 | Replacements         | "Correct a misspelling" replaces whole words, case-insensitively, longest match first, keeping the saved casing; "n't" contractions are left alone, possessives are fixed.                                                                                                                   | 2     |
+| [x]    | DIC-04 | Pin and usage order  | Terms can be starred so they take priority, and the list sorts by Starred first, Newest first, Oldest first, Alphabetical (A–Z) or Most used.                                                                                                                                                | 2     |
+| [x]    | DIC-05 | Search, edit, delete | Entries can be searched, edited and deleted, one at a time or in bulk (Cmd+Backspace on selected rows).                                                                                                                                                                                      | 2     |
+| [x]    | DIC-06 | Bulk import          | CSV import (`word` or `misspelling,correction`, up to 3 MB and 1,000 rows) shows a duplicate preview and marks rows "Imported from file".                                                                                                                                                    | 2     |
+| [x]    | DIC-07 | Auto-learn           | With "Auto-add to dictionary" on, words the user respells after a paste are added with a badge and a notification; paths, URLs, code, numbers, emoji, partial emails, keys and IDs, dates, markdown, common and famous names, everyday acronyms, common words and deleted words are skipped. | 3     |
 
 ## Snippets
 
 | Status | ID     | Feature      | Acceptance criterion                                                                                                                                                         | Phase |
 | ------ | ------ | ------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----- |
-| [x]    | SNP-01 | Create       | Snippets > Add saves a trigger (up to 60 characters) and an expansion (up to 4,000); Cmd+Enter saves.                                                                        | 2     |
+| [x]    | SNP-01 | Create       | Snippets > Add saves a trigger (up to 60 characters) and an expansion (up to 4,000); Cmd+Enter saves; a trigger that repeats a dictionary word is rejected.                  | 2     |
 | [x]    | SNP-02 | Matching     | A trigger spoken alone ignores case, punctuation and spacing; inside a sentence it matches case-insensitively, never next to letters, digits or `_`; the longest match wins. | 2     |
 | [x]    | SNP-03 | Rich text    | Expansions keep bold, italic, lists and links (Cmd+K inserts a link) and fall back to plain text where the app rejects formatting.                                           | 2     |
 | [x]    | SNP-04 | Edit, delete | Snippets can be edited (Save changes) and deleted; a trigger similar to an existing one saves with a warning.                                                                | 2     |
@@ -165,14 +171,15 @@ this file.
 
 ## Transforms
 
-| Status | ID     | Feature           | Acceptance criterion                                                                                                                                                | Phase |
-| ------ | ------ | ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----- |
-| [x]    | TRF-01 | Polish            | Opt+1 rewrites the selection (or the field, or the last dictation within 60 s) using five toggleable rules and up to 5 custom instructions.                         | 3     |
-| [x]    | TRF-02 | Prompt Engineer   | Opt+2 turns the selection into a structured AI prompt.                                                                                                              | 3     |
-| [x]    | TRF-03 | Custom transforms | Up to 8 custom transforms, each with a name, prompt, shortcut and up to 5 writing samples; edits save automatically.                                                | 3     |
-| [x]    | TRF-04 | Result and diff   | The result replaces the text in place; "Done. See changes" and Opt+O open a diff with Copy, Retry, Accept edits and Undo.                                           | 3     |
-| [x]    | TRF-05 | Auto apply        | A chosen transform can run after every dictation, falling back to the original text on failure.                                                                     | 3     |
-| [x]    | TRF-06 | Limits and errors | Input of 1–1,000 words is accepted; otherwise the documented errors appear ("Oops, too long to polish", "Select text to apply a transform", "Transform timed out"). | 3     |
+| Status | ID     | Feature           | Acceptance criterion                                                                                                                                                                                                                                     | Phase |
+| ------ | ------ | ----------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----- |
+| [x]    | TRF-01 | Polish            | Opt+1 rewrites the selection (or the field, or the last dictation within 60 s) using seven toggleable rules (two off by default) and up to 5 custom instructions of at most 50 words, no duplicates.                                                     | 3     |
+| [x]    | TRF-02 | Prompt Engineer   | Opt+2 turns the selection into a structured AI prompt.                                                                                                                                                                                                   | 3     |
+| [x]    | TRF-03 | Custom transforms | Up to 8 custom transforms, each with a name, prompt, shortcut and up to 5 writing samples; edits save automatically.                                                                                                                                     | 3     |
+| [x]    | TRF-04 | Result and diff   | The result replaces the text in place; "Done. See changes" and Opt+O open a diff with Copy, Retry, Accept edits, Undo and Transform again (Prompt Engineer, Turn to list, Translate to English, Empathize); unchanged text says "Your text looks good!". | 3     |
+| [x]    | TRF-05 | Auto apply        | A chosen transform can run after every dictation, saying "We polished your dictation" with Reveal edit when it changed it, and falling back to the original text on failure.                                                                             | 3     |
+| [x]    | TRF-06 | Limits and errors | Input of 1–1,000 words is accepted; otherwise the documented errors appear ("Oops, too long to polish", "Select text to apply a transform", "Transform timed out").                                                                                      | 3     |
+| [x]    | TRF-07 | Flow Bar wand     | With Transforms on, hovering the resting Flow Bar shows a wand that runs the chosen transform on the selection without taking focus; its menu picks the transform and turns Auto Apply on or off.                                                        | 6     |
 
 ## Context awareness
 
@@ -213,7 +220,7 @@ this file.
 | [x]    | MIC-05 | Clamshell            | With the MacBook lid closed, the built-in mic is unavailable ("Laptop lid is closed") and an external mic is used.                                                      | 4     |
 | [x]    | MIC-06 | Virtual mics         | Virtual devices (BlackHole, Krisp and similar) are listed under "Show other devices" and never selected automatically.                                                  | 4     |
 | [x]    | MIC-07 | Mic warnings         | Warnings appear for no sound at start, no audio after 5 s and 15 s, a mic taking over 8 s to open, and missing, unavailable or disconnected mics, each with its action. | 4     |
-| [x]    | MIC-08 | Bluetooth advice     | Using AirPods or another Bluetooth mic shows a warning with Switch microphone and Don't show again (at most 3 times, at most weekly).                                   | 4     |
+| [x]    | MIC-08 | Bluetooth advice     | Using AirPods or another Bluetooth mic shows a warning with Switch microphone and Don't show again (at most once an hour; Don't show again is permanent).               | 4     |
 | [x]    | MIC-09 | Whisper mode         | Whispered speech transcribes reliably (input level normalisation, tuned speech detection), checked with a whispered fixture.                                            | 4     |
 | [x]    | MIC-10 | Mic advice           | A "Find the right mic for you" walkthrough recommends a microphone setup.                                                                                               | 4     |
 
@@ -221,33 +228,36 @@ this file.
 
 | Status | ID     | Feature              | Acceptance criterion                                                                                                                              | Phase |
 | ------ | ------ | -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- | ----- |
-| [x]    | SND-01 | Dictation sounds     | Distinct start, stop, lock (hands-free) and cancel sounds play at the matching moments.                                                           | 1     |
+| [x]    | SND-01 | Dictation sounds     | Distinct start, stop, lock (hands-free), cancel, paste and achievement sounds play at the matching moments.                                       | 1     |
 | [x]    | SND-02 | Sound settings       | Settings > Sound turns dictation and notification sounds on or off.                                                                               | 4     |
 | [x]    | SND-03 | Mute while dictating | If audio is playing when a dictation starts, output is muted within about 300 ms and restored afterwards; the setting is off by default on macOS. | 4     |
 | [x]    | SND-04 | Pause media          | "Pause music while dictating" pauses supported players and resumes them afterwards, ignores conferencing apps, and excludes the mute option.      | 4     |
 
 ## History
 
-| Status | ID     | Feature             | Acceptance criterion                                                                                                                                                    | Phase |
-| ------ | ------ | ------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----- |
-| [x]    | HIS-01 | Recent activity     | Home lists dictations grouped by date, with the detected language; clicking a row or pressing Enter copies it.                                                          | 4     |
-| [x]    | HIS-02 | Search and keys     | Cmd+F or / searches history; ↑/↓ or j/k move between rows.                                                                                                              | 4     |
-| [x]    | HIS-03 | Row menu            | Each row offers Retry transcript, Undo/Redo AI edit, Play audio, Extract audio (.wav) and Delete transcript.                                                            | 4     |
-| [x]    | HIS-04 | Audio retention     | Recordings are kept 14 days for retry and playback, then deleted.                                                                                                       | 4     |
-| [x]    | HIS-05 | Retry               | Failed or empty entries with at least 5 s of audio under 14 days old can be transcribed again; failures show the documented notices.                                    | 4     |
-| [x]    | HIS-06 | Recover after crash | Audio from a dictation interrupted by quitting or a crash is saved and can be recovered from History.                                                                   | 4     |
-| [x]    | HIS-07 | Local retention     | Data and privacy offers Store locally (default), Auto-delete every 24 hours, and Never store (confirmed by typing "delete all"; History then reads "History disabled"). | 4     |
-| [x]    | HIS-08 | Daily backup        | The local database is backed up once a day.                                                                                                                             | 4     |
+| Status | ID     | Feature                | Acceptance criterion                                                                                                                                                                                     | Phase |
+| ------ | ------ | ---------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----- |
+| [x]    | HIS-01 | Recent activity        | Home lists dictations grouped by date, with the detected language; clicking a row or pressing Enter copies it.                                                                                           | 4     |
+| [x]    | HIS-02 | Search and keys        | Cmd+F or / searches history; ↑/↓ or j/k move between rows.                                                                                                                                               | 4     |
+| [x]    | HIS-03 | Row menu               | Each row offers Retry transcript, Undo/Redo AI edit, Play audio, Extract audio (.wav) and Delete transcript.                                                                                             | 4     |
+| [x]    | HIS-04 | Audio retention        | Recordings are kept 14 days for retry and playback, then deleted.                                                                                                                                        | 4     |
+| [x]    | HIS-05 | Retry                  | Failed or empty entries with at least 5 s of audio under 14 days old can be transcribed again; failures show the documented notices.                                                                     | 4     |
+| [x]    | HIS-06 | Recover after crash    | Audio from a dictation interrupted by quitting or a crash is saved and can be recovered from History.                                                                                                    | 4     |
+| [x]    | HIS-07 | Local retention        | Data and privacy offers Store locally (default), Auto-delete every 24 hours, and Never store (confirmed by typing "delete all"; History then reads "History disabled").                                  | 4     |
+| [x]    | HIS-08 | Daily backup           | The local database is backed up once a day.                                                                                                                                                              | 4     |
+| [x]    | HIS-09 | Delete all transcripts | Data and privacy › Delete all transcripts deletes every History entry, recording and older backup after a confirmation, keeping stats, the dictionary, snippets and settings.                            | 6     |
+| [x]    | HIS-10 | Cancelled dictations   | A dictation cancelled after 0.5 s or more is kept in History as Cancelled with Recover; the first three (at most one a day) show "You can recover your cancelled transcript" with Undo and Open History. | 6     |
 
 ## Insights
 
-| Status | ID     | Feature       | Acceptance criterion                                                                                                                                                    | Phase |
-| ------ | ------ | ------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----- |
-| [x]    | STA-01 | Usage stats   | Insights shows WPM over the last 100 dictations, total words, fixes made, dictionary fixes, current and longest streak, an activity heatmap, apps used and the top app. | 4     |
-| [x]    | STA-02 | Home cards    | Home shows a greeting with the push-to-talk shortcut, a stats card that opens Insights, and the week's word count.                                                      | 4     |
-| [x]    | STA-03 | Share card    | A stats card can be copied or saved as an image.                                                                                                                        | 4     |
-| [x]    | STA-04 | Voice profile | After 2,000 words, an LLM-generated voice profile (archetype, catchphrase, most-corrected word, active times) can be generated and regenerated at milestones.           | 4     |
-| [x]    | STA-05 | Stats survive | Stats keep counting when history is auto-deleted or disabled.                                                                                                           | 4     |
+| Status | ID     | Feature           | Acceptance criterion                                                                                                                                                                        | Phase |
+| ------ | ------ | ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----- |
+| [x]    | STA-01 | Usage stats       | Insights shows WPM over the last 100 dictations, total words, fixes made, dictionary fixes, current and longest streak, an activity heatmap, apps used and the top app.                     | 4     |
+| [x]    | STA-02 | Home cards        | Home shows a greeting (with the push-to-talk shortcut until 2,000 words are dictated), a stats card that opens Insights, and the week's word count.                                         | 4     |
+| [x]    | STA-03 | Share card        | A stats card can be copied or saved as an image, or shared to X or LinkedIn (the image is copied and the network's compose page opens).                                                     | 4     |
+| [x]    | STA-04 | Voice profile     | After 2,000 words, an LLM-generated voice profile (archetype, catchphrase, most-corrected word, active times) can be generated and regenerated at milestones.                               | 4     |
+| [x]    | STA-05 | Stats survive     | Stats keep counting when history is auto-deleted or disabled.                                                                                                                               | 4     |
+| [x]    | STA-06 | Usage by category | Insights shows words per category (personal messages, work messages, emails, AI prompts, documents, other tasks) as Power, Moderate or Light usage, counted even when history isn't stored. | 6     |
 
 ## Languages
 
@@ -259,6 +269,7 @@ this file.
 | [x]    | LANG-04 | Different-language card | Speech in a language that isn't selected shows "Speaking a different language?" at most once a day, with Open language settings, Add language and Don't show again.   | 4     |
 | [x]    | LANG-05 | Flow Bar switching      | With several languages enabled, hovering the Flow Bar offers one-click language switching.                                                                            | 4     |
 | [x]    | LANG-06 | App UI language         | The app's interface is available in English, German, Spanish, Italian and Portuguese.                                                                                 | 4     |
+| [x]    | LANG-07 | Canadian English        | In Canada, with another English variant selected, a one-time suggestion switches dictation to English (Canadian).                                                     | 6     |
 
 ## Notifications
 
@@ -277,17 +288,20 @@ this file.
 
 ## App shell and settings
 
-| Status | ID     | Feature         | Acceptance criterion                                                                                                                                             | Phase |
-| ------ | ------ | --------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----- |
-| [x]    | APP-01 | Close to tray   | Closing the main window keeps Shrimp running in the menu bar; "Open Shrimp" brings the window back and Quit exits.                                               | 1     |
-| [x]    | APP-02 | Single instance | Launching Shrimp again focuses the running instance instead of starting a second one.                                                                            | 1     |
-| [x]    | APP-03 | Tray menu       | The menu-bar menu offers Open Shrimp, Shortcuts, Paste last transcript, Copy last transcript and Quit.                                                           | 1     |
-| [x]    | APP-04 | Main window     | The main window's sidebar has Home, Insights, Dictionary, Snippets, Style, Transforms, Settings and Help; Opt+↑/↓ moves between settings pages.                  | 4     |
-| [x]    | APP-05 | Settings pages  | Settings has General (shortcuts, microphone, languages, app language), System, Data and privacy, Speech engine, AI provider, Experimental and Vibe coding pages. | 4     |
-| [x]    | APP-06 | Launch at login | When turned on, Shrimp starts at login in the background without opening the main window.                                                                        | 4     |
-| [x]    | APP-07 | Dock icon       | "Show app in Dock" switches between a Dock app and a menu-bar-only app.                                                                                          | 4     |
-| [x]    | APP-08 | Reset app       | Settings > System > Reset & restart wipes local data after a confirmation and restarts Shrimp.                                                                   | 4     |
-| [x]    | APP-09 | Error screens   | A crash, corrupted local data or a full disk each show a dedicated screen with a recovery action.                                                                | 4     |
+| Status | ID     | Feature             | Acceptance criterion                                                                                                                                                                                | Phase |
+| ------ | ------ | ------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----- |
+| [x]    | APP-01 | Close to tray       | Closing the main window keeps Shrimp running in the menu bar; "Open Shrimp" brings the window back and Quit exits.                                                                                  | 1     |
+| [x]    | APP-02 | Single instance     | Launching Shrimp again focuses the running instance instead of starting a second one.                                                                                                               | 1     |
+| [x]    | APP-03 | Tray menu           | The menu-bar menu offers Open Shrimp, Shortcuts, Paste last transcript, Copy last transcript, Restart Shrimp and Quit; on Windows a left click on the icon opens the main window.                   | 1     |
+| [x]    | APP-04 | Main window         | The main window's sidebar has Home, Insights, Dictionary, Snippets, Style, Transforms, Settings and Help; Opt+↑/↓ moves between settings pages.                                                     | 4     |
+| [x]    | APP-05 | Settings pages      | Settings has General (shortcuts, microphone, languages, app language), System, Data and privacy, Speech engine, AI provider, Experimental and Vibe coding pages.                                    | 4     |
+| [x]    | APP-06 | Launch at login     | When turned on, Shrimp starts at login in the background without opening the main window.                                                                                                           | 4     |
+| [x]    | APP-07 | Dock icon           | "Show app in Dock" switches between a Dock app and a menu-bar-only app that shows its Dock icon only while the main window is open.                                                                 | 4     |
+| [x]    | APP-08 | Reset app           | Settings > System > Reset & restart wipes local data after a confirmation and restarts Shrimp.                                                                                                      | 4     |
+| [x]    | APP-09 | Error screens       | A crash, corrupted local data or a full disk each show a dedicated screen with a recovery action.                                                                                                   | 4     |
+| [x]    | APP-10 | macOS menu bar      | On macOS the menu bar offers the app menu (Settings… ⌘, Check for updates…, Quit), Edit, Dictation › Copy last transcript (greyed when there is none), Window and Help › Shortcuts and Shrimp Help. | 6     |
+| [x]    | APP-11 | Applications folder | On macOS, a release Shrimp outside /Applications or ~/Applications shows "Move Shrimp to the Applications folder" with Move to Applications and Quit, and no shortcut dictates.                     | 6     |
+| [x]    | APP-12 | Restart Shrimp      | The tray's Restart Shrimp quits and relaunches with the main window and no crash screen.                                                                                                            | 6     |
 
 ## Onboarding and permissions
 
@@ -313,7 +327,7 @@ this file.
 
 | Status | ID     | Feature            | Acceptance criterion                                                                                                                                                                             | Phase |
 | ------ | ------ | ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ----- |
-| [ ]    | WIN-01 | Feature parity     | Every phase 1–4 item passes on Windows 10 and 11 (x64), with NVDA standing in for VoiceOver.                                                                                                     | 5     |
+| [ ]    | WIN-01 | Feature parity     | Every phase 1–4 and phase 6 item passes on Windows 10 and 11 (x64), with NVDA standing in for VoiceOver.                                                                                         | 5     |
 | [x]    | WIN-02 | Default shortcuts  | Ctrl+Win is push to talk (Start stays closed while held), Ctrl+Win+Space hands-free, Ctrl+Win+Alt Command Mode, Shift+Alt+Z paste last, Shift+Alt+X copy last, Win+Alt+1/2/O for Transforms.     | 5     |
 | [x]    | WIN-03 | Reserved shortcuts | Standalone Ctrl, Win+E/R/L/D/Tab/I/S/X/P/Up/Down/Q, Ctrl+C and Ctrl+V are rejected.                                                                                                              | 5     |
 | [x]    | WIN-04 | Paste rules        | Shift+Insert pastes in coding editors and their terminals; the clipboard is held about 3 s for Outlook, Word and WhatsApp and about 5 s for remote desktops; text, HTML and images are restored. | 5     |
@@ -340,7 +354,7 @@ this file.
 
 | Status | ID     | Feature      | Acceptance criterion                                                                                                                               | Phase |
 | ------ | ------ | ------------ | -------------------------------------------------------------------------------------------------------------------------------------------------- | ----- |
-| [ ]    | AUD-01 | Parity audit | Every item here is re-checked against Wispr Flow's then-current docs and changelog; new features are added or explicitly scoped out.               | 6     |
+| [x]    | AUD-01 | Parity audit | Every item here is re-checked against Wispr Flow's then-current docs and changelog; new features are added or explicitly scoped out.               | 6     |
 | [ ]    | AUD-02 | Regression   | The automated tests and a scripted tauri-mcp walkthrough of every phase 1–5 item pass on macOS and Windows.                                        | 6     |
 | [ ]    | AUD-03 | Latency      | Key-release-to-insert latency for a 5-second dictation (local Whisper, with and without AI edits) is measured on both platforms and recorded here. | 6     |
 
@@ -521,6 +535,63 @@ tap, with a WAV file as the audio source.
 | PKG-03  | Live, release builds and a local feed: "Check for updates…" said "You're up to date. Shrimp 0.1.0 is the latest version."; with 0.1.1 published it showed "Downloading Shrimp 0.1.1…", then "Update ready, restart now? Shrimp 0.1.1 is downloaded." with Restart now, and the tray item became "Restart to update". The automatic check ran 60 s after launch. The final build has no feed: "Updates aren't configured" (disabled).                                                     |
 | PKG-04  | Live, release: with the main window closed, Restart to update swapped the bundle in place (0.1.1, its notarized CDHash; `spctl`, `stapler validate` pass) and 2 s later the app ran with its main window open. Live, dev app 0.1.0 to 0.1.1: during a WAV dictation, Restart now showed "Shrimp restarts to update when you finish dictating." and the tray "Restarting to update…"; the install began 6.05 s after the dictation ended. `app::updates` tests.                           |
 | PKG-05  | The designated requirement (`identifier "com.shrimp.desktop" and anchor apple generic and … leaf[subject.OU] = URKK7Q7758`) was identical for release builds 0.1.0, 0.1.1 and the final 0.1.0 (three CDHashes) and for the app after its in-place update. Live, the dev app kept Accessibility and Microphone "granted" across its 0.1.0 to 0.1.1 update. See RELEASING.md.                                                                                                              |
+| CORE-17 | Live (regression `audit`): with the command off, "Ship it now, press enter." pasted "Ship it now." and asked; Great pressed Enter (the field ended in a line break) and turned the command on; the next dictation asked nothing. Disable: `tests/press_enter.rs`.                                                                                                                                                                                                                        |
+| CORE-18 | Live with `SHRIMP_FAKE_MOUSE_BUTTONS=5` (this Mac has no mouse with extra buttons): after Canadian English had been offered, the next fn dictation showed "Your mouse has extra buttons. Use one to dictate."; the IOKit read listed this Mac's devices without a prompt and left out the Magic Trackpad. Set up and once only: `tests/suggestions.rs`.                                                                                                                                  |
+| KEYS-11 | Live: the Shortcuts dialog's Hands-free row read "Or double-tap fn". Hands-free left unbound across a restart, and double-tap without a binding: `tests/shortcuts.rs`.                                                                                                                                                                                                                                                                                                                   |
+| FMT-15  | Live (`dev_edit_text` with the target app given a format): Unformatted kept "onto the server comma finally" and only applied "new line"; All lowercase gave "thanks siobhan. i will send it."; Proper-noun capitals kept "Siobhan" and lowercased "the meeting"; `get_format_apps` offered the apps dictated into. The Style page card: Vitest; `tests/formats.rs`.                                                                                                                      |
+| TRF-07  | Live: a hover showed the wand ("Run Polish on the selection") and `flow_bar_wand` `run` polished the target's selection in place while the target stayed frontmost (Ollama `qwen2.5-coder:7b`). The menu: Vitest.                                                                                                                                                                                                                                                                        |
+| HIS-09  | Live: after a dictation, Delete all transcripts left History empty and Insights' total words unchanged. The dialog: Vitest.                                                                                                                                                                                                                                                                                                                                                              |
+| HIS-10  | Live: fn held 3 s, then Esc, showed "You can recover your cancelled transcript"; History listed the entry as cancelled with Recover, and Recover transcribed it without pasting. Under 0.5 s, the once-a-day card, Undo and paste last updating the entry: `tests/history.rs`.                                                                                                                                                                                                           |
+| STA-06  | Live: with the target app treated as Email, a dictation raised the emails count; `get_insights` returned the six categories. `insights::usage` tests; the Insights section: Vitest.                                                                                                                                                                                                                                                                                                      |
+| LANG-07 | Live with `SHRIMP_REGION=CA`: the first dictation offered "Switch to Canadian English? …"; Switch replaced en-US with en-CA, and the next dictation pasted "My favourite colour is grey, and the centre is organised.". `tests/suggestions.rs`.                                                                                                                                                                                                                                          |
+| APP-10  | Live (Accessibility): the menu bar listed Shrimp Dev (About Shrimp, Settings…, the update item, Hide Shrimp, Hide Others, Show All, Quit Shrimp), Edit, Dictation › Copy last transcript (greyed with no transcript), Window and Help › Shortcuts and Shrimp Help; pressing Settings… opened Settings.                                                                                                                                                                                   |
+| APP-11  | Live with `SHRIMP_PRETEND_OUTSIDE_APPLICATIONS=1`: `get_app_health` reported the screen, holding fn dictated nothing, and Move only logged the copy it would make. The copy and relaunch: `platform::macos::install` tests; a release build outside /Applications was not run.                                                                                                                                                                                                           |
+| APP-12  | Live: a real click on the tray icon and Restart Shrimp (pressed through Accessibility) relaunched a new process with its main window and no crash screen.                                                                                                                                                                                                                                                                                                                                |
+| AUD-01  | Wispr's sources were re-read on 2026-10-13 and every item compared; the findings are under "Parity audit" below.                                                                                                                                                                                                                                                                                                                                                                         |
+| AUD-02  | macOS passed 2026-10-13 (see "Verified in phase 6"); the Windows half is open.                                                                                                                                                                                                                                                                                                                                                                                                           |
+| AUD-03  | macOS measured 2026-10-13 (see "Latency"); the Windows half is open.                                                                                                                                                                                                                                                                                                                                                                                                                     |
+
+Verified in phase 6:
+
+"Regression" means the scripted walkthrough (`pnpm regression:mac`, see DEVELOPMENT.md) on
+the signed `Shrimp Dev.app`, macOS 26.5, M4 Mac mini, dictating into its own target app.
+
+- AUD-02, macOS half: the walkthrough passed on 2026-10-13 with 84 cases over 128 items,
+  0 failures and 2 warnings where `qwen2.5-coder:7b` missed a quality check (FMT-07's
+  Excited style added no "!", and FMT-09's prompt for an AI app became a list); `pnpm check`
+  passed (206 Vitest tests, 547 Rust tests, clippy with `-D warnings`).
+- Re-verified by the walkthrough with their phase 6 criteria: APP-03 (the tray listed Open
+  Shrimp, Shortcuts…, the update item, Paste last transcript, Copy last transcript, Privacy
+  mode, Restart Shrimp and Quit Shrimp), APP-07 (`lsappinfo` said Foreground while the main
+  window was open and UIElement once it closed), DIC-04 (Alphabetical and Oldest first
+  reordered the Dictionary page), SNP-01 ("shrimpish" refused while "Shrimpish" is a
+  dictionary word), FMT-05 and FMT-06 ("wait em-dash really" gave "wait—really"; "start a
+  new paragraph" gave a blank line), MIC-08 (the advice showed once and not again within the
+  hour), SND-01 ("Paste cue started" after a paste, none after a transcript left on the
+  clipboard), STA-02 (the greeting's shortcut followed the word count), TRF-04 (Turn to list
+  re-transformed the polished text in place and Undo restored the original) and TRF-05
+  ("We polished your dictation" with Reveal edit, which opened the changes view).
+- By tests only: DIC-07's new skip categories (`dictation::learn`), FMT-14's guillemets
+  (`lang::french`), TRF-01's two rules and the 50-word limit, the "Your text looks good!"
+  notice, STA-03's X and LinkedIn buttons (Vitest; the browser wasn't opened) and the
+  Disable answer of CORE-17. INS-10, INS-11 and STY-05's new identifiers are pinned by unit
+  tests (sources in the commit that added them); those apps weren't launched.
+- The controller now shuts down cleanly when a test harness is dropped, releasing the test
+  database; on macOS `shutting_down_the_controller_releases_the_database` checks that
+  History's last holder is the harness. The Windows temporary-folder leak it fixes needs a
+  Windows `cargo test` run.
+
+Windows pending (phase 6 code that hasn't run on Windows; none of it was compiled there):
+
+- Windows-specific code: CORE-18 (Raw Input mouse buttons), LANG-07 (the region from
+  `GetUserDefaultGeoName`), APP-12 (the relaunch), APP-03 (left click opens the main window),
+  INS-10, INS-11 and STY-05 (the new executable names, and Shift+Insert for Hyper and
+  WezTerm, whose own keymaps differ), STA-06 (`WINWORD.EXE` as a document app).
+- Portable features to re-run on Windows: CORE-17, KEYS-11 (the hint with Ctrl+Win), FMT-15
+  (keyed by executable name), TRF-07 (the wand in the `WS_EX_NOACTIVATE` bar), HIS-09,
+  HIS-10, STA-02, STA-03, DIC-04, DIC-07, SNP-01, TRF-01, TRF-04, TRF-05, MIC-08, SND-01
+  (the new cues through `PlaySoundW`) and FMT-05, FMT-06 and FMT-14.
+- macOS only, nothing to run on Windows: APP-07, APP-10, APP-11.
 
 Verified partly, in phase 5:
 
@@ -641,6 +712,78 @@ Open in phase 1: ENG-04 and MIC-01 need a microphone. This Mac has no audio inpu
 the WAV source every sample from the key press reaches STT (controller test and live), and
 with no device Shrimp shows "No microphone found" without a permission prompt.
 
+## Parity audit (AUD-01)
+
+On 2026-10-13, phase 6 re-read Wispr's what's-new page (entries up to 9 October 2026),
+the older Featurebase changelog (29 entries), the product, developers and data-controls
+pages, and the help center: all 180 articles in its 12 collections and sitemap, with about
+70 desktop articles read in full and the out-of-scope ones skimmed. Every item above was
+compared with them.
+
+Added (built in phase 6): `CORE-17`, `CORE-18`, `KEYS-11`, `FMT-15`, `TRF-07`, `HIS-09`,
+`HIS-10`, `STA-06`, `LANG-07`, `APP-10`, `APP-11`, `APP-12`.
+
+Criteria widened to match the current docs: `FMT-05`, `FMT-06` and `FMT-14` (more spoken
+forms and the guillemets), `INS-10`, `INS-11` and `STY-05` (more remote desktops,
+terminals, browsers and Google sites), `DIC-04` (Star and Sort by), `DIC-07` (more skipped
+words), `SNP-01` (no trigger that repeats a dictionary word), `TRF-01` (two more Polish
+rules, the 50-word limit), `TRF-04` (Transform again, "Your text looks good!"), `TRF-05`
+(the "We polished your dictation" notice), `MIC-08` (hourly, as Wispr's AirPods tip),
+`SND-01` (paste and achievement sounds), `STA-02` (the greeting's shortcut until 2,000
+words), `STA-03` (X and LinkedIn), `APP-03` (Restart Shrimp; the Windows left click) and
+`APP-07` (the Dock icon while the window is open).
+
+Where Shrimp keeps a different behaviour on purpose:
+
+- **Auto Cleanup:** the April 2026 changelog lists None, Light, Medium and High; the current
+  article says High is no longer selectable. `FMT-01` keeps the three current levels.
+- **Updates (`PKG-03`, `PKG-04`):** Wispr installs updates on its own once the user has been
+  away for 20 minutes, asks after 3 hours, and offers "Restart anyway" during a dictation.
+  Shrimp never restarts by itself: it downloads, offers Restart now, and when a dictation is
+  running it restarts once that ends, so no dictation is cut short and no idle detection is
+  needed.
+- **Reset (`APP-08`):** Wispr's reset keeps the dictionary, stats and settings because they
+  re-sync from its cloud. Shrimp has no cloud copy, so Reset & restart starts fresh, after
+  its confirmation.
+- **`KEYS-08`:** Wispr resets shortcuts at once; Shrimp asks first, because the reset can't
+  be undone. **`KEYS-09`:** Wispr shows nothing when Secure Keyboard Entry blocks shortcuts;
+  Shrimp explains it.
+- **`LANG-05`:** Wispr added a Flow Bar language picker in 1.4.661 and a later article says
+  the bar has none; Shrimp keeps it. **`LANG-04`:** one article says the card doesn't name
+  the language; Shrimp names it and offers Add language, as the 9 October changelog does.
+- **`CORE-07`:** Wispr's articles disagree on whether a press during processing is queued or
+  rejected; Shrimp rejects it, as the Command Mode and retry articles say.
+- **`MIC-03`:** some articles say Auto-detect follows the system default input; the Mac
+  microphone article ranks devices, which Shrimp follows.
+- **`INS-02`:** on the Mac Wispr may overwrite something copied during the restore; Shrimp
+  keeps it, as Wispr does on Windows.
+- **`HIS-07`, `HIS-08`:** Shrimp asks to type "delete all" before Never store, and keeps two
+  daily backups where Wispr keeps one.
+- **`DIC-06`, `SNP-05`:** Wispr hides bulk import behind an Experimental switch (a beta);
+  Shrimp always offers it.
+- **Wording:** several notices keep Shrimp's own text where Wispr's articles give another
+  (the short-tap tip, the 19- and 20-minute notices, the cancel and interrupted-start
+  notices, the no-text-field notice, the "press enter" prompt); the behaviour matches.
+- **Mouse button tip (`CORE-18`):** any mouse with more than three buttons qualifies; Wispr's
+  guided walkthrough and its list of supported Logitech MX models are not copied.
+
+## Latency (AUD-03)
+
+Key release to the text appearing in the field, for a 5-second dictation: fn held for
+5.0 s over a 4.96 s `say` sentence ("Please send the quarterly report to the whole team
+before Friday afternoon, and copy me."), local Whisper Large v3 Turbo (q5_0, Metal), timed
+by `pnpm regression:mac latency --runs 10 --model qwen2.5-coder:7b`, which polls the field
+through Accessibility every 2 ms. Ten measured runs per mode after one warm-up run.
+
+| Platform | Date       | Machine                 | AI edits                                    | Median   | p90      | Min      | Max      | Whisper alone (median) |
+| -------- | ---------- | ----------------------- | ------------------------------------------- | -------- | -------- | -------- | -------- | ---------------------- |
+| macOS    | 2026-10-13 | M4 Mac mini, macOS 26.5 | Off (cleanup None)                          | 660 ms   | 698 ms   | 584 ms   | 708 ms   | 656 ms                 |
+| macOS    | 2026-10-13 | M4 Mac mini, macOS 26.5 | On (Light, Ollama `qwen2.5-coder:7b`, warm) | 1,665 ms | 1,709 ms | 1,630 ms | 1,750 ms | 652 ms                 |
+| Windows  | —          | —                       | Off / on                                    | pending  |          |          |          |                        |
+
+With AI edits off nearly all of the time is Whisper; the paste and clipboard handling add a
+few milliseconds. The local 7B model adds about a second.
+
 ## Out of scope
 
 The owner decided these Wispr Flow features are not part of Shrimp.
@@ -661,23 +804,55 @@ The owner decided these Wispr Flow features are not part of Shrimp.
   Shrimp feature is available to every user.
 - **Mobile apps:** the iOS keyboard, iOS notes, widgets and Siri; the Android bubble and its
   related features.
-- **Wispr's cloud service:** service-status banners and slow-dictation incident notices,
-  support and feedback forms that submit to Wispr, and Wispr's Canto speech model (replaced
-  by the pluggable engines in `ENG-*`).
-- **Unconfirmed or undocumented in Wispr's docs:** Focus Mode (its help article returns
-  404), the "Tasks" and "Extensions" sidebar items, "Instruct" history badges, the
-  "hyperlink email signature". These are revisited in `AUD-01`.
+- **Wispr's cloud service:** service-status banners and slow-dictation incident notices
+  ("servers are busy", "Is your internet connected?"), support, feedback and "Report
+  transcript" forms that submit to Wispr, data requests and "Download your data" (a server
+  export), and Wispr's Canto speech model (replaced by the pluggable engines in `ENG-*`).
+- **Wispr's in-app notification list:** the list with read and archive states carries
+  account, referral and promotion messages from Wispr's service. Shrimp's notices stay next
+  to the Flow Bar (`NOT-*`).
+- **Hinglish (Hindi written in Latin letters):** Wispr's cloud model writes it. Local Whisper
+  writes Hindi in Devanagari, and a transliteration step could not be checked without a
+  Hindi speaker; Hindi itself is available (`LANG-01`).
+- **The typing-speed percentile** ("Top X%" compared to global typing speeds): Wispr doesn't
+  publish the distribution it compares against, and Shrimp doesn't invent one. Insights shows
+  the words per minute (`STA-01`).
+- **Startup guards for the OS version and CPU:** macOS enforces the minimum version in the
+  bundle and Shrimp ships for Apple Silicon only; the Windows installer is x64. The
+  Applications-folder guard is built (`APP-11`).
+- **Context skipped in banking apps:** Wispr names no desktop banking apps. Shrimp sends no
+  context anywhere unless a cloud provider is chosen, and Privacy mode turns those off
+  (`PRIV-03`).
+- **Undocumented in Wispr's docs (re-checked in `AUD-01`):** Focus Mode (only mentioned as an
+  action that Reset restores), the "Tasks" sidebar item (Notetaker action items) and
+  "Extensions" (Wispr's Chrome extension, a separate product), and the "hyperlink email
+  signature" (only mentioned as an exception). "Instruct" is the name of Command Mode
+  dictations and their answer panel, which `CMD-*` covers.
 - **Linux:** Wispr has no Linux app; Shrimp targets macOS and Windows only.
 
 ## Sources
 
-Fetched on 2026-10-13.
+Fetched on 2026-10-13, and re-fetched in full the same day for `AUD-01` (every help-center
+article, through its collections and `sitemap.xml`).
 
 - Product: [wisprflow.ai](https://wisprflow.ai),
   [pricing](https://wisprflow.ai/pricing), [what's new](https://wisprflow.ai/whats-new),
   [older changelog](https://wisprflow.featurebase.app/changelog),
   [developers](https://wisprflow.ai/developers), [data controls](https://wisprflow.ai/data-controls),
-  [Canto](https://wisprflow.ai/canto).
+  [Canto](https://wisprflow.ai/canto), [features](https://wisprflow.ai/features).
+- Added in the phase 6 audit:
+  [cancelled dictations](https://docs.wisprflow.ai/articles/2012729330-why-your-dictation-was-cancelled-tap-vs-hold-and-interrupted-starts),
+  [nothing recorded](https://docs.wisprflow.ai/articles/4363488655-dictation-starts-but-nothing-is-recorded-cancelled-dictation-and-hold-don-t-tap-notifications-mac-windows),
+  [waiting updates](https://docs.wisprflow.ai/articles/2363354003-why-wispr-flow-waits-to-install-updates-while-you-re-using-it),
+  [dictionary and snippets in the app](https://docs.wisprflow.ai/articles/9639977157-view-shared-dictionary-words-and-snippets-in-the-admin-portal),
+  [AirPods and playback](https://docs.wisprflow.ai/articles/8533503284-knwon-audio-playback-airpod-issues-ios-macos),
+  [discreet microphones and sounds](https://docs.wisprflow.ai/articles/9192039587-using-wispr-flow-discreetly-microphone-guide),
+  [removing Flow](https://docs.wisprflow.ai/articles/3884018196-completely-removing-wispr-flow-from-your-device),
+  [installing on Mac](https://docs.wisprflow.ai/articles/7682075140-how-to-install-wispr-flow-on-mac),
+  [quit and relaunch](https://docs.wisprflow.ai/articles/7492559320-quit-and-relaunch-wispr-flow),
+  [Secure Keyboard Entry](https://docs.wisprflow.ai/articles/8841649969-fix-flow-shortcuts-blocked-by-macos-secure-keyboard-entry-secure-event-input),
+  [Logitech mouse buttons](https://docs.wisprflow.ai/articles/1078330210-fix-logitech-mx-master-logi-options-mouse-buttons-not-working-as-a-flow-shortcut),
+  [Smart Formatting](https://docs.wisprflow.ai/articles/6568835559-why-wispr-flow-sometimes-removes-or-changes-words-on-android-smart-formatting).
 - Shortcuts and dictation:
   [shortcuts](https://docs.wisprflow.ai/articles/2612050838-supported-unsupported-keyboard-hotkey-shortcuts),
   [first dictation](https://docs.wisprflow.ai/articles/6409258247-starting-your-first-dictation),

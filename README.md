@@ -40,7 +40,13 @@ Caps Lock, a no-Fn fallback, stuck-key recovery), a Whisper model picker, microp
 ranking with mid-dictation fallback and warnings, whisper mode, sound settings, muting
 or pausing media while dictating, languages with auto-detect and spelling variants, and
 a Flow Bar that can hide, move to any edge and switch languages on hover.
-[docs/PARITY.md](docs/PARITY.md) tracks every feature.
+
+Phase 5 brought Shrimp to Windows and added a notarized DMG, a per-user Windows installer
+and in-app updates. Phase 6 audited Shrimp against Wispr Flow's current documentation and
+added what was missing: formatting per app, the Flow Bar's transform wand, recoverable
+cancelled dictations, Delete all transcripts, usage by category, the macOS menu bar,
+Restart Shrimp and more. `pnpm regression:mac` runs the scripted macOS walkthrough of every
+automatable feature. [docs/PARITY.md](docs/PARITY.md) tracks every feature.
 
 ## Getting started
 
@@ -49,6 +55,7 @@ pnpm install
 pnpm tauri:dev      # hot-reload development
 pnpm app:dev:open   # signed dev app bundle, for anything that needs macOS permissions
 pnpm check          # formatting, lint, type check and all tests
+pnpm regression:mac # the scripted walkthrough against the signed dev app (macOS)
 ```
 
 Prerequisites, signing, testing with WAV files and driving the app with tauri-mcp are
