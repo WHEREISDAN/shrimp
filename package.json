@@ -2,6 +2,13 @@
   "name": "shrimp",
   "private": true,
   "version": "0.1.1",
+  "description": "Speech to text, anywhere: a desktop dictation app for macOS and Windows.",
+  "license": "MIT",
+  "homepage": "https://github.com/WHEREISDAN/shrimp#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/WHEREISDAN/shrimp.git"
+  },
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -24,7 +31,8 @@
     "app:dev:win": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/windows/dev-app.ps1 build",
     "app:dev:win:open": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/windows/dev-app.ps1 open",
     "release:win": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/windows/release.ps1",
-    "regression:win": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/windows/regression/run.ps1"
+    "regression:win": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/windows/regression/run.ps1",
+    "notices": "node scripts/notices.mjs"
   },
   "pnpm": {
     "onlyBuiltDependencies": [
