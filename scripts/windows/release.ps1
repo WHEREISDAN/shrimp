@@ -22,19 +22,25 @@
 .PARAMETER Config
   A JSON file merged into the configuration last, for test builds (for example a
   throwaway updater public key).
+
+.PARAMETER NoUpdaterKey
+  Builds the installer only, without the updater key, which stays on the machine that
+  keeps it. Sign the installer there as the update (docs/RELEASING.md).
 #>
-param([string]$Version, [string]$Config)
+param([string]$Version, [string]$Config, [switch]$NoUpdaterKey)
 $ErrorActionPreference = 'Stop'
 $root = Resolve-Path (Join-Path $PSScriptRoot '..\..')
 $tauri = Join-Path $root 'node_modules\.bin\tauri.cmd'
 
 if (-not $env:VULKAN_SDK) { throw 'Install the Vulkan SDK; VULKAN_SDK is not set.' }
 $keyPath = $env:TAURI_SIGNING_PRIVATE_KEY
-if (-not $keyPath -or -not (Test-Path -LiteralPath $keyPath -PathType Leaf)) {
-    throw 'Set TAURI_SIGNING_PRIVATE_KEY to the updater private key file (docs/RELEASING.md).'
-}
 $keyPassword = $env:TAURI_SIGNING_PRIVATE_KEY_PASSWORD
-if (-not $keyPassword) { throw 'Set TAURI_SIGNING_PRIVATE_KEY_PASSWORD to the updater key password.' }
+if (-not $NoUpdaterKey) {
+    if (-not $keyPath -or -not (Test-Path -LiteralPath $keyPath -PathType Leaf)) {
+        throw 'Set TAURI_SIGNING_PRIVATE_KEY to the updater private key file (docs/RELEASING.md).'
+    }
+    if (-not $keyPassword) { throw 'Set TAURI_SIGNING_PRIVATE_KEY_PASSWORD to the updater key password.' }
+}
 $feed = $env:SHRIMP_UPDATE_FEED
 if ($feed -and $feed -notmatch '^(https://|http://(127\.0\.0\.1|localhost)[:/])') {
     throw 'SHRIMP_UPDATE_FEED must be https (http only for 127.0.0.1 or localhost).'
@@ -70,7 +76,7 @@ $configArgs = @('--config', $releaseConfig)
 if ($Config) { $configArgs += @('--config', (Resolve-Path $Config).Path) }
 
 # The updater key stays out of the build; only the archive below is signed with it.
-Remove-Item Env:TAURI_SIGNING_PRIVATE_KEY, Env:TAURI_SIGNING_PRIVATE_KEY_PASSWORD
+Remove-Item Env:TAURI_SIGNING_PRIVATE_KEY, Env:TAURI_SIGNING_PRIVATE_KEY_PASSWORD -ErrorAction SilentlyContinue
 Push-Location $root
 try {
     pnpm tauri build --features vulkan @configArgs
@@ -90,6 +96,12 @@ if (-not (Test-Path -LiteralPath $installer)) { throw "The build left no $instal
 # The update is the installer itself, signed with the updater key and bound to the version.
 $updates = Join-Path $bundle 'updater'
 if (Test-Path -LiteralPath $updates) { Remove-Item -LiteralPath $updates -Recurse -Force }
+if ($NoUpdaterKey) {
+    Write-Output "Installer: $installer"
+    Write-Output 'Updater:   none (sign the installer with the updater key, docs/RELEASING.md)'
+    Write-Output "Feed:      $(if ($feed) { $feed } else { 'none (updates are not configured)' })"
+    return
+}
 New-Item -ItemType Directory -Path $updates | Out-Null
 $update = Join-Path $updates $name
 Copy-Item -LiteralPath $installer -Destination $update

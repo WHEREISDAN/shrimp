@@ -204,6 +204,16 @@ writes `latest.json` for `windows-x86_64`. The key is kept out of the Tauri buil
 `-Version X.Y.Z` builds another version without editing the version files, and
 `-Config <file>` merges a JSON file into the configuration last (test builds).
 
+`-NoUpdaterKey` builds the installer only, for when the updater key stays on the Mac. Sign
+the installer there as the update, bound to the version, with the key's password in
+`TAURI_SIGNING_PRIVATE_KEY_PASSWORD`, and write its `windows-x86_64` entry into
+`latest.json` as in [The update feed](#the-update-feed):
+
+```sh
+pnpm tauri signer sign --private-key-path ~/.tauri/shrimp-updater.key \
+  --app-version <version> Shrimp_<version>_x64-setup.exe
+```
+
 | File (under `$env:CARGO_TARGET_DIR\release\bundle`) | What                               |
 | --------------------------------------------------- | ---------------------------------- |
 | `nsis\Shrimp_<version>_x64-setup.exe`               | The installer, for new installs    |
