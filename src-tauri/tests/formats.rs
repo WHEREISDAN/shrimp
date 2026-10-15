@@ -37,7 +37,7 @@ fn library() -> Snapshot {
         snippets: vec![Snippet {
             id: 1,
             trigger: "my sig".into(),
-            expansion: "Best, Dan".into(),
+            expansion: "Best, Alex".into(),
             created_at: 0,
             updated_at: 0,
         }],
@@ -79,7 +79,7 @@ fn unformatted_skips_the_ai_edit_style_and_context_casing() {
     });
     assert_eq!(
         h.fakes.inserted(),
-        [" Onto Kubernetes comma finally\nBest, Dan"],
+        [" Onto Kubernetes comma finally\nBest, Alex"],
         "line commands, corrections and snippets apply; no casing, punctuation words or model"
     );
     assert!(h.fakes.prompts.lock().unwrap().is_empty(), "no AI edit");
@@ -130,7 +130,7 @@ fn all_lowercase_covers_the_whole_dictation_but_not_snippets() {
     });
     assert_eq!(
         h.fakes.inserted(),
-        ["thanks siobhan. i will send it. Best, Dan"]
+        ["thanks siobhan. i will send it. Best, Alex"]
     );
 }
 

@@ -50,7 +50,7 @@ function backend(step: OnboardingStep, permissions: PermissionsInfo, completed =
       version: "0.1.0",
       os: "macos",
       arch: "aarch64",
-      userName: "Dan",
+      userName: "Alex",
     }),
     get_insights: () => INSIGHTS,
     get_voice_profile: () => VOICE_PROFILE,

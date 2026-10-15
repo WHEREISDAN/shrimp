@@ -231,7 +231,7 @@ export const MICROPHONES: MicrophoneList = {
     },
     {
       id: "pods",
-      name: "Dan's AirPods",
+      name: "Alex's AirPods",
       kind: "bluetooth",
       connected: false,
       unavailable: null,

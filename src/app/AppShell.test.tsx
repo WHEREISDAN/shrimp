@@ -27,7 +27,7 @@ function backend(health: AppHealth = HEALTHY, extra: Record<string, () => unknow
       version: "0.1.0",
       os: "macos",
       arch: "aarch64",
-      userName: "Dan",
+      userName: "Alex",
     }),
     get_app_health: () => health,
     get_settings: () => settings,
@@ -86,7 +86,7 @@ describe("App navigation", () => {
   it("goes back and forward with ⌘[ and ⌘], and through the sidebar with ⌥↑/⌥↓", async () => {
     backend();
     render(<App />);
-    await screen.findByRole("heading", { name: /Dan$/ });
+    await screen.findByRole("heading", { name: /Alex$/ });
     fireEvent.keyDown(window, { key: "ArrowDown", altKey: true });
     expect(current()).toHaveTextContent("Insights");
     fireEvent.click(screen.getByRole("button", { name: "Help" }));
@@ -102,7 +102,7 @@ describe("App navigation", () => {
   it("opens the AI provider page from a notice", async () => {
     backend();
     render(<App />);
-    await screen.findByRole("heading", { name: /Dan$/ });
+    await screen.findByRole("heading", { name: /Alex$/ });
     await act(() => emit(EVENTS.navigate, "ai"));
     expect(await screen.findByRole("tab", { name: "AI provider" })).toHaveAttribute(
       "aria-selected",

@@ -8,9 +8,9 @@ const SNIPPETS: Snippet[] = [
   snippet({
     id: 1,
     trigger: "my address",
-    expansion: "**Dan** lives at [home](https://example.com) with \\*stars\\*",
+    expansion: "**Alex** lives at [home](https://example.com) with \\*stars\\*",
   }),
-  snippet({ id: 2, trigger: "sign off", expansion: "Thanks,\nDan" }),
+  snippet({ id: 2, trigger: "sign off", expansion: "Thanks,\nAlex" }),
 ];
 
 function backend(extra: Record<string, (args: Args) => unknown> = {}) {
@@ -48,8 +48,8 @@ describe("SnippetsPage", () => {
     backend();
     render(<SnippetsPage />);
     expect(await screen.findByText("my address")).toBeInTheDocument();
-    expect(screen.getByText("Dan lives at home with *stars*")).toBeInTheDocument();
-    expect(screen.getByText("Thanks, Dan")).toBeInTheDocument();
+    expect(screen.getByText("Alex lives at home with *stars*")).toBeInTheDocument();
+    expect(screen.getByText("Thanks, Alex")).toBeInTheDocument();
   });
 
   it("shows the empty state", async () => {
@@ -197,7 +197,7 @@ describe("SnippetsPage", () => {
 
     expect(await within(dialog).findByRole("alert")).toHaveTextContent("No changes made");
     expect(argsOf("update_snippet")).toEqual([
-      { id: 2, input: { trigger: "sign off", expansion: "Thanks,\nDan" } },
+      { id: 2, input: { trigger: "sign off", expansion: "Thanks,\nAlex" } },
     ]);
   });
 

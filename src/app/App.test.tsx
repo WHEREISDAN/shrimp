@@ -24,7 +24,7 @@ function backend(models: ModelStatus[]) {
   return (cmd: string) => {
     switch (cmd) {
       case "app_info":
-        return { name: "Shrimp", version: "0.1.0", os: "macos", arch: "aarch64", userName: "Dan" };
+        return { name: "Shrimp", version: "0.1.0", os: "macos", arch: "aarch64", userName: "Alex" };
       case "get_models":
         return models;
       case "get_permissions":
@@ -86,7 +86,7 @@ describe("App", () => {
     mockIPC(backend([model({})]), { shouldMockEvents: true });
     render(<App />);
     expect(
-      await screen.findByRole("heading", { name: /^Good (morning|afternoon|evening), Dan$/ }),
+      await screen.findByRole("heading", { name: /^Good (morning|afternoon|evening), Alex$/ }),
     ).toBeInTheDocument();
     expect(await screen.findByText("fn")).toBeInTheDocument();
     expect(await screen.findByText("Not asked yet")).toBeInTheDocument();

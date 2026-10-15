@@ -312,16 +312,16 @@ mod tests {
     fn snippet_markup_renders_bold_italic_and_links() {
         let text = format!(
             "Thanks! {}",
-            snippet("**Dan** _Shrimp_ [cal](https://cal.com/dan) \\*literal\\*")
+            snippet("**Alex** _Shrimp_ [cal](https://cal.com/alex) \\*literal\\*")
         );
         let rendered = render(&text);
         assert_eq!(
             rendered.plain,
-            "Thanks! Dan Shrimp cal (https://cal.com/dan) *literal*"
+            "Thanks! Alex Shrimp cal (https://cal.com/alex) *literal*"
         );
         assert_eq!(
             rendered.html.unwrap(),
-            "<meta charset=\"utf-8\">Thanks! <b>Dan</b> <i>Shrimp</i> <a href=\"https://cal.com/dan\">cal</a> *literal*"
+            "<meta charset=\"utf-8\">Thanks! <b>Alex</b> <i>Shrimp</i> <a href=\"https://cal.com/alex\">cal</a> *literal*"
         );
     }
 

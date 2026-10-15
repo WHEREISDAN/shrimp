@@ -413,7 +413,7 @@ mod tests {
         );
         let pods = InputDevice {
             id: "x".into(),
-            name: "Dan's AirPods Pro".into(),
+            name: "Alex's AirPods Pro".into(),
             kind: DeviceKind::Bluetooth,
         };
         assert!(pods.is_airpods());

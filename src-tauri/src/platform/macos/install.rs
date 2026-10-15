@@ -119,13 +119,13 @@ mod tests {
 
     #[test]
     fn only_the_applications_folders_count() {
-        let home = Path::new("/Users/dan");
+        let home = Path::new("/Users/alex");
         let inside = |path: &str| in_applications(Path::new(path), home);
         assert!(inside("/Applications/Shrimp.app"));
         assert!(inside("/Applications/Utilities/Shrimp.app"));
-        assert!(inside("/Users/dan/Applications/Shrimp.app"));
+        assert!(inside("/Users/alex/Applications/Shrimp.app"));
         assert!(!inside("/Volumes/Shrimp/Shrimp.app"), "the disk image");
-        assert!(!inside("/Users/dan/Downloads/Shrimp.app"));
+        assert!(!inside("/Users/alex/Downloads/Shrimp.app"));
         assert!(!inside(
             "/private/var/folders/x/T/AppTranslocation/3F2A/d/Shrimp.app"
         ));

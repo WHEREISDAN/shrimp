@@ -68,7 +68,7 @@ mod tests {
 
     #[test]
     fn a_trigger_alone_ignores_case_punctuation_and_spacing() {
-        let snippets = [snippet(1, "my calendar link", "https://cal.com/dan")];
+        let snippets = [snippet(1, "my calendar link", "https://cal.com/alex")];
         assert_eq!(match_alone("My calendar-link.", &snippets).unwrap().id, 1);
         assert_eq!(
             match_alone("  MYCALENDAR LINK!  ", &snippets).unwrap().id,
@@ -80,15 +80,15 @@ mod tests {
     #[test]
     fn triggers_in_a_sentence_expand_after_the_edit() {
         let snippets = [
-            snippet(1, "sig", "Best,\n**Dan**"),
-            snippet(2, "my calendar", "https://cal.com/dan"),
+            snippet(1, "sig", "Best,\n**Alex**"),
+            snippet(2, "my calendar", "https://cal.com/alex"),
         ];
         let found = find_triggers("Book via My Calendar, thanks. sig", &snippets);
         assert_eq!(found, [1, 0]);
         let expanded = expand("Book via my calendar. Thanks!\nSig", &found, &snippets).unwrap();
         assert_eq!(
             expanded,
-            "Book via \u{e000}https://cal.com/dan\u{e001}. Thanks!\n\u{e000}Best,\n**Dan**\u{e001}"
+            "Book via \u{e000}https://cal.com/alex\u{e001}. Thanks!\n\u{e000}Best,\n**Alex**\u{e001}"
         );
     }
 

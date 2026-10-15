@@ -59,7 +59,7 @@ function backend(settings: Settings = SETTINGS) {
       version: "0.1.0",
       os: "macos",
       arch: "aarch64",
-      userName: "Dan",
+      userName: "Alex",
     }),
     get_app_health: () => ({ crash: null, data: null, storage: null, misplaced: false }),
     get_settings: () => settings,

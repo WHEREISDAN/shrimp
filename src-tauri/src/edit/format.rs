@@ -227,21 +227,21 @@ mod tests {
     #[test]
     fn snippets_urls_and_code_keep_their_case() {
         let text = format!(
-            "Thanks. {SNIPPET_START}Best,\nDan Williams{SNIPPET_END} See https://Example.com/Path and user_Id."
+            "Thanks. {SNIPPET_START}Best,\nAlex Rivera{SNIPPET_END} See https://Example.com/Path and user_Id."
         );
         assert_eq!(
             apply_case(&text, TranscriptFormat::Lowercase, &ProperNouns::default()),
             format!(
-                "thanks. {SNIPPET_START}Best,\nDan Williams{SNIPPET_END} see https://Example.com/Path and user_Id."
+                "thanks. {SNIPPET_START}Best,\nAlex Rivera{SNIPPET_END} see https://Example.com/Path and user_Id."
             )
         );
         assert_eq!(
             apply_case(
-                "Mail Dan@Example.com now.",
+                "Mail Alex@Example.com now.",
                 TranscriptFormat::ProperNouns,
                 &ProperNouns::default()
             ),
-            "mail Dan@Example.com now."
+            "mail Alex@Example.com now."
         );
     }
 

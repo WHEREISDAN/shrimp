@@ -70,7 +70,7 @@ const PROSE: &str = "
 
 const EMAIL: &str = "
 This is an email. If the speaker dictated a greeting (\"Hi Sam\"), put it on its own line followed \
-by a blank line. If they dictated a sign-off (\"Thanks, Dan\"), put it after a blank line with the \
+by a blank line. If they dictated a sign-off (\"Thanks, Alex\"), put it after a blank line with the \
 name on its own line. Never add a greeting or sign-off they did not say.";
 
 const EXAMPLES: &str = "

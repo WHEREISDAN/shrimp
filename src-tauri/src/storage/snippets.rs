@@ -319,9 +319,9 @@ mod tests {
     #[test]
     fn creates_and_validates_snippets() {
         with_db(|db| {
-            let saved = add(db, &input(" my calendar ", "https://cal.com/dan\n")).unwrap();
+            let saved = add(db, &input(" my calendar ", "https://cal.com/alex\n")).unwrap();
             assert_eq!(saved.snippet.trigger, "my calendar");
-            assert_eq!(saved.snippet.expansion, "https://cal.com/dan");
+            assert_eq!(saved.snippet.expansion, "https://cal.com/alex");
             assert_eq!(saved.warning, None);
             assert!(add(db, &input("My Calendar", "x")).is_err());
             assert_eq!(

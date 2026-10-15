@@ -129,7 +129,7 @@ export const library = [
           ctx.invoke("add_snippet", { input: { trigger: "long", expansion: "x".repeat(4001) } }),
         );
         await ctx.invoke("add_snippet", {
-          input: { trigger: "my calendar link", expansion: "https://cal.com/dan" },
+          input: { trigger: "my calendar link", expansion: "https://cal.com/alex" },
         });
         const similar = await ctx.invoke("add_snippet", {
           input: { trigger: "my calendar links", expansion: "x" },
@@ -143,16 +143,16 @@ export const library = [
           text: "Book a time with me here, my calendar link. Thanks.",
           appId: TARGET,
         });
-        expectIncludes(inSentence.plain, "https://cal.com/dan");
+        expectIncludes(inSentence.plain, "https://cal.com/alex");
         const json = JSON.stringify([
-          { name: "signature", text: "Dan Williams" },
+          { name: "signature", text: "Alex Rivera" },
           { name: "my calendar link", text: "dup" },
         ]);
         const preview = await ctx.invoke("preview_snippet_import", { json });
         expect(/signature/.test(JSON.stringify(preview)), `preview: ${JSON.stringify(preview)}`);
         expect((await ctx.invoke("import_snippets", { json })) === 1, "import count");
         const alone = await ctx.invoke("dev_edit_text", { text: "Signature.", appId: TARGET });
-        expectIncludes(alone.plain, "Dan Williams");
+        expectIncludes(alone.plain, "Alex Rivera");
       } finally {
         await cleanUp(ctx, [], triggers);
       }

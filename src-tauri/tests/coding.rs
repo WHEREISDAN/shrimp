@@ -95,7 +95,7 @@ fn a_command_in_a_terminal_is_written_as_a_command_without_the_ai_edit() {
         FieldContext {
             editable: Editable::Yes,
             selection: Some(TextRange { start: 20, len: 0 }),
-            before: "dan@mac ~/shrimp % ".into(),
+            before: "alex@mac ~/shrimp % ".into(),
             ..FieldContext::default()
         },
         "Git checkout dash b feature slash login.",

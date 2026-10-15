@@ -236,7 +236,7 @@ mod tests {
     #[test]
     fn reads_snippet_json_and_skips_bad_entries() {
         let (rows, skipped) = parse_snippet_json(
-            r#"[{"name":"sig","text":"Best, Dan","id":7},{"name":"x"},{"name":3,"text":"y"},{"name":"  ","text":"z"}]"#,
+            r#"[{"name":"sig","text":"Best, Alex","id":7},{"name":"x"},{"name":3,"text":"y"},{"name":"  ","text":"z"}]"#,
         )
         .unwrap();
         assert_eq!(
@@ -245,7 +245,7 @@ mod tests {
                 1,
                 JsonSnippet {
                     trigger: "sig".into(),
-                    expansion: "Best, Dan".into()
+                    expansion: "Best, Alex".into()
                 }
             )]
         );

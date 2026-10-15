@@ -211,17 +211,17 @@
   },
   {
     "id": "dictionary-term",
-    "input": "please ask dantavious to review the tauri build",
+    "input": "please ask saoirse to review the tauri build",
     "dictionary": [
       {
-        "term": "Dantavious"
+        "term": "Saoirse"
       },
       {
         "term": "Tauri"
       }
     ],
     "expect": {
-      "contains": ["Dantavious", "Tauri"]
+      "contains": ["Saoirse", "Tauri"]
     }
   },
   {
@@ -230,11 +230,11 @@
     "snippets": [
       {
         "trigger": "my calendar link",
-        "expansion": "https://cal.com/dan"
+        "expansion": "https://cal.com/alex"
       }
     ],
     "expect": {
-      "contains": ["https://cal.com/dan"],
+      "contains": ["https://cal.com/alex"],
       "notContains": ["calendar link"]
     }
   },
@@ -244,11 +244,11 @@
     "snippets": [
       {
         "trigger": "my calendar link",
-        "expansion": "https://cal.com/dan"
+        "expansion": "https://cal.com/alex"
       }
     ],
     "expect": {
-      "equals": "https://cal.com/dan"
+      "equals": "https://cal.com/alex"
     }
   },
   {
@@ -287,7 +287,7 @@
   },
   {
     "id": "email-layout",
-    "input": "hi Sam thanks for sending the contract over I will review it tomorrow best Dan",
+    "input": "hi Sam thanks for sending the contract over I will review it tomorrow best Alex",
     "app": "com.apple.mail",
     "expect": {
       "startsWith": "Hi Sam",

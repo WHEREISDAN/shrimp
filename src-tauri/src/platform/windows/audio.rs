@@ -207,7 +207,7 @@ mod tests {
     #[test]
     fn kinds_from_bus_and_jack() {
         assert_eq!(
-            kind_of("USB", Some(4), None, "Analogue 1 + 2 (Focusrite USB Audio)"),
+            kind_of("USB", Some(4), None, "Analogue 1 + 2 (USB Audio Interface)"),
             DeviceKind::Wired
         );
         assert_eq!(

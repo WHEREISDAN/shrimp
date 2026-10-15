@@ -10,7 +10,7 @@ function renderGreeting(totalWords: number) {
       version: "0.1.0",
       os: "macos",
       arch: "aarch64",
-      userName: "Dan",
+      userName: "Alex",
     }),
     get_shortcuts: () => SHORTCUTS,
     get_insights: () => ({ ...INSIGHTS, totalWords }),
@@ -32,7 +32,7 @@ describe("Greeting", () => {
     renderGreeting(2_000);
     expect(await screen.findByText("This week")).toBeInTheDocument();
     await settle();
-    expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent(/Dan/);
+    expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent(/Alex/);
     expect(screen.queryByText(/to dictate anywhere/)).not.toBeInTheDocument();
   });
 });

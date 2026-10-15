@@ -116,7 +116,7 @@ export const editing = [
       const email = await asCategory(ctx, "email", () =>
         edit(
           ctx,
-          "Hi Sam, thanks for sending the contract over. I will review it tomorrow. Best, Dan.",
+          "Hi Sam, thanks for sending the contract over. I will review it tomorrow. Best, Alex.",
         ),
       );
       expect(email.formatted, `fell back: ${email.notice}`);

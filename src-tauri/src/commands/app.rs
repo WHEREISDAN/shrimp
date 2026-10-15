@@ -68,13 +68,13 @@ mod tests {
             version: "0.1.0".into(),
             os: "macos",
             arch: "aarch64",
-            user_name: Some("Dan".into()),
+            user_name: Some("Alex".into()),
         };
         let json = serde_json::to_value(&info).unwrap();
         assert_eq!(
             json,
             serde_json::json!({"name": "Shrimp", "version": "0.1.0", "os": "macos",
-                "arch": "aarch64", "userName": "Dan"})
+                "arch": "aarch64", "userName": "Alex"})
         );
     }
 }

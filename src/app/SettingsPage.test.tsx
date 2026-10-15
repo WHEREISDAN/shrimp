@@ -443,7 +443,7 @@ describe("SettingsPage microphone", () => {
     expect(within(list).getByText("BlackHole 2ch")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("radio", { name: /Yeti/ }));
     fireEvent.click(screen.getByRole("button", { name: "Move MacBook Pro Microphone up" }));
-    fireEvent.click(screen.getByRole("button", { name: "Forget Dan's AirPods" }));
+    fireEvent.click(screen.getByRole("button", { name: "Forget Alex's AirPods" }));
     await waitFor(() => {
       expect(argsOf("select_microphone")).toEqual([{ id: "usb" }]);
       expect(argsOf("rank_microphone")).toEqual([{ id: "builtin", up: true }]);

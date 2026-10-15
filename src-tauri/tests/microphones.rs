@@ -105,7 +105,7 @@ fn a_new_microphone_asks_switch_or_dont_switch_but_not_for_airpods_or_virtual_on
     let microphones = h.microphones.as_ref().unwrap();
     assert_eq!(ranking(&h), ["builtin"]);
 
-    fakes.add(mic("pods", "Dan's AirPods", DeviceKind::Bluetooth, tone()));
+    fakes.add(mic("pods", "Alex's AirPods", DeviceKind::Bluetooth, tone()));
     fakes.add(mic("hole", "BlackHole 2ch", DeviceKind::Virtual, tone()));
     microphones.poll();
     assert_eq!(
@@ -308,7 +308,7 @@ fn a_microphone_slow_to_open_is_reported_after_8_seconds_until_it_opens() {
 fn bluetooth_microphones_get_advice_at_most_once_an_hour() {
     let (h, _fakes) = harness(vec![mic(
         "pods",
-        "Dan's AirPods",
+        "Alex's AirPods",
         DeviceKind::Bluetooth,
         tone(),
     )]);
