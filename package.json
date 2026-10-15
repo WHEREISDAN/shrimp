@@ -1,7 +1,7 @@
 {
   "name": "shrimp",
   "private": true,
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Speech to text, anywhere: a desktop dictation app for macOS and Windows.",
   "license": "MIT",
   "homepage": "https://github.com/WHEREISDAN/shrimp#readme",
