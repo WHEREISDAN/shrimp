@@ -14,9 +14,11 @@
 #   SHRIMP_NOTARY_PROFILE        notarytool keychain profile (default: shrimp-notary)
 #   SHRIMP_SIGNING_IDENTITY      codesign identity (default: the first
 #                                "Developer ID Application" identity found)
-#   SHRIMP_UPDATE_FEED           URL of latest.json, built into the app; the
-#                                archive is expected next to it. Unset: the
-#                                app says updates aren't configured.
+#   SHRIMP_UPDATE_FEED           URL of latest.json, built into the app. The
+#                                archive is expected next to it, or for a GitHub
+#                                Releases feed (.../releases/latest/download/
+#                                latest.json) in the release tagged v<version>.
+#                                Unset: the app says updates aren't configured.
 #   SHRIMP_UPDATER_KEY           updater private key (default: ~/.tauri/shrimp-updater.key)
 #   SHRIMP_UPDATER_KEY_SERVICE   keychain item holding its password
 #                                (default: shrimp-updater-key)
@@ -127,6 +129,17 @@ notarize_app() {
   xcrun stapler staple "$APP"
 }
 
+# Where the update archive is published: next to latest.json, or for a GitHub
+# Releases feed, in the release tagged v<version>.
+download_base() {
+  local github='^(https://github\.com/[^/]+/[^/]+/releases)/latest/download/[^/]+$'
+  if [[ "$FEED" =~ $github ]]; then
+    echo "${BASH_REMATCH[1]}/download/v$VERSION"
+  else
+    echo "${FEED%/*}"
+  fi
+}
+
 # The archive the updater downloads, its signature and latest.json.
 updater_artifacts() {
   local dir="$BUNDLE/updater" archive password
@@ -140,7 +153,7 @@ updater_artifacts() {
   TAURI_SIGNING_PRIVATE_KEY_PASSWORD="$password" "$TAURI" signer sign \
     --private-key-path "$UPDATER_KEY" --app-version "$VERSION" "$dir/$archive" >/dev/null
   [[ -n "$FEED" ]] || { echo "SHRIMP_UPDATE_FEED is unset: no latest.json"; return; }
-  ARCHIVE="$dir/$archive" URL="${FEED%/*}/$archive" VERSION="$VERSION" node -e '
+  ARCHIVE="$dir/$archive" URL="$(download_base)/$archive" VERSION="$VERSION" node -e '
     const fs = require("fs");
     const { ARCHIVE, URL, VERSION } = process.env;
     const signature = fs.readFileSync(`${ARCHIVE}.sig`, "utf8").trim();

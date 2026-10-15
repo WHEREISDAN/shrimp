@@ -7,7 +7,9 @@
   Needs the Vulkan SDK (VULKAN_SDK) and the updater key that the macOS release uses
   (docs/RELEASING.md): TAURI_SIGNING_PRIVATE_KEY is the path of the private key file and
   TAURI_SIGNING_PRIVATE_KEY_PASSWORD its password. SHRIMP_UPDATE_FEED is the URL of
-  latest.json, built into the app; without it the app says updates aren't configured.
+  latest.json, built into the app; without it the app says updates aren't configured. The
+  update is expected next to latest.json, or for a GitHub Releases feed
+  (.../releases/latest/download/latest.json) in the release tagged v<version>.
   Signs every binary when SHRIMP_WINDOWS_SIGN_THUMBPRINT names a code-signing certificate
   (scripts/windows/sign.ps1); without it the installer is unsigned. The installer lands in
   $env:CARGO_TARGET_DIR\release\bundle\nsis\, the update (the installer, its .sig and,
@@ -100,7 +102,12 @@ try {
 }
 if ($feed) {
     $signature = (Get-Content -Raw -LiteralPath "$update.sig").Trim()
-    $url = $feed.Substring(0, $feed.LastIndexOf('/') + 1) + $name
+    # Next to latest.json, or for a GitHub Releases feed, in the release tagged v<version>.
+    if ($feed -match '^(https://github\.com/[^/]+/[^/]+/releases)/latest/download/[^/]+$') {
+        $url = "$($Matches[1])/download/v$Version/$name"
+    } else {
+        $url = $feed.Substring(0, $feed.LastIndexOf('/') + 1) + $name
+    }
     $latest = [ordered]@{
         version = $Version
         pub_date = (Get-Date).ToUniversalTime().ToString('yyyy-MM-ddTHH:mm:ss.fffZ')
