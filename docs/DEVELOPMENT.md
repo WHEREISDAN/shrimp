@@ -54,9 +54,9 @@ install.
 
 Use this for UI and Rust work that needs no macOS privacy permission. It runs the raw
 binary from `src-tauri/target/debug`, not an app bundle. macOS then attributes privacy
-requests to the process that launched it (Terminal, the IDE or the agent host). Microphone,
+requests to the app that launched it (Terminal, an IDE or another host app). Microphone,
 Accessibility and Input Monitoring prompts and grants go to that app instead of Shrimp.
-Runs started by an agent often read as "denied" even when the person has granted access.
+Such runs often read as "denied" even when Shrimp Dev itself has been granted access.
 
 ### Signed app bundle: `pnpm app:dev` and `pnpm app:dev:open`
 
@@ -91,8 +91,8 @@ self-signed certificate that never changes:
 designated => identifier "com.shrimp.desktop.dev" and certificate leaf = H"38e13c06dbf349f3a3cc1bf3f72a64a6b864b382"
 ```
 
-The hash above belongs to the identity created on the owner's Mac. Another machine
-creates its own identity, with its own hash.
+The hash above is an example from one machine's identity. Every machine creates its own
+identity, so yours differs.
 
 `scripts/macos/dev-identity.sh` manages the identity:
 
@@ -126,24 +126,25 @@ machine, and run `scripts/macos/dev-identity.sh delete` when you no longer need 
 Release builds use the Developer ID identity, never this one (see
 [RELEASING.md](RELEASING.md)).
 
-### One-time grants (from phase 1)
+### One-time grants
 
-The owner gives each permission to "Shrimp Dev" once. The grants then survive rebuilds for
-as long as the identity and the bundle identifier stay the same.
+Give each permission to "Shrimp Dev" once. The grants then survive rebuilds for as long as
+the identity and the bundle identifier stay the same.
 
 - **Microphone:** macOS asks on the first microphone dictation. Click Allow. A Mac without
   any input device shows "No microphone found" instead and never prompts.
 - **Accessibility:** System Settings > Privacy & Security > Accessibility, then turn on
   "Shrimp Dev". The global hotkey (an active event tap), pasting and reading text all depend
-  on it. An agent cannot do this, because macOS protects these panes.
+  on it. A script cannot turn it on, because macOS protects these panes.
 - **Input Monitoring** is not needed: Accessibility already covers listening to and posting
   events. It would only matter if a listen-only event tap were added later.
 
 ## Driving the app with tauri-mcp
 
 Debug builds register [tauri-plugin-mcp](https://github.com/P3GLEG/tauri-plugin-mcp)
-(pinned to commit `c7d271a`, version 0.3.1). It lets an agent read the DOM, click, type,
-take screenshots, call IPC commands and read logs in the real app.
+(version 0.3.1, pinned to a git revision in `src-tauri/Cargo.toml`). It lets an MCP client
+read the DOM, click, type, take screenshots, call IPC commands and read logs in the real
+app.
 
 - `.mcp.json` registers the MCP server `tauri-mcp`, which runs
   `npx -y tauri-plugin-mcp-server@0.3.1`.
@@ -155,7 +156,7 @@ take screenshots, call IPC commands and read logs in the real app.
 - Release builds include none of it. The plugin is not registered, the plugin itself refuses
   to open its socket in release builds, and the frontend drops the import.
 
-A typical session:
+A typical run:
 
 1. Start the app: `pnpm app:dev:open` (or `pnpm tauri:dev` when no permission is involved).
 2. Wait for `/tmp/tauri-mcp.sock` to appear.
@@ -172,15 +173,16 @@ Things to know:
 - Rust `log` records are captured into the plugin's buffer in debug builds
   (`capture_rust_logs`). They appear in `query_logs`, not in the terminal. JS `console.*`
   calls are captured too.
-- Only one app can own the socket. Spaced dev builds use the same default path. To run
-  both, start one app with `TAURI_MCP_IPC_PATH=/tmp/tauri-mcp-shrimp.sock` and give the
-  MCP server the same variable. Both sides honour it.
+- Only one app can own the socket, and other Tauri apps that use tauri-plugin-mcp default
+  to the same path. To run Shrimp beside one, start one of them with
+  `TAURI_MCP_IPC_PATH=/tmp/tauri-mcp-shrimp.sock` and give the MCP server the same
+  variable. Both sides honour it.
 - `restart_app` refuses to work under `tauri dev`. Relaunch with `dev-app.sh open` instead.
 - Register every new IPC command in `commands::NAMES` too. `manage_ipc` with
-  `action: "commands"` lists them for agents.
-- Every webview that agents should drive must call `setupPluginListeners()` (see
-  `src/main.tsx`), including the Flow Bar window from phase 1, and must be listed in the
-  capability that grants `mcp:default`.
+  `action: "commands"` lists them for MCP clients.
+- Every webview that tauri-mcp should drive must call `setupPluginListeners()` (see
+  `src/main.tsx`), including the Flow Bar window, and must be listed in the capability
+  that grants `mcp:default`.
 - `take_screenshot` works on the signed bundle without a Screen Recording grant, but the
   plugin's macOS capture skips windows smaller than 100×100 points, which includes the Flow
   Bar. Capture it with `screencapture -R x,y,w,h`, using the bounds of the window titled
@@ -205,10 +207,10 @@ The STT pipeline does not depend on the microphone. Every input implements
 
 There are two implementations:
 
-| Source                     | Used for                                                                                                          |
-| -------------------------- | ----------------------------------------------------------------------------------------------------------------- |
-| Microphone (cpal, phase 1) | Normal use.                                                                                                       |
-| `WavFileSource`            | Tests (`Pacing::Instant`) and dev builds (`Pacing::Realtime`, one 20 ms chunk per 20 ms, like a live microphone). |
+| Source            | Used for                                                                                                          |
+| ----------------- | ----------------------------------------------------------------------------------------------------------------- |
+| Microphone (cpal) | Normal use.                                                                                                       |
+| `WavFileSource`   | Tests (`Pacing::Instant`) and dev builds (`Pacing::Realtime`, one 20 ms chunk per 20 ms, like a live microphone). |
 
 `audio::Recorder` collects whatever a source delivers. It converts the result into an
 `AudioClip` (16 kHz mono f32, resampled with rubato's FFT resampler), which is what
@@ -248,7 +250,7 @@ Release builds ignore the variable. A dictation then records from the file inste
 microphone, until the file ends (which finishes the dictation as if the shortcut had been
 released) or the shortcut is released.
 
-Debug builds also register two commands, so an agent can switch sources through
+Debug builds also register two commands, so an MCP client can switch sources through
 `manage_ipc` without relaunching the app. The change applies from the next dictation.
 
 | Command                | Arguments             | Returns                                                                   |
@@ -322,11 +324,11 @@ Set environment variables with `scripts/macos/dev-app.sh open --env NAME=value`.
 To work on the dev app while a release Shrimp is in use on the same Mac:
 
 - Launch the bundle in the background with its hooks off:
-  `scripts/macos/dev-app.sh open -g --env SHRIMP_NO_HOTKEYS=1`. `-g` keeps the person's
+  `scripts/macos/dev-app.sh open -g --env SHRIMP_NO_HOTKEYS=1`. `-g` keeps the current
   app in front; tauri-mcp's `manage_window` `show` shows the window without taking focus.
 - `pnpm tauri:dev` runs the raw binary, which comes to the front when it launches, and
   restarts (coming to the front again) whenever `src-tauri/` changes. For hot reloading
-  beside someone's work, run it as
+  while the Mac is in use, run it as
   `SHRIMP_NO_HOTKEYS=1 pnpm tauri dev --no-watch --config src-tauri/tauri.conf.dev.json`
   and give focus back once it is up.
 - `dev_set_theme` `{ "theme": "dark" }` (`"light"`, or `null` for the system's) shows every
@@ -502,9 +504,8 @@ pnpm regression:mac latency --runs 10       # AUD-03 instead: key-release-to-ins
 
 What it needs:
 
-- The terminal (or agent host) that runs it has Accessibility, and Shrimp Dev has
-  Accessibility (see [One-time grants](#one-time-grants-from-phase-1)). The microphone is not
-  used.
+- The terminal (or other app) that runs it has Accessibility, and Shrimp Dev has
+  Accessibility (see [One-time grants](#one-time-grants)). The microphone is not used.
 - The default Whisper model downloaded. Ollama running with a model for the AI cases;
   without it they are skipped.
 - Wispr Flow quit: it also reacts to fn (the script warns).
@@ -543,7 +544,7 @@ Not covered, and why:
 
 | Items                                                                    | Why                                                                                                      |
 | ------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------- |
-| ENG-04, MIC-01, ENG-05, ENG-06                                           | Need a microphone or cloud keys with credits (the owner's checks).                                       |
+| ENG-04, MIC-01, ENG-05, ENG-06                                           | Need a microphone or cloud API keys with credits.                                                        |
 | SND-03, SND-04                                                           | Mute and pause act on whatever the Mac is playing.                                                       |
 | INS-03, INS-09, INS-10, INS-11, CORE-08, CORE-14, HIS-04, FMT-13, FMT-14 | Keyboard layouts, terminals and remote desktops, and long or dated timings: unit and controller tests.   |
 | KEYS-04, KEYS-09, CORE-02 (the emoji picker)                             | Caps Lock and Secure Keyboard Entry change system state; the Globe key needs a physical press.           |
@@ -562,7 +563,8 @@ Not covered, and why:
   `release.ps1`). It needs `VULKAN_SDK`, and a short `CARGO_TARGET_DIR`: whisper.cpp builds
   its shader generator as a nested CMake project whose files sit about 230 characters
   below the target directory, and MSBuild's file tracker fails beyond `MAX_PATH`, so even
-  `%LOCALAPPDATA%\…` is too long. The scripts use `C:\st` unless `CARGO_TARGET_DIR` is set.
+  `%LOCALAPPDATA%\…` is too long. Unless `CARGO_TARGET_DIR` is set, the scripts use `st`
+  at the root of the system drive (usually `C:\st`).
 - `release.ps1` builds whisper.cpp for a portable CPU baseline (`GGML_NATIVE=OFF` with
   AVX2, BMI2, FMA and F16C) instead of the build machine's own instructions, and signs every
   binary through `scripts/windows/sign.ps1` when `SHRIMP_WINDOWS_SIGN_THUMBPRINT` names a
@@ -636,7 +638,7 @@ pnpm regression:win latency -Runs 10 -Model qwen2.5-coder:7b   # AUD-03 instead
 
 What it needs:
 
-- The interactive desktop session: from SSH or another session, start it through a
+- The interactive desktop session: from a remote shell or another session, start it through a
   scheduled task (see [Testing input on Windows](#testing-input-on-windows)).
 - Shrimp Dev's data folder with onboarding finished and the default model downloaded. Ollama
   running with a model for the AI cases; without it they are skipped. Load the model once

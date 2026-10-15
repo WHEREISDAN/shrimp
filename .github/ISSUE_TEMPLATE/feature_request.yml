@@ -1,0 +1,19 @@
+name: Feature request
+description: Suggest a feature. Shrimp is in maintenance mode, so new features are unlikely.
+labels: [enhancement]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Shrimp is a personal project in maintenance mode: the plan is to fix bugs, not to add features.
+        You're welcome to suggest one, but it will most likely be declined. Forking is encouraged.
+  - type: textarea
+    id: idea
+    attributes:
+      label: What you'd like Shrimp to do
+    validations:
+      required: true
+  - type: textarea
+    id: why
+    attributes:
+      label: Why it would help

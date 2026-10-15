@@ -1,69 +1,182 @@
-# Shrimp
+<p align="center">
+  <img src="assets/icons/app-icon.svg" width="128" height="128" alt="Shrimp's app icon">
+</p>
 
-Speech to text, anywhere. Shrimp is a desktop dictation app in the style of
-[Wispr Flow](https://wisprflow.ai): hold a hotkey, speak, and polished text appears at the
-cursor in any app.
+<h1 align="center">Shrimp</h1>
 
-- **Private by default.** Everything stays on the device. Speech-to-text runs locally with
-  Whisper (Metal-accelerated on Apple Silicon). Cloud engines are optional and use your
-  own API key.
-- **AI edits.** Filler removal, punctuation, lists, course correction and app-aware styles,
-  through the LLM provider you choose: Anthropic, OpenAI, Groq or a local Ollama. API keys
-  live in the OS keychain.
-- **Platforms.** macOS first, then Windows.
+<p align="center">Speech to text, anywhere. A desktop dictation app for macOS and Windows.</p>
 
-Shrimp is built with [Tauri v2](https://tauri.app), Rust, React and TypeScript.
+Hold a shortcut, speak, and let go: Shrimp writes what you said at the cursor, in any app.
+Speech is transcribed on your computer with [Whisper](https://github.com/ggml-org/whisper.cpp),
+and an optional AI model can clean it up, format it and follow spoken commands.
 
-## Status
+Inspired by [Wispr Flow](https://wisprflow.ai); not affiliated with or endorsed by Wispr.
 
-Phase 1 (the core dictation loop) is complete on macOS: hold fn to dictate (or fn Space and
-double-tap for hands-free), local Whisper transcription with a downloaded model, pasting
-at the cursor with the clipboard restored, the Flow Bar with live waveform and notices, the
-tray menu and dictation sounds.
+| Light                                                           | Dark                                                          |
+| --------------------------------------------------------------- | ------------------------------------------------------------- |
+| ![Shrimp's Home page in light mode](docs/images/home-light.png) | ![Shrimp's Home page in dark mode](docs/images/home-dark.png) |
 
-Phase 2 adds AI edits: filler removal, self-corrections, lists, spoken punctuation and line
-breaks, Auto Cleanup levels, app-aware styles (personal, work, email, other), a personal
-dictionary that also biases Whisper, snippets with rich text, and CSV/JSON imports. The
-cleanup runs on Anthropic, OpenAI, Groq or a local Ollama with keys in the keychain, and
-falls back to the raw transcript whenever the model fails or answers instead of editing.
-OpenAI and Groq can also transcribe.
+## Features
 
-Phase 3 adds Command Mode (hold fn ⌃ and say what to do with the selection, or ask a
-question), transforms (Polish, Prompt Engineer and custom rewrites with a changes view and
-auto-apply), context awareness (names and casing from the text around the cursor, styles
-by website), split pasting for terminals and AI coding CLIs, remote-desktop pasting, the
-Press Enter shortcut and voice command, variable recognition, syntax-aware dictation and
-file tagging for coding, and dictionary auto-learn.
+- **Dictate anywhere.** Hold fn (Ctrl+Win on Windows) to talk and let go to insert. Press
+  fn+Space, or double-tap fn, for hands-free dictation. Text goes in through the clipboard,
+  which is restored afterwards.
+- **Local transcription.** whisper.cpp runs on the GPU (Metal on Apple Silicon, Vulkan on
+  Windows, with the CPU as fallback). Pick a model from tiny to large-v3-turbo; it
+  downloads once and then works offline. Many languages, with auto-detect.
+- **AI edits (optional).** Removes filler words, applies your self-corrections ("at two,
+  actually three"), formats lists, emails and spoken punctuation, and adapts its style to
+  the kind of app you're in. Runs on a local Ollama model or a cloud provider with your own
+  API key: Anthropic, OpenAI or Groq.
+- **Dictionary and snippets.** Teach Shrimp names and terms (it can learn them from your
+  corrections), and say a short trigger to insert a longer text or link.
+- **Command Mode** (experimental, off by default). Select text, hold fn+Ctrl and say what
+  to do with it ("make this friendlier", "translate to Spanish"), or ask a question.
+- **Transforms** (off by default). Polish a draft, turn it into a well-structured AI
+  prompt, or write your own rewrites, from a shortcut or the Flow Bar.
+- **Context awareness.** Names and terms on screen and around the cursor are spelled
+  right, and the style follows the app or website.
+- **For developers.** Syntax-aware dictation in editors and terminals (camelCase,
+  snake_case, CLI commands), file tagging in Cursor and Windsurf chat, and pasting that
+  works in terminals and AI coding CLIs.
+- **Flow Bar.** A small capsule with a live waveform, notices and a language switch, that
+  can sit at any screen edge or hide.
+- **History and insights.** Search past dictations, retry or undo an AI edit, and see your
+  words per minute, streaks and where you dictate most.
+- **And more:** microphone ranking with fallback, whisper mode, muting or pausing media
+  while you dictate, launch at login, privacy mode, and an interface in English, German,
+  Spanish, Italian and Portuguese.
 
-Phase 4 so far adds a shortcuts dialog (up to four bindings per action, mouse buttons,
-Caps Lock, a no-Fn fallback, stuck-key recovery), a Whisper model picker, microphone
-ranking with mid-dictation fallback and warnings, whisper mode, sound settings, muting
-or pausing media while dictating, languages with auto-detect and spelling variants, and
-a Flow Bar that can hide, move to any edge and switch languages on hover.
+[docs/PARITY.md](docs/PARITY.md) lists every feature with its acceptance criterion and how
+it was verified.
 
-Phase 5 brought Shrimp to Windows and added a notarized DMG, a per-user Windows installer
-and in-app updates. Phase 6 audited Shrimp against Wispr Flow's current documentation and
-added what was missing: formatting per app, the Flow Bar's transform wand, recoverable
-cancelled dictations, Delete all transcripts, usage by category, the macOS menu bar,
-Restart Shrimp and more. `pnpm regression:mac` runs the scripted macOS walkthrough of every
-automatable feature. [docs/PARITY.md](docs/PARITY.md) tracks every feature.
+## Install
 
-## Getting started
+Download the latest version from [Releases](https://github.com/WHEREISDAN/shrimp/releases/latest).
+Shrimp updates itself from there: it checks a minute after launch and every six hours, and
+asks before it restarts to install an update.
+
+### macOS
+
+macOS 14.2 or later on Apple Silicon (M1 or newer). Intel Macs aren't supported.
+
+1. Download `Shrimp_<version>_aarch64.dmg`.
+2. Open it and drag Shrimp to Applications.
+3. Open Shrimp. Setup asks for the permissions below and downloads the speech model
+   (about 575 MB).
+
+The app is signed with a Developer ID and notarized by Apple.
+
+### Windows
+
+Windows 10 or 11, x64.
+
+1. Download `Shrimp_<version>_x64-setup.exe` and run it. It installs for your user only and
+   doesn't need administrator rights.
+2. The installer isn't code-signed, so Microsoft Defender SmartScreen may show "Windows
+   protected your PC". Click **More info**, then **Run anyway**.
+3. Start Shrimp if the installer didn't, and follow setup. It downloads the speech model
+   (about 575 MB).
+
+Updates are still verified: every update must carry a signature from Shrimp's updater key.
+
+## Permissions
+
+On macOS Shrimp needs two permissions, which setup walks you through:
+
+- **Microphone**, to hear you.
+- **Accessibility**, to notice the shortcut in any app, paste the text, and read the text
+  around the cursor for context awareness.
+
+If pressing fn opens the emoji picker, set System Settings › Keyboard › "Press 🌐 key to"
+to Do Nothing. Setup offers to open that setting.
+
+On Windows, Shrimp needs only microphone access: in Settings › Privacy & security ›
+Microphone, "Let desktop apps access your microphone" must be on.
+
+## Speech engines and AI providers
+
+| What           | Options                                       | Default             |
+| -------------- | --------------------------------------------- | ------------------- |
+| Speech to text | Local Whisper, OpenAI, Groq                   | Local Whisper       |
+| AI edits       | None, Ollama (local), Anthropic, OpenAI, Groq | Chosen during setup |
+| Cleanup level  | None, Light, Medium                           | Light               |
+
+Choose them in Settings. Cloud engines and providers use your own API key, which Shrimp
+stores in the operating system's keychain (macOS Keychain or Windows Credential Manager),
+never in its settings files, database or logs. If a cloud request fails, Shrimp tells you
+why and falls back: to local Whisper for transcription, or to the unedited transcript for
+AI edits.
+
+For AI edits without the cloud, install [Ollama](https://ollama.com), pull a model (for
+example `ollama pull qwen2.5-coder:7b`) and choose Ollama in Settings.
+
+## Privacy
+
+Shrimp is local by default. With local Whisper and either no AI edits or Ollama, no audio
+or text leaves your computer.
+
+When you turn on a cloud option, this is what it receives:
+
+- **A cloud speech engine** (OpenAI, Groq): the recording of each dictation, with your
+  dictionary terms (and, with Context awareness on, names read from the screen) as
+  spelling hints.
+- **A cloud AI provider** (Anthropic, OpenAI, Groq): the transcript, your dictionary terms
+  and, with Context awareness on, names and terms read from the screen and the text around
+  the cursor. Command Mode and transforms also send the selected text.
+
+Context awareness can be turned off in Settings › Data and privacy; password fields are
+never read. **Privacy mode** switches everything to local Whisper and Ollama in one step,
+and the Flow Bar and tray icon show a dot while it's on.
+
+Shrimp itself also connects to Hugging Face to download speech models, and to GitHub to
+check for updates. It has no accounts, analytics or telemetry. History, recordings,
+dictionary and settings stay on your computer; Settings › Data and privacy decides how
+long transcripts are kept.
+
+## Building from source
+
+You need [Rust](https://rustup.rs) (the toolchain is pinned in `rust-toolchain.toml`),
+Node.js 22 or later and [pnpm](https://pnpm.io) 10, plus the platform tools:
+
+- **macOS:** Xcode with its command line tools, and CMake (`brew install cmake`).
+- **Windows:** Visual Studio 2022 Build Tools with "Desktop development with C++", CMake,
+  LLVM (with `LIBCLANG_PATH` set) and, for GPU builds, the
+  [Vulkan SDK](https://vulkan.lunarg.com).
 
 ```sh
 pnpm install
-pnpm tauri:dev      # hot-reload development
-pnpm app:dev:open   # signed dev app bundle, for anything that needs macOS permissions
+pnpm tauri:dev      # run with hot reload
 pnpm check          # formatting, lint, type check and all tests
-pnpm regression:mac # the scripted walkthrough against the signed dev app (macOS)
 ```
 
-Prerequisites, signing, testing with WAV files and driving the app with tauri-mcp are
-covered in [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md).
+macOS asks for permissions again after every rebuild unless the app has a stable
+signature; `pnpm app:dev` builds a dev app signed with a local identity that keeps them.
+[docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) covers setup, testing and the dev tools,
+[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) how the code fits together, and
+[docs/RELEASING.md](docs/RELEASING.md) how releases are built and signed.
 
-## Documentation
+## Known limitations
 
-- [docs/PARITY.md](docs/PARITY.md): feature checklist against Wispr Flow, by phase.
-- [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md): modules, data flow, platform layer,
-  storage and provider traits.
-- [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md): setup, commands and testing.
+- **Cloud engines and providers are untested live.** The OpenAI, Groq and Anthropic code
+  paths are covered by tests, but no successful request against the real services has been
+  verified. Local Whisper and Ollama are the tested setups.
+- **Windows 11 is untested.** Shrimp was verified on Windows 10. It should work on
+  Windows 11, but that hasn't been checked.
+- **The Windows installer is unsigned**, so SmartScreen warns on first run (see
+  [Install](#windows)).
+- **Apple Silicon only** on macOS, and **x64 only** on Windows. There is no Linux version.
+- Spoken commands ("new line", "press enter") are English only.
+
+## Status
+
+Shrimp is a personal project, shared in case it's useful to someone else. It's in
+maintenance mode: bugs get fixed, but new features are unlikely, and replies to issues and
+pull requests may be slow. See [CONTRIBUTING.md](CONTRIBUTING.md) for how to report a bug,
+and [SECURITY.md](SECURITY.md) for security problems. Changes are listed in
+[CHANGELOG.md](CHANGELOG.md).
+
+## License
+
+[MIT](LICENSE). Shrimp includes open-source software under other licenses, listed in
+[THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).

@@ -4,6 +4,11 @@ How to cut a Shrimp release and publish updates. The update code is described in
 [ARCHITECTURE.md](ARCHITECTURE.md#updates-pkg-03-pkg-04); development builds in
 [DEVELOPMENT.md](DEVELOPMENT.md).
 
+Releases are built locally, not by CI: signing and notarization need credentials that stay
+on the release machines (the Developer ID identity, the notarytool profile and the updater
+key). The repository has no GitHub Actions workflows. Releases and the update feed are
+published on [GitHub Releases](https://github.com/WHEREISDAN/shrimp/releases).
+
 ## Release and development builds
 
 |                   | Release                                            | Development                                 |
@@ -57,7 +62,7 @@ settings, data, keychain entries and privacy grants.
    | Public key   | `~/.tauri/shrimp-updater.key.pub`, and copied into `tauri.conf.json`                |
    | Key password | Login keychain, generic password, service `shrimp-updater-key`, account = your user |
 
-   To create them on a new machine (the owner's already exist; see the warning below):
+   To create a new key pair (only for a fork or a fresh project; see the warning below):
 
    ```sh
    mkdir -p ~/.tauri && chmod 700 ~/.tauri
@@ -75,26 +80,28 @@ settings, data, keychain entries and privacy grants.
    updates signed with this key. A lost key, or a new key pair, means existing installs
    can't update and must be reinstalled from a DMG.
 
+   A fork that publishes its own builds needs its own key pair, its own public key in
+   `tauri.conf.json` and its own feed URL.
+
 ## Cutting a release
 
-1. Bump the version in `src-tauri/tauri.conf.json`, `src-tauri/Cargo.toml` and
-   `package.json`, run `pnpm check`, and commit.
-2. Build, with the URL where `latest.json` will be served:
+1. Bump the version in `src-tauri/tauri.conf.json`, `src-tauri/Cargo.toml` (and the
+   `shrimp` entry in `src-tauri/Cargo.lock`) and `package.json`, add the release to
+   `CHANGELOG.md`, run `pnpm notices` if dependencies changed, run `pnpm check`, and
+   commit.
+2. Build, with the project's feed:
 
    ```sh
-   SHRIMP_UPDATE_FEED=https://example.com/shrimp/latest.json scripts/macos/release.sh
+   SHRIMP_UPDATE_FEED=https://github.com/WHEREISDAN/shrimp/releases/latest/download/latest.json \
+     scripts/macos/release.sh
    ```
 
-   Without `SHRIMP_UPDATE_FEED` the build has no feed: its tray menu says "Updates aren't
-   configured" and it never checks. Only `https://` is accepted, or `http://` to
-   `127.0.0.1` or `localhost` for local tests.
+   Every release build must set it. Without `SHRIMP_UPDATE_FEED` the build has no feed:
+   its tray menu says "Updates aren't configured" and it never checks. Only `https://` is
+   accepted, or `http://` to `127.0.0.1` or `localhost` for local tests.
 
-3. Publish:
-   - the DMG, for new installs;
-   - `Shrimp_<version>_aarch64.app.tar.gz` and `latest.json` together, at the feed's
-     location (the archive URL in `latest.json` is the feed URL's directory plus the
-     archive name). Upload the archive first and `latest.json` last, so the feed never
-     points at a missing file.
+3. Build Windows with the same feed (see [Windows](#windows)), then publish both
+   platforms in one GitHub release (see [Publishing a release](#publishing-a-release)).
 
 `--skip-notarize` signs without notarizing, for a quick local build. `--version X.Y.Z`
 builds another version without editing the version files, for test builds.
@@ -112,7 +119,8 @@ builds another version without editing the version files, for test builds.
    `Shrimp.app`. A rejection prints Apple's log.
 4. Packs the stapled app into `Shrimp_<version>_aarch64.app.tar.gz` (no macOS metadata or
    extended attributes) and signs it with the updater key, bound to the version
-   (`tauri signer sign --app-version`). With a feed, writes `latest.json`.
+   (`tauri signer sign --app-version`). With a feed, writes `latest.json` (see
+   [The update feed](#the-update-feed) for the archive URL it uses).
 5. Builds the DMG (the stapled app and a link to `/Applications`, HFS+, LZFSE), signs it,
    notarizes it, staples it and checks it with `spctl`.
 
@@ -181,7 +189,7 @@ spctl -a -t open --context context:primary-signature -vv Shrimp_<version>_aarch6
 ### Cutting a Windows release
 
 ```powershell
-$env:SHRIMP_UPDATE_FEED = 'https://example.com/shrimp/latest.json'
+$env:SHRIMP_UPDATE_FEED = 'https://github.com/WHEREISDAN/shrimp/releases/latest/download/latest.json'
 scripts/windows/release.ps1            # or: pnpm release:win
 ```
 
@@ -203,12 +211,40 @@ writes `latest.json` for `windows-x86_64`. The key is kept out of the Tauri buil
 | `updater\Shrimp_<version>_x64-setup.exe.sig`        | Its minisign signature             |
 | `updater\latest.json`                               | The feed for Windows (with a feed) |
 
-### Publishing both platforms
+## Publishing a release
 
-One feed serves both platforms when they ship the same version: merge the `platforms`
-entries of the two `latest.json` files (`darwin-aarch64` from the Mac, `windows-x86_64`
-from Windows) into one file. Upload both update files first and the merged `latest.json`
-last.
+Both platforms ship the same version in one GitHub release tagged `v<version>`. Each
+build writes a `latest.json` with its own platform only; the release carries one file that
+merges them.
+
+1. Merge the two feeds. With the Mac's file as `mac.json` and the Windows file as
+   `windows.json`:
+
+   ```sh
+   jq -s '.[0] + {platforms: (.[0].platforms + .[1].platforms)}' mac.json windows.json > latest.json
+   ```
+
+   Check that both files name the same `version`, and that the result has both
+   `darwin-aarch64` and `windows-x86_64` entries.
+
+2. Create the release with every file attached, `latest.json` included:
+
+   ```sh
+   gh release create v0.1.2 --title "Shrimp 0.1.2" --notes-file notes.md \
+     Shrimp_0.1.2_aarch64.dmg \
+     Shrimp_0.1.2_aarch64.app.tar.gz Shrimp_0.1.2_aarch64.app.tar.gz.sig \
+     Shrimp_0.1.2_x64-setup.exe Shrimp_0.1.2_x64-setup.exe.sig \
+     latest.json
+   ```
+
+   The Windows installer is both the download for new installs and the update. Attaching
+   the `.sig` files is optional (their content is in `latest.json`), but it lets anyone
+   check the signatures.
+
+3. Make sure the release is marked as the latest one. The feed URL,
+   `…/releases/latest/download/latest.json`, always serves the `latest.json` of the latest
+   release, so publishing a release publishes its update. Don't mark a pre-release as
+   latest.
 
 ### How a Windows update installs
 
@@ -221,20 +257,31 @@ An update keeps the user's launch-at-login choice (`src-tauri/windows/hooks.nsh`
 
 ## The update feed
 
-`latest.json` follows tauri-plugin-updater's static format:
+`latest.json` follows tauri-plugin-updater's static format. The merged file for a release
+looks like this:
 
 ```json
 {
-  "version": "0.1.1",
-  "pub_date": "2026-10-13T22:00:00.000Z",
+  "version": "0.1.2",
+  "pub_date": "2026-10-15T12:00:00.000Z",
   "platforms": {
     "darwin-aarch64": {
-      "signature": "<content of the .sig file>",
-      "url": "https://example.com/shrimp/Shrimp_0.1.1_aarch64.app.tar.gz"
+      "signature": "<content of Shrimp_0.1.2_aarch64.app.tar.gz.sig>",
+      "url": "https://github.com/WHEREISDAN/shrimp/releases/download/v0.1.2/Shrimp_0.1.2_aarch64.app.tar.gz"
+    },
+    "windows-x86_64": {
+      "signature": "<content of Shrimp_0.1.2_x64-setup.exe.sig>",
+      "url": "https://github.com/WHEREISDAN/shrimp/releases/download/v0.1.2/Shrimp_0.1.2_x64-setup.exe"
     }
   }
 }
 ```
+
+The release scripts write each `url`. For a GitHub Releases feed
+(`https://github.com/<owner>/<repo>/releases/latest/download/latest.json`) it points into
+the release tagged `v<version>`, so an installed copy downloads the exact files the feed
+announced even after a newer release becomes the latest. For any other feed URL the update
+file is expected next to `latest.json`.
 
 A release is offered when its version is greater than the running one. The signature
 must verify against the public key, and its signed version must match `version`

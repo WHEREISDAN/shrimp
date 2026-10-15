@@ -1,0 +1,61 @@
+name: Bug report
+description: Something in Shrimp doesn't work as it should.
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting a bug. Shrimp is maintained in spare time, so a reply may take a while.
+        For security problems, report privately instead (see SECURITY.md).
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating system
+      options:
+        - macOS
+        - Windows 10
+        - Windows 11
+    validations:
+      required: true
+  - type: input
+    id: os-version
+    attributes:
+      label: OS version
+      placeholder: macOS 15.5, Windows 10 22H2…
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Shrimp version
+      placeholder: 0.1.2
+    validations:
+      required: true
+  - type: input
+    id: setup
+    attributes:
+      label: Speech engine and AI provider
+      description: Local Whisper (which model) or a cloud engine; the AI provider, if AI edits are on.
+      placeholder: Local Whisper large-v3-turbo, no AI edits
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Hold fn in TextEdit and say "…"
+        2. …
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: What happened
+      description: Include any notice text Shrimp showed. Leave out API keys and anything private you dictated.
+    validations:
+      required: true
